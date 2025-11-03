@@ -416,43 +416,39 @@ function VisualizationContent() {
             initializeMapCanvas(map);
             addCustomLayers(map, otherSignals, OwnCommunitySignal);
 
-            // Add flood heatmap layer (same as dashboard)
+            // Add flood polygons using Mapbox vector tileset
             try {
-                const floodFiles = [
-                    { id: "metro-manila", url: "/MetroManila_Flood.geojson" },
-                ];
-                floodFiles.forEach(file => {
-                    const sourceId = `floods-${file.id}`;
-                    const polygonLayerId = `flood-polygons-${file.id}`;
+                const sourceId = "floods-metro-manila";
+                const polygonLayerId = "flood-polygons-metro-manila";
 
-                    // Add GeoJSON source
-                    if (!map.getSource(sourceId)) {
-                        map.addSource(sourceId, {
-                            type: "geojson",
-                            data: file.url
-                        });
-                    }
+                // Add vector tile source from Mapbox
+                if (!map.getSource(sourceId)) {
+                    map.addSource(sourceId, {
+                        type: "vector",
+                        url: "mapbox://rodelll.3lm08j9b"
+                    });
+                }
 
-                    // Add polygon fill layer
-                    if (!map.getLayer(polygonLayerId)) {
-                        map.addLayer({
-                            id: polygonLayerId,
-                            type: "fill",
-                            source: sourceId,
-                            paint: {
-                                "fill-color": [
-                                    "match",
-                                    ["get", "Var"],
-                                    1, "#ffff00",   // Low hazard → Yellow
-                                    2, "#ff9900",   // Medium hazard → Orange
-                                    3, "#ff0000",   // High hazard → Red
-                                    "#000000"       // fallback → Black
-                                ],
-                                "fill-opacity": 0.5
-                            }
-                        }, "waterway-label");
-                    }
-                });
+                // Add polygon fill layer
+                if (!map.getLayer(polygonLayerId)) {
+                    map.addLayer({
+                        id: polygonLayerId,
+                        type: "fill",
+                        source: sourceId,
+                        "source-layer": "MetroManila_Flood", // Use the tileset's source layer name
+                        paint: {
+                            "fill-color": [
+                                "match",
+                                ["get", "Var"],
+                                1, "#ffff00",   // Low hazard → Yellow
+                                2, "#ff9900",   // Medium hazard → Orange
+                                3, "#ff0000",   // High hazard → Red
+                                "#000000"       // fallback → Black
+                            ],
+                            "fill-opacity": 0.5
+                        }
+                    }, "waterway-label");
+                }
             } catch (e) {
                 console.warn("[Visualization] could not add flood polygons", e);
             }

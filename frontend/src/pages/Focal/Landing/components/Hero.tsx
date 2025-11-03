@@ -65,43 +65,39 @@ export function LandingHero({ showSearch, setShowSearch }: { showSearch: boolean
     map.on("load", () => {
       const cinematicEasing = (t: number) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 
-      // Add flood heatmap layer (same as dashboard)
+      // Add flood heatmap layer using Mapbox tileset
       try {
-        const floodFiles = [
-          { id: "metro-manila", url: "/MetroManila_Flood.geojson" },
-        ];
-        floodFiles.forEach(file => {
-          const sourceId = `floods-${file.id}`;
-          const polygonLayerId = `flood-polygons-${file.id}`;
+        const sourceId = "floods-metro-manila";
+        const polygonLayerId = "flood-polygons-metro-manila";
 
-          // Add GeoJSON source
-          if (!map.getSource(sourceId)) {
-            map.addSource(sourceId, {
-              type: "geojson",
-              data: file.url
-            });
-          }
+        // Add vector tile source from Mapbox
+        if (!map.getSource(sourceId)) {
+          map.addSource(sourceId, {
+            type: "vector",
+            url: "mapbox://rodelll.3lm08j9b"
+          });
+        }
 
-          // Add polygon fill layer
-          if (!map.getLayer(polygonLayerId)) {
-            map.addLayer({
-              id: polygonLayerId,
-              type: "fill",
-              source: sourceId,
-              paint: {
-                "fill-color": [
-                  "match",
-                  ["get", "Var"],
-                  1, "#ffff00",   // Low hazard → Yellow
-                  2, "#ff9900",   // Medium hazard → Orange
-                  3, "#ff0000",   // High hazard → Red
-                  "#000000"       // fallback → Black
-                ],
-                "fill-opacity": 0.5
-              }
-            }, "waterway-label");
-          }
-        });
+        // Add polygon fill layer
+        if (!map.getLayer(polygonLayerId)) {
+          map.addLayer({
+            id: polygonLayerId,
+            type: "fill",
+            source: sourceId,
+            "source-layer": "MetroManila_Flood", // Use the tileset's source layer name
+            paint: {
+              "fill-color": [
+                "match",
+                ["get", "Var"],
+                1, "#ffff00",   // Low hazard → Yellow
+                2, "#ff9900",   // Medium hazard → Orange
+                3, "#ff0000",   // High hazard → Red
+                "#000000"       // fallback → Black
+              ],
+              "fill-opacity": 0.5
+            }
+          }, "waterway-label");
+        }
       } catch (e) {
         console.warn("[LandingHero] could not add flood polygons", e);
       }
