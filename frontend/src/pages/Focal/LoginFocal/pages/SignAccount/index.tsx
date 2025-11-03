@@ -137,7 +137,6 @@ export function LoginFocal() {
           </label>
           <Input
             type="text"
-            placeholder="ID"
             value={id}
             onChange={e => {
               setId(e.target.value);
@@ -165,7 +164,6 @@ export function LoginFocal() {
             <div className="relative">
               <Input
                 type={showPassword ? "text" : "password"}
-                placeholder="Password"
                 value={password}
                 onChange={e => {
                   setPassword(e.target.value);

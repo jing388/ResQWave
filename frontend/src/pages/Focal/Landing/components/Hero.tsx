@@ -158,12 +158,8 @@ export function LandingHero({ showSearch, setShowSearch }: { showSearch: boolean
       //     labelLayerId
       //   );
       // }
-      const statusColorExpr: mapboxgl.Expression = [
-        "case",
-        ["==", ["get", "status"], "online"],
-        "#22c55e",
-        "#6b7280",
-      ];
+      // Use consistent blue color for all signals (online/offline)
+      const statusColor = "#6098F4";
 
       // Add signals source with current features (may be empty). We'll update
       // this source when `mapFeatures` changes.
@@ -178,7 +174,7 @@ export function LandingHero({ showSearch, setShowSearch }: { showSearch: boolean
         type: "circle",
         source: "signals",
         paint: {
-          "circle-color": statusColorExpr,
+          "circle-color": statusColor,
           "circle-radius": 22,
           "circle-opacity": 0,
           "circle-blur": 0.3,
@@ -189,7 +185,7 @@ export function LandingHero({ showSearch, setShowSearch }: { showSearch: boolean
 
       // Concentric rings (outer to inner) using circle layers for stability
       const ringPaint = (opacity: number): mapboxgl.CirclePaint => ({
-        "circle-color": statusColorExpr,
+        "circle-color": statusColor,
         "circle-opacity": opacity,
       });
 
@@ -230,7 +226,7 @@ export function LandingHero({ showSearch, setShowSearch }: { showSearch: boolean
         type: "circle",
         source: "signals",
         paint: {
-          "circle-color": statusColorExpr,
+          "circle-color": statusColor,
           "circle-radius": 10,
           "circle-opacity": 1,
           "circle-blur": 0,
@@ -386,7 +382,7 @@ export function LandingHero({ showSearch, setShowSearch }: { showSearch: boolean
         <div style={{ position: 'relative', width: '100%', maxWidth: 350, minHeight: 56, overflow: 'hidden' }}>
           {/* Button (hidden when search is shown) */}
           <Button
-            className={`bg-white text-black text-lg shadow p- hover:bg-gray-200 hover:shadow-lg transition-all duration-500 cursor-pointer flex items-center justify-center ${showSearch ? 'opacity-0 pointer-events-none translate-x-32' : 'opacity-100 translate-x-0'}`}
+            className={`bg-white text-black text-lg shadow px-6 py-3 hover:bg-gray-200 hover:shadow-lg transition-all duration-500 cursor-pointer flex items-center justify-center ${showSearch ? 'opacity-0 pointer-events-none translate-x-32' : 'opacity-100 translate-x-0'}`}
             style={{ width: 'auto', height: 'auto', position: 'absolute', left: 0, top: 0, transition: 'all 0.5s cubic-bezier(.4,0,.2,1), transform 0.5s cubic-bezier(.4,0,.2,1)' }}
             onClick={() => setShowSearch(true)}
           >
