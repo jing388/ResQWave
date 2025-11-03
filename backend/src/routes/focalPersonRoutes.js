@@ -11,6 +11,7 @@ const {
     updateFocalPhotos,
     getFocalPhoto,
     getAlternativeFocalPhoto,
+    deleteFocalPhoto,
     changePassword,
 } = require("../controllers/focalPersonController");
 
@@ -24,6 +25,7 @@ router.get("/", getFocalPersons);
 router.get("/:id", getFocalPerson);
 router.get("/:id/photo", getFocalPhoto);
 router.get("/:id/altPhoto", getAlternativeFocalPhoto);
+router.delete("/:id/photo", deleteFocalPhoto);
 router.put("/:id", updateFocalPerson);
 router.put("/me/changePassword", changePassword);
 router.put("/:id/changePassword", changePassword);

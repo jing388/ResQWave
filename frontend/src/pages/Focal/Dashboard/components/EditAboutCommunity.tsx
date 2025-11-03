@@ -3,7 +3,7 @@ import { DropdownIcon } from '@/components/ui/DropdownIcon';
 
 import { useState, useRef, useEffect, forwardRef, useImperativeHandle, useCallback } from 'react';
 import { Input } from '@/components/ui/input';
-import { Trash, Upload } from 'lucide-react';
+import { Loader2, Trash, Upload } from 'lucide-react';
 import {
     AlertDialog,
     AlertDialogContent,
@@ -86,6 +86,9 @@ const EditAbout = forwardRef<EditAboutHandle, EditAboutProps>(({ open, onClose, 
     const [altPhotoUrl, setAltPhotoUrl] = useState<string | null>(null);
     const [altPhotoFile, setAltPhotoFile] = useState<File | null>(null);
     const [altPhotoError, setAltPhotoError] = useState('');
+    const [altPhotoDeleted, setAltPhotoDeleted] = useState(false);
+    const [initialAltPhotoExists, setInitialAltPhotoExists] = useState(false);
+    const [altPhotoLoading, setAltPhotoLoading] = useState(false);
     // const fileInputRef = useRef<HTMLInputElement | null>(null);
     const mainFileInputRef = useRef<HTMLInputElement | null>(null);
     // expose imperative method to parent with optional continue callback
@@ -124,14 +127,14 @@ const EditAbout = forwardRef<EditAboutHandle, EditAboutProps>(({ open, onClose, 
 
     // Validation functions
     const validateName = (value: string): string => {
-        if (!value.trim()) return '';
+        if (!value.trim()) return 'Name is required';
         if (value.trim().length < 2) return 'Name must be at least 2 characters';
         if (!/^[a-zA-Z\s]+$/.test(value)) return 'Name can only contain letters and spaces';
         return '';
     };
 
     const validateContact = (value: string): string => {
-        if (!value.trim()) return '';
+        if (!value.trim()) return 'Contact number is required';
         // Philippine phone number: must start with 09 and have 11 digits, or +63 format
         if (!/^(09|\+639)\d{9}$/.test(value.replace(/\s/g, ''))) {
             return 'Invalid phone number format (e.g., 09123456789)';
@@ -140,7 +143,7 @@ const EditAbout = forwardRef<EditAboutHandle, EditAboutProps>(({ open, onClose, 
     };
 
     const validateEmail = (value: string): string => {
-        if (!value.trim()) return '';
+        if (!value.trim()) return 'Email is required';
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(value)) return 'Invalid email format';
         return '';
@@ -148,18 +151,32 @@ const EditAbout = forwardRef<EditAboutHandle, EditAboutProps>(({ open, onClose, 
 
     // Handle input changes with validation
     const handleNameChange = (value: string) => {
-        setAltFocalName(value);
-        setNameError(validateName(value));
+        // Prevent numbers and other forbidden characters by sanitizing input
+        const sanitized = value.replace(/[^a-zA-Z\s]/g, '');
+        setAltFocalName(sanitized);
+        setNameError(validateName(sanitized));
     };
 
     const handleContactChange = (value: string) => {
-        setAltFocalContact(value);
-        setContactError(validateContact(value));
+        // Allow only digits and an optional leading '+'. Strip spaces and other chars.
+        let raw = value.replace(/\s+/g, '');
+        // Keep at most one leading '+' if present
+        const hasPlus = raw.startsWith('+');
+        raw = raw.replace(/(?!^)\+/g, '');
+        // Extract digits only
+        let digits = hasPlus ? raw.slice(1).replace(/\D+/g, '') : raw.replace(/\D+/g, '');
+        // Limit to maximum 11 digits
+        digits = digits.slice(0, 11);
+        const v = hasPlus ? '+' + digits : digits;
+        setAltFocalContact(v);
+        setContactError(validateContact(v));
     };
 
     const handleEmailChange = (value: string) => {
-        setAltFocalEmail(value);
-        setEmailError(validateEmail(value));
+        // Strip any leading/trailing spaces and internal accidental spaces
+        const v = value.replace(/\s+/g, '');
+        setAltFocalEmail(v);
+        setEmailError(validateEmail(v));
     };
 
     const [floodwaterRange, setFloodwaterRange] = useState("");
@@ -213,11 +230,17 @@ const EditAbout = forwardRef<EditAboutHandle, EditAboutProps>(({ open, onClose, 
                 credentials: 'include',
                 headers: token ? { Authorization: `Bearer ${token}` } : {},
             });
-            if (!res.ok) return setAltPhotoUrl(null);
+            if (!res.ok) {
+                setAltPhotoUrl(null);
+                setInitialAltPhotoExists(false);
+                return;
+            }
             const blob = await res.blob();
             setAltPhotoUrl(URL.createObjectURL(blob));
+            setInitialAltPhotoExists(true);
         } catch {
             setAltPhotoUrl(null);
+            setInitialAltPhotoExists(false);
         }
     }, [token]);
 
@@ -239,11 +262,15 @@ const EditAbout = forwardRef<EditAboutHandle, EditAboutProps>(({ open, onClose, 
         setContactError('');
         setEmailError('');
 
+        // Reset photo deletion flag when modal opens
+        setAltPhotoDeleted(false);
+
         // Fetch alt focal photo from backend if available
         if (data?.groupName) {
             fetchAltFocalPhoto(data.groupName);
         } else {
             setAltPhotoUrl(null);
+            setInitialAltPhotoExists(false);
         }
 
         // Set dropdowns to show data if available
@@ -473,7 +500,13 @@ const EditAbout = forwardRef<EditAboutHandle, EditAboutProps>(({ open, onClose, 
                     <div style={{ marginTop: 15, marginBottom: 10, background: '#fff', color: '#111', padding: '10px 18px', borderRadius: 6, fontSize: 15, fontWeight: 600 }}>Alternative Focal Person</div>
 
 
-                    {altPhotoUrl ? (
+                    {altPhotoLoading ? (
+                        <div style={{ background: '#0b0b0b', borderRadius: 6, display: 'flex', justifyContent: 'center' }}>
+                            <div style={{ width: '100%', maxWidth: '100%', height: 240, borderRadius: 8, overflow: 'hidden', position: 'relative', backgroundColor: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <Loader2 className="w-12 h-12 text-blue-500 animate-spin" />
+                            </div>
+                        </div>
+                    ) : altPhotoUrl ? (
                         <div style={{ background: '#0b0b0b', borderRadius: 6, display: 'flex', justifyContent: 'center' }}>
                             <div style={{ width: '100%', maxWidth: '100%', height: 240, borderRadius: 8, overflow: 'hidden', position: 'relative', backgroundColor: '#111' }}>
                                 <div style={{ position: 'absolute', inset: 0, backgroundImage: `url(${altPhotoUrl})`, backgroundSize: 'cover', backgroundRepeat: 'no-repeat', backgroundPosition: 'center', filter: 'blur(18px) brightness(0.55)', transform: 'scale(1.2)' }} />
@@ -487,6 +520,7 @@ const EditAbout = forwardRef<EditAboutHandle, EditAboutProps>(({ open, onClose, 
                                         setAltPhotoUrl(null);
                                         setAltPhotoFile(null);
                                         setAltPhotoError('');
+                                        setAltPhotoDeleted(true); // Mark as deleted
                                     }}
                                     style={{ position: 'absolute', right: 15, bottom: 15, width: 36, height: 36, borderRadius: 1, background: '#fff', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 2px 6px rgba(0,0,0,0.3)' }}>
                                     <Trash size={15} color="red" strokeWidth={3} />
@@ -549,6 +583,7 @@ const EditAbout = forwardRef<EditAboutHandle, EditAboutProps>(({ open, onClose, 
                         });
 
                         // run validation and set preview only if valid
+                        setAltPhotoLoading(true);
                         validateAltPhoto(f).then(err => {
                             if (err) {
                                 setAltPhotoError(err);
@@ -558,6 +593,7 @@ const EditAbout = forwardRef<EditAboutHandle, EditAboutProps>(({ open, onClose, 
                                 }
                                 setAltPhotoUrl(null);
                                 setAltPhotoFile(null);
+                                setAltPhotoLoading(false);
                             } else {
                                 setAltPhotoError('');
                                 try {
@@ -567,8 +603,10 @@ const EditAbout = forwardRef<EditAboutHandle, EditAboutProps>(({ open, onClose, 
                                     }
                                     setAltPhotoUrl(url);
                                     setAltPhotoFile(f);
+                                    setAltPhotoLoading(false);
                                 } catch {
                                     setAltPhotoError('Failed to read file');
+                                    setAltPhotoLoading(false);
                                 }
                             }
                         });
@@ -584,6 +622,7 @@ const EditAbout = forwardRef<EditAboutHandle, EditAboutProps>(({ open, onClose, 
                     <div style={{ flex: 1, marginTop: 2 }}>
                         <Input
                             value={altFocalName}
+                            placeholder="Enter full name"
                             style={{
                                 padding: '22px 17px',
                                 border: nameError ? '1px solid #ef4444' : '1px solid #404040',
@@ -607,6 +646,7 @@ const EditAbout = forwardRef<EditAboutHandle, EditAboutProps>(({ open, onClose, 
                         <div style={{ padding: '0 0 6px 0', color: '#fff', fontSize: 14, fontWeight: 400, marginTop: 17 }}>Contact Number</div>
                         <Input
                             value={altFocalContact}
+                            placeholder="09123456789"
                             style={{
                                 padding: '21px 17px',
                                 border: contactError ? '1px solid #ef4444' : '1px solid #404040',
@@ -628,6 +668,7 @@ const EditAbout = forwardRef<EditAboutHandle, EditAboutProps>(({ open, onClose, 
                         <div style={{ padding: '0 0 6px 0', color: '#fff', fontSize: 14, fontWeight: 400, marginTop: 17 }}>Email</div>
                         <Input
                             value={altFocalEmail}
+                            placeholder="example@email.com"
                             style={{
                                 padding: '21px 17px',
                                 border: emailError ? '1px solid #ef4444' : '1px solid #404040',
@@ -666,7 +707,7 @@ const EditAbout = forwardRef<EditAboutHandle, EditAboutProps>(({ open, onClose, 
                                 setConfirmSaveOpen(true);
                             }
                         }}
-                        disabled={!!(nameError || contactError || emailError)}
+                        disabled={!!(nameError || contactError || emailError || !altFocalName.trim() || !altFocalContact.trim() || !altFocalEmail.trim())}
                         className="w-full bg-gradient-to-t from-[#3B82F6] to-[#70A6FF] transition-colors duration-150 cursor-pointer hover:from-[#2563eb] hover:to-[#60a5fa] text-white py-3 px-4.5 rounded-md font-medium text-[15px] tracking-[0.6px] border-0 disabled:opacity-50 disabled:cursor-not-allowed"
                         style={{ width: '100%' }}
                     >
@@ -740,6 +781,14 @@ const EditAbout = forwardRef<EditAboutHandle, EditAboutProps>(({ open, onClose, 
                                                 'Authorization': token ? `Bearer ${token}` : '',
                                             },
                                         });
+                                        // If alt focal photo was deleted, send DELETE request
+                                        if (altPhotoDeleted && !altPhotoFile && initialAltPhotoExists) {
+                                            await fetch(`${import.meta.env.VITE_BACKEND_URL}/neighborhood/${data.groupName}/alt-photo`, {
+                                                method: 'DELETE',
+                                                credentials: 'include',
+                                                headers: token ? { Authorization: `Bearer ${token}` } : {},
+                                            });
+                                        }
                                         // If alt focal photo was changed, upload it
                                         if (altPhotoFile) {
                                             const formData = new FormData();

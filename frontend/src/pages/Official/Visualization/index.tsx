@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import { CommunityGroupInfoSheet } from '../CommunityGroups/components/CommunityGroupInfoSheet';
 
 import DistressSignalAlert, { type DistressSignalAlertHandle } from './components/DistressSignalAlert';
+import { HazardLegend } from './components/HazardLegend';
 import LiveReportSidebar from './components/LiveReportSidebar';
 import MapControls from './components/MapControls';
 import RescueFormAlerts, { type RescueFormAlertsHandle } from './components/RescueFormAlerts';
@@ -414,6 +415,48 @@ function VisualizationContent() {
         map.on("load", () => {
             initializeMapCanvas(map);
             addCustomLayers(map, otherSignals, OwnCommunitySignal);
+
+            // Add flood heatmap layer (same as dashboard)
+            try {
+                const floodFiles = [
+                    { id: "metro-manila", url: "/MetroManila_Flood.geojson" },
+                ];
+                floodFiles.forEach(file => {
+                    const sourceId = `floods-${file.id}`;
+                    const polygonLayerId = `flood-polygons-${file.id}`;
+
+                    // Add GeoJSON source
+                    if (!map.getSource(sourceId)) {
+                        map.addSource(sourceId, {
+                            type: "geojson",
+                            data: file.url
+                        });
+                    }
+
+                    // Add polygon fill layer
+                    if (!map.getLayer(polygonLayerId)) {
+                        map.addLayer({
+                            id: polygonLayerId,
+                            type: "fill",
+                            source: sourceId,
+                            paint: {
+                                "fill-color": [
+                                    "match",
+                                    ["get", "Var"],
+                                    1, "#ffff00",   // Low hazard → Yellow
+                                    2, "#ff9900",   // Medium hazard → Orange
+                                    3, "#ff0000",   // High hazard → Red
+                                    "#000000"       // fallback → Black
+                                ],
+                                "fill-opacity": 0.5
+                            }
+                        }, "waterway-label");
+                    }
+                });
+            } catch (e) {
+                console.warn("[Visualization] could not add flood polygons", e);
+            }
+
             setupInfoBubble(map);
             setupMapInteractions(map);
 
@@ -614,10 +657,13 @@ function VisualizationContent() {
             <RescueFormAlerts ref={rescueFormAlertsRef} />
 
             {/* Distress Signal Alert */}
-            <DistressSignalAlert 
+            <DistressSignalAlert
                 ref={distressSignalAlertRef}
                 onGoToLiveReport={() => setIsLiveReportOpen(true)}
             />
+
+            {/* Hazard Legend */}
+            <HazardLegend />
 
             {/* Signal Status Legend */}
             <SignalStatusLegend />

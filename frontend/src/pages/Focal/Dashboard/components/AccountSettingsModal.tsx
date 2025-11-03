@@ -1,7 +1,7 @@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog-focal';
 import { Input } from '@/components/ui/input';
 import { API_BASE_URL, apiFetch } from '@/pages/Official/Reports/api/api';
-import { ArrowLeft, Camera, Check, Eye, EyeOff, User, X } from 'lucide-react';
+import { ArrowLeft, Camera, Check, Eye, EyeOff, Loader2, User, X } from 'lucide-react';
 import { RefreshCw } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useFocalAuth } from '../../context/focalAuthContext';
@@ -10,6 +10,9 @@ import { isAccountFormDirty, validatePassword } from '../utils/passwordUtils';
 
 export default function AccountSettingsModal({ open, onClose, onSaved, onSaveProfile, center = null, isDirtyRef = null }: AccountSettingsModalProps) {
     // Helper to refresh profile data from backend
+    const [refreshHover, setRefreshHover] = useState(false);
+    const [closeHover, setCloseHover] = useState(false);
+
     const refreshProfile = async () => {
         if (!focalId) {
             console.warn('[AccountSettingsModal] Cannot refresh: No focalId available');
@@ -38,25 +41,31 @@ export default function AccountSettingsModal({ open, onClose, onSaved, onSavePro
                 email: data.email || '',
             }));
 
-            // Fetch photo as blob and create object URL using API_BASE_URL
+            // Fetch photo as blob and create object URL using API_BASE_URL (await so we can show toast reliably)
             const token = localStorage.getItem('focalToken') || localStorage.getItem('resqwave_token') || '';
             if (!token) {
                 console.warn('[AccountSettingsModal] No auth token for photo refresh');
                 setPhotoUrl(null);
                 setInitialProfile((prev) => ({ ...prev, photoUrl: null }));
                 setPhotoFile(null);
+                // Notify dashboard to show bottom-left toast
+                try { window.dispatchEvent(new CustomEvent('dashboard:show-saved', { detail: { message: 'Refreshed successfully!', showViewLogs: false } })); } catch { /* Ignore event errors */ }
                 return;
             }
 
-            fetch(`${API_BASE_URL}/focalperson/${focalId}/photo`, {
-                credentials: 'include',
-                headers: {
-                    Authorization: `Bearer ${token}`
-                }
-            })
-                .then(async (res) => {
-                    if (!res.ok) throw new Error('No photo');
-                    const blob = await res.blob();
+            try {
+                const resPhoto = await fetch(`${API_BASE_URL}/focalperson/${focalId}/photo`, {
+                    credentials: 'include',
+                    headers: {
+                        Authorization: `Bearer ${token}`
+                    }
+                });
+                if (!resPhoto.ok) {
+                    // No photo available
+                    setPhotoUrl(null);
+                    setInitialProfile((prev) => ({ ...prev, photoUrl: null }));
+                } else {
+                    const blob = await resPhoto.blob();
                     if (blob.size > 0) {
                         const url = URL.createObjectURL(blob);
                         setPhotoUrl(url);
@@ -65,13 +74,17 @@ export default function AccountSettingsModal({ open, onClose, onSaved, onSavePro
                         setPhotoUrl(null);
                         setInitialProfile((prev) => ({ ...prev, photoUrl: null }));
                     }
-                })
-                .catch((err) => {
-                    console.error('[AccountSettingsModal] Failed to refresh photo:', err);
-                    setPhotoUrl(null);
-                    setInitialProfile((prev) => ({ ...prev, photoUrl: null }));
-                });
+                }
+            } catch (err) {
+                console.error('[AccountSettingsModal] Failed to refresh photo:', err);
+                setPhotoUrl(null);
+                setInitialProfile((prev) => ({ ...prev, photoUrl: null }));
+            }
+
             setPhotoFile(null); // reset file input
+
+            // Notify dashboard to show bottom-left toast
+            try { window.dispatchEvent(new CustomEvent('dashboard:show-saved', { detail: { message: 'Refreshed successfully!', showViewLogs: false } })); } catch { /* Ignore event errors */ }
         } catch (err) {
             console.error('[AccountSettingsModal] Failed to refresh profile:', err);
             // fallback to empty or previous state
@@ -80,6 +93,8 @@ export default function AccountSettingsModal({ open, onClose, onSaved, onSavePro
     const [photoUrl, setPhotoUrl] = useState<string | null>(null);
     const [photoFile, setPhotoFile] = useState<File | null>(null);
     const [photoError, setPhotoError] = useState('');
+    const [photoDeleted, setPhotoDeleted] = useState(false);
+    const [photoLoading, setPhotoLoading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement | null>(null);
     // const [isDragging, setIsDragging] = useState(false); // Removed unused variable
     const { focalId } = useFocalAuth();
@@ -136,23 +151,31 @@ export default function AccountSettingsModal({ open, onClose, onSaved, onSavePro
 
     // Handle input changes with validation
     const handleFirstNameChange = (value: string) => {
-        setFirstName(value);
-        setFirstNameError(validateFirstName(value));
+        // Allow only letters and spaces (prevent numbers/symbols)
+        const sanitized = value.replace(/[^a-zA-Z\s]/g, '');
+        setFirstName(sanitized);
+        setFirstNameError(validateFirstName(sanitized));
     };
 
     const handleLastNameChange = (value: string) => {
-        setLastName(value);
-        setLastNameError(validateLastName(value));
+        // Allow only letters and spaces (prevent numbers/symbols)
+        const sanitized = value.replace(/[^a-zA-Z\s]/g, '');
+        setLastName(sanitized);
+        setLastNameError(validateLastName(sanitized));
     };
 
     const handlePhoneNumberChange = (value: string) => {
-        setPhoneNumber(value);
-        setPhoneError(validatePhoneNumber(value));
+        // Strip spaces and non-digit characters; keep digits only and limit to 11 digits
+        const v = value.replace(/\s+/g, '').replace(/\D+/g, '').slice(0, 11);
+        setPhoneNumber(v);
+        setPhoneError(validatePhoneNumber(v));
     };
 
     const handleEmailChange = (value: string) => {
-        setEmail(value);
-        setEmailError(validateEmailAddress(value));
+        // Remove accidental spaces from email input
+        const v = value.replace(/\s+/g, '');
+        setEmail(v);
+        setEmailError(validateEmailAddress(v));
     };
 
     // Profile picture validation
@@ -217,17 +240,21 @@ export default function AccountSettingsModal({ open, onClose, onSaved, onSavePro
         if (!file) {
             setPhotoFile(null);
             setPhotoError('');
+            setPhotoLoading(false);
             return;
         }
 
+        setPhotoLoading(true);
         const error = await validateProfilePicture(file);
         if (error) {
             setPhotoError(error);
             setPhotoFile(null);
+            setPhotoLoading(false);
             if (fileInputRef.current) fileInputRef.current.value = '';
         } else {
             setPhotoError('');
             setPhotoFile(file);
+            setPhotoLoading(false);
         }
     };
 
@@ -311,6 +338,7 @@ export default function AccountSettingsModal({ open, onClose, onSaved, onSavePro
             });
 
         setPhotoFile(null); // reset file input
+        setPhotoDeleted(false); // reset deletion flag
     }, [open, focalId]);
 
     // Change password form state
@@ -433,8 +461,8 @@ export default function AccountSettingsModal({ open, onClose, onSaved, onSavePro
             email !== initialProfile.email;
         // Password fields
         const passwordDirty = currentPassword !== '' || newPassword !== '' || confirmPassword !== '';
-        // Photo dirty: changed, added, or removed
-        const photoDirty = photoFile !== null || (photoUrl === null && initialProfile.photoUrl !== null);
+        // Photo dirty: changed, added, removed, or deletion flagged
+        const photoDirty = photoFile !== null || photoDeleted || (photoUrl === null && initialProfile.photoUrl !== null);
         return profileDirty || passwordDirty || photoDirty;
     };
 
@@ -569,14 +597,17 @@ export default function AccountSettingsModal({ open, onClose, onSaved, onSavePro
                     <button
                         onClick={refreshProfile}
                         aria-label="Refresh"
+                        onMouseEnter={() => setRefreshHover(true)}
+                        onMouseLeave={() => setRefreshHover(false)}
                         style={{
                             background: 'transparent',
                             border: 'none',
-                            color: '#BABABA',
+                            color: refreshHover ? '#fff' : '#BABABA',
                             fontSize: 19,
                             cursor: 'pointer',
                             marginRight: 2,
                             transition: 'color 0.18s, transform 0.18s',
+                            transform: refreshHover ? 'scale(1.06) rotate(12deg)' : 'none',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
@@ -586,7 +617,24 @@ export default function AccountSettingsModal({ open, onClose, onSaved, onSavePro
                     >
                         <RefreshCw size={17} />
                     </button>
-                    <button onClick={handleClose} aria-label="Close" style={{ background: 'transparent', border: 'none', color: '#BABABA', fontSize: 18, cursor: 'pointer', transition: 'color 0.18s, transform 0.18s' }}>✕</button>
+                    <button
+                        onClick={handleClose}
+                        aria-label="Close"
+                        onMouseEnter={() => setCloseHover(true)}
+                        onMouseLeave={() => setCloseHover(false)}
+                        style={{
+                            background: 'transparent',
+                            border: 'none',
+                            color: closeHover ? '#fff' : '#BABABA',
+                            fontSize: 18,
+                            cursor: 'pointer',
+                            transition: 'color 0.18s, transform 0.18s',
+                            transform: closeHover ? 'scale(1.06)' : 'none'
+                        }}
+                    >✕</button>
+
+                    {/* Small inline toast shown after refresh */}
+                    {/* no inline toast here; dashboard will show the bottom-left toast */}
                 </div>
 
                 {/* Exit confirmation dialog */}
@@ -616,7 +664,7 @@ export default function AccountSettingsModal({ open, onClose, onSaved, onSavePro
                             <h2 style={{ margin: 0, fontSize: 27, fontWeight: 800, letterSpacing: 0.6 }}>Profile Information</h2>
                         </div>
 
-                        <div style={{ marginTop: 28, display: 'flex', flexDirection: 'column', paddingRight: 6 }}>
+                        <div style={{ marginTop: 28, display: 'flex', flexDirection: 'column', paddingRight: 6, overflowY: 'auto', maxHeight: 'calc(96vh - 220px)' }}>
                             {/* Profile Image */}
                             <div className="flex flex-col items-center mb-8">
                                 <div className="relative flex flex-col items-center justify-center" style={{ width: 160, height: 160 }}>
@@ -635,7 +683,11 @@ export default function AccountSettingsModal({ open, onClose, onSaved, onSavePro
                                         style={{ width: 140, height: 140 }}
                                         title="Upload profile picture&#10;Max size: 5MB | Min dimensions: 200x200px&#10;Allowed formats: JPG, PNG, WebP"
                                     >
-                                        {photoFile === null && !photoUrl ? (
+                                        {photoLoading ? (
+                                            <div className="w-full h-full bg-[#262626] rounded-full flex items-center justify-center">
+                                                <Loader2 className="w-10 h-10 text-blue-500 animate-spin" />
+                                            </div>
+                                        ) : photoFile === null && !photoUrl ? (
                                             <div className="w-full h-full bg-[#262626] rounded-full flex items-center justify-center">
                                                 <User className="w-16 h-16 text-[#BABABA] opacity-60" />
                                             </div>
@@ -653,8 +705,8 @@ export default function AccountSettingsModal({ open, onClose, onSaved, onSavePro
                                             />
                                         ) : null}
                                     </div>
-                                    {/* Remove button if photoFile is set */}
-                                    {photoFile && (
+                                    {/* Remove button if photoFile is set or photoUrl exists */}
+                                    {(photoFile || photoUrl) && (
                                         <div
                                             className="absolute bottom-[30px] right-4 w-9 h-9 bg-red-500 rounded-full flex items-center justify-center cursor-pointer hover:bg-red-600 transition-colors shadow-lg"
                                             onClick={e => {
@@ -662,6 +714,7 @@ export default function AccountSettingsModal({ open, onClose, onSaved, onSavePro
                                                 setPhotoFile(null);
                                                 setPhotoUrl(null);
                                                 setPhotoError('');
+                                                setPhotoDeleted(true);
                                                 if (fileInputRef.current) fileInputRef.current.value = "";
                                             }}
                                             style={{ transform: 'translateY(50%)' }}
@@ -669,8 +722,8 @@ export default function AccountSettingsModal({ open, onClose, onSaved, onSavePro
                                             <X className="w-4 h-4 text-white" />
                                         </div>
                                     )}
-                                    {/* Camera button if no photoFile */}
-                                    {!photoFile && (
+                                    {/* Camera button if no photoFile and no photoUrl */}
+                                    {!photoFile && !photoUrl && (
                                         <div
                                             className="absolute -bottom-[-30px] right-4 w-9 h-9 bg-blue-500 rounded-full flex items-center justify-center cursor-pointer hover:bg-blue-600 transition-colors shadow-lg"
                                             onClick={e => { e.stopPropagation(); document.getElementById('profile-photo-upload')?.click(); }}
@@ -862,9 +915,22 @@ export default function AccountSettingsModal({ open, onClose, onSaved, onSavePro
                                                             email
                                                         })
                                                     });
-                                                    // Save photo if changed
+                                                    // Handle photo deletion or update
                                                     let photoUpdated = false;
-                                                    if (photoFile) {
+
+                                                    // If photo was deleted and no new file, send DELETE request
+                                                    if (photoDeleted && !photoFile) {
+                                                        await fetch(`${API_BASE_URL}/focalperson/${focalId}/photo`, {
+                                                            method: 'DELETE',
+                                                            credentials: 'include',
+                                                            headers: {
+                                                                Authorization: `Bearer ${localStorage.getItem('focalToken') || localStorage.getItem('resqwave_token') || ''}`
+                                                            }
+                                                        });
+                                                        photoUpdated = true;
+                                                    }
+                                                    // If new photo file, upload it
+                                                    else if (photoFile) {
                                                         const formData = new FormData();
                                                         formData.append('photo', photoFile);
                                                         await fetch(`${API_BASE_URL}/focalperson/${focalId}/photos`, {

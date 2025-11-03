@@ -104,27 +104,13 @@ const focalLogin = async (req, res) => {
       lockUntil = focal.lockUntil;
     }
 
-    // Compate Password
+    // Compare Password
     const isMatch = await bcrypt.compare(password, focal.password || "");
     if (!isMatch) {
-      focal.failedAttempts = (focal.failedAttempts || 0) + 1;
-      // Lock the Accont After 5 Failed Attempts
-      if (focal.failedAttempts >= 5) {
-        focal.lockUntil = new Date(Date.now() + 15 * 60 * 1000); // Lock for 15 Minutes
-        await focalRepo.save(focal);
-        // Still allow navigation to verification page, but indicate locked
-      } else {
-        await focalRepo.save(focal);
-      }
-      // Always return tempToken and lock status for navigation
-      var focalTempToken = jwt.sign(
-        { id: focal.id, role: "focalPerson", step: "2fa" },
-        process.env.JWT_SECRET,
-        { expiresIn: "5m" }
-      );
-      return res.json({
-        message: locked ? `Account Locked. Try again in 15 Minutes` : `Invalid Credentials. Attempts ${focal.failedAttempts}/5`,
-        tempToken: focalTempToken,
+      // Do NOT increment failedAttempts on simple login failures per request.
+      // Preserve existing lock status but do not modify attempt counters here.
+      return res.status(400).json({
+        message: locked ? `Account Locked. Try again in 15 Minutes` : `Invalid Credentials`,
         locked,
         lockUntil
       });
@@ -156,12 +142,18 @@ const focalLogin = async (req, res) => {
       tls: { rejectUnauthorized: false }
     });
 
-    await focalTransporter.sendMail({
-      from: `"ResQWave" <${process.env.EMAIL_USER}>`,
-      to: focal.email,
-      subject: "ResQWave 2FA Verification",
-      text: `Your login verification is ${focalCode}. It  will expire in 5 Minutes`
-    });
+    try {
+      await focalTransporter.sendMail({
+        from: `"ResQWave" <${process.env.EMAIL_USER}>`,
+        to: focal.email,
+        subject: "ResQWave 2FA Verification",
+        text: `Your login verification is ${focalCode}. It  will expire in 5 Minutes`
+      });
+    } catch (err) {
+      console.error('[focalLogin] Failed to send OTP email', err);
+      // Do not issue temp token if email sending fails
+      return res.status(500).json({ message: 'Failed to send verification email' });
+    }
 
     // For dev only, log code
     console.log(`🔑 2FA code for ${focal.id}: ${focalCode}`);
@@ -171,7 +163,8 @@ const focalLogin = async (req, res) => {
       { expiresIn: "5m" }
     );
 
-    res.json({ message: "Verification Send to Email", tempToken: focalTempToken, locked, lockUntil });
+    // Explicitly indicate OTP was sent so the frontend can safely navigate
+    res.json({ message: "Verification Send to Email", tempToken: focalTempToken, otpSent: true, locked, lockUntil });
 
     // If not admin, try Dispatcher
     if (!user) {
@@ -442,8 +435,8 @@ const adminDispatcherVerify = async (req, res) => {
     }
 
     // Validate the OTP code against stored verification
-    const otpSession = await loginVerificationRepo.findOne({ 
-      where: { userID: decoded.id, userType: decoded.role, code } 
+    const otpSession = await loginVerificationRepo.findOne({
+      where: { userID: decoded.id, userType: decoded.role, code }
     });
 
     if (!otpSession || (otpSession.expiry && new Date() > new Date(otpSession.expiry))) {
@@ -458,7 +451,7 @@ const adminDispatcherVerify = async (req, res) => {
       if (user) {
         // Increment failed attempts
         user.failedAttempts = (user.failedAttempts || 0) + 1;
-        
+
         // Lock account after 5 failed attempts
         if (user.failedAttempts >= 5) {
           user.lockUntil = new Date(Date.now() + 15 * 60 * 1000); // Lock for 15 minutes
@@ -467,8 +460,8 @@ const adminDispatcherVerify = async (req, res) => {
           } else {
             await dispatcherRepo.save(user);
           }
-          return res.status(403).json({ 
-            message: "Too many failed attempts. Account locked for 15 minutes." 
+          return res.status(403).json({
+            message: "Too many failed attempts. Account locked for 15 minutes."
           });
         }
 
@@ -480,8 +473,8 @@ const adminDispatcherVerify = async (req, res) => {
         }
       }
 
-      return res.status(400).json({ 
-        message: `Invalid or expired verification code. Attempts: ${user?.failedAttempts || 0}/5` 
+      return res.status(400).json({
+        message: `Invalid or expired verification code. Attempts: ${user?.failedAttempts || 0}/5`
       });
     }
 

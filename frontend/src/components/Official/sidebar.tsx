@@ -18,7 +18,7 @@ const baseNavigationItems = [
   },
   {
     icon: Users,
-    label: "Community Groups",
+    label: "Neighborhood Groups",
     path: "/community-groups",
   },
 ];

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { apiFetch } from '../../../../lib/api';
 import { useFocalAuth } from '../../context/focalAuthContext';
 import type { Signal, SignalPopover, InfoBubble } from '../types/signals';
@@ -34,7 +34,7 @@ export function useSignals() {
     const [canSave, setCanSave] = useState(false);
 
     // Fetch signals function (extracted for reuse)
-    const fetchSignals = async () => {
+    const fetchSignals = useCallback(async () => {
         try {
             const headers: Record<string, string> = {};
             if (token) headers['Authorization'] = `Bearer ${token}`;
@@ -123,14 +123,14 @@ export function useSignals() {
             setOtherSignals(initialOtherSignals);
             setOwnCommunitySignal(initialOwnCommunitySignal);
         }
-    };
+    }, [token]);
 
 
     // Fetch signals from backend on mount
     useEffect(() => {
         fetchSignals();
 
-    }, [token]);
+    }, [token, fetchSignals]);
 
     const updateBoundary = (deviceId: string | undefined, newBoundary: [number, number][] | null) => {
         if (!deviceId || !newBoundary) return;

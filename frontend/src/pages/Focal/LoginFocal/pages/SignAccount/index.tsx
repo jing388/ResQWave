@@ -31,14 +31,22 @@ export function LoginFocal() {
           body: JSON.stringify({ emailOrNumber: id, password }),
         }
       );
-      // Success: store tempToken for verification step
-      const tempToken = res.tempToken || '';
-      // Reset OTP expiry timer to 5 minutes from now on login
-      localStorage.setItem('focalOtpExpiry', (Date.now() + 5 * 60 * 1000).toString());
-      // Store emailOrNumber in localStorage for lockout check on refresh
-      localStorage.setItem('focalEmailOrNumber', id);
-      setIsLoading(false);
-      navigate('/verification-signin-focal', { state: { tempToken, emailOrNumber: id } });
+      // Only navigate to verification when the server confirms an OTP was sent
+      if (res.tempToken && (res as { otpSent?: boolean }).otpSent) {
+        const tempToken = res.tempToken as string;
+        // Reset OTP expiry timer to 5 minutes from now on login
+        localStorage.setItem('focalOtpExpiry', (Date.now() + 5 * 60 * 1000).toString());
+        // Store emailOrNumber in localStorage for lockout check on refresh
+        localStorage.setItem('focalEmailOrNumber', id);
+        // Also keep temp token in sessionStorage for verification page refresh
+        sessionStorage.setItem('focalTempToken', tempToken);
+        setIsLoading(false);
+        navigate('/verification-signin-focal', { state: { tempToken, emailOrNumber: id } });
+      } else {
+        // Do not navigate; show server-provided message
+        setIsLoading(false);
+        setError(res.message || 'Failed to send verification code.');
+      }
     } catch {
       setIsLoading(false);
       // Always show a generic error message for backend login errors

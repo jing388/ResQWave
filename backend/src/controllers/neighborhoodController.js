@@ -13,8 +13,28 @@ const uploadAltFocalPhoto = async (req, res) => {
     const focal = await focalPersonRepo.findOne({ where: { id: neighborhood.focalPersonID } });
     if (!focal) return res.status(404).json({ message: "Focal Person Not Found" });
 
+    // Take snapshot before update for logging
+    const fpBefore = { ...focal };
+
     focal.alternativeFPImage = altPhotoFile.buffer;
     await focalPersonRepo.save(focal);
+
+    // Log the photo change
+    const actorID = req.user?.focalPersonID || req.user?.id || neighborhood.focalPersonID || null;
+    const actorRole = req.user?.role || "FocalPerson";
+
+    await addLogs({
+      entityType: "FocalPerson",
+      entityID: neighborhood.focalPersonID,
+      changes: [{
+        field: "alternativeFPImage",
+        oldValue: fpBefore.alternativeFPImage ? "Previous photo" : "No photo",
+        newValue: "Updated new photo"
+      }],
+      actorID,
+      actorRole,
+    });
+
     return res.json({ message: "Alternative focal person photo uploaded" });
   } catch (err) {
     console.error(err);
@@ -40,6 +60,49 @@ const getAltFocalPhoto = async (req, res) => {
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: "Server Error - GET Alt Focal Photo" });
+  }
+};
+
+// Delete alternative focal person photo
+const deleteAltFocalPhoto = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const neighborhood = await neighborhoodRepo.findOne({ where: { id } });
+    if (!neighborhood) return res.status(404).json({ message: "Neighborhood Not Found" });
+    if (!neighborhood.focalPersonID) return res.status(400).json({ message: "No focal person linked" });
+
+    const focal = await focalPersonRepo.findOne({ where: { id: neighborhood.focalPersonID } });
+    if (!focal) return res.status(404).json({ message: "Focal Person Not Found" });
+
+    // Only log if photo actually exists
+    if (focal.alternativeFPImage) {
+      // Take snapshot before deletion for logging
+      const fpBefore = { ...focal };
+
+      focal.alternativeFPImage = null;
+      await focalPersonRepo.save(focal);
+
+      // Log the photo deletion
+      const actorID = req.user?.focalPersonID || req.user?.id || neighborhood.focalPersonID || null;
+      const actorRole = req.user?.role || "FocalPerson";
+
+      await addLogs({
+        entityType: "FocalPerson",
+        entityID: neighborhood.focalPersonID,
+        changes: [{
+          field: "alternativeFPImage",
+          oldValue: "Previous photo",
+          newValue: "Removed photo"
+        }],
+        actorID,
+        actorRole,
+      });
+    }
+
+    return res.json({ message: "Alternative focal person photo deleted successfully" });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: "Server Error - DELETE Alt Focal Photo" });
   }
 };
 const { AppDataSource } = require("../config/dataSource");
@@ -360,8 +423,26 @@ const updateNeighborhood = async (req, res) => {
     if (!neighborhood) return res.status(404).json({ message: "Neighborhood Not Found" });
     if (neighborhood.archived) return res.status(400).json({ message: "Cannot update archived neighborhood" });
 
-    // snapshots BEFORE
-    const nbBefore = { ...neighborhood, hazards: neighborhood.hazards };
+    // Validate alternative focal person fields - all must be provided together or none
+    const hasAnyAltField = altFirstName || altLastName || altContactNumber || altEmail;
+    if (hasAnyAltField) {
+      // If any alt field is provided, all required fields must be present and non-empty
+      if (!altFirstName || !altFirstName.trim()) {
+        return res.status(400).json({ message: "Alternative focal person first name is required" });
+      }
+      if (!altLastName || !altLastName.trim()) {
+        return res.status(400).json({ message: "Alternative focal person last name is required" });
+      }
+      if (!altContactNumber || !altContactNumber.trim()) {
+        return res.status(400).json({ message: "Alternative focal person contact number is required" });
+      }
+      if (!altEmail || !altEmail.trim()) {
+        return res.status(400).json({ message: "Alternative focal person email is required" });
+      }
+    }
+
+    // snapshots BEFORE (parse hazards to array for proper logging)
+    const nbBefore = { ...neighborhood, hazards: parseHazards(neighborhood.hazards) };
 
     // Neighborhood updates (store as string for range support)
     if (noOfHouseholds != null && noOfHouseholds !== neighborhood.noOfHouseholds) {
@@ -423,8 +504,8 @@ const updateNeighborhood = async (req, res) => {
     const actorID = req.user?.focalPersonID || req.user?.id || neighborhood.focalPersonID || null;
     const actorRole = req.user?.role || "FocalPerson";
 
-    // Neighborhood changes
-    const nbAfter = { ...neighborhood, hazards: neighborhood.hazards };
+    // Neighborhood changes (parse hazards to array for proper logging)
+    const nbAfter = { ...neighborhood, hazards: parseHazards(neighborhood.hazards) };
     const nbChanges = diffFields(nbBefore, nbAfter, [
       "noOfHouseholds", "noOfResidents", "floodSubsideHours", "hazards", "otherInformation"
     ]);
@@ -444,10 +525,10 @@ const updateNeighborhood = async (req, res) => {
       ]);
 
       if (photoFile?.buffer) {
-        fpChanges.push({ field: "photo", oldValue: toJSONSafe(fpBefore.photo), newValue: "[BLOB]" });
+        fpChanges.push({ field: "photo", oldValue: fpBefore.photo ? "Previous photo" : "No photo", newValue: "Updated new photo" });
       }
       if (altPhotoFile?.buffer) {
-        fpChanges.push({ field: "alternativeFPImage", oldValue: toJSONSafe(fpBefore.alternativeFPImage), newValue: "[BLOB]" });
+        fpChanges.push({ field: "alternativeFPImage", oldValue: fpBefore.alternativeFPImage ? "Previous photo" : "No photo", newValue: "Updated new photo" });
       }
 
       await addLogs({
@@ -628,5 +709,6 @@ module.exports = {
   getArchivedNeighborhoods,
   uploadAltFocalPhoto,
   getAltFocalPhoto,
+  deleteAltFocalPhoto,
   deleteNeighborhood
 };

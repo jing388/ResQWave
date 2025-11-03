@@ -35,5 +35,8 @@ router.post("/:id/alt-photo", uploadFocalPhotos, requireRole("focalPerson"), req
 // Get alternative focal person photo (returns image blob)
 router.get("/:id/alt-photo", requireRole("focalPerson"), require("../controllers/neighborhoodController").getAltFocalPhoto);
 
+// Delete alternative focal person photo
+router.delete("/:id/alt-photo", requireRole("focalPerson"), require("../controllers/neighborhoodController").deleteAltFocalPhoto);
+
 
 module.exports = router;

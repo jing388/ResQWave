@@ -1,10 +1,10 @@
-export default function SignalStatusLegend() {
+export function HazardLegend() {
     return (
         <div
             style={{
                 position: 'absolute',
                 bottom: 24,
-                left: 20,
+                right: 90, // Position to the left of MapControls (which is at right: 21)
                 zIndex: 10,
                 backgroundColor: 'rgba(255, 255, 255, 0.65)',
                 borderRadius: 8,
@@ -17,33 +17,45 @@ export default function SignalStatusLegend() {
             }}
         >
             <div style={{ fontSize: 13, fontWeight: 600, color: '#1a1a1a' }}>
-                Signal Status:
+                Hazard Level:
             </div>
-
-            {/* Your Community */}
+            {/* Low */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <div
                     style={{
                         width: 20,
                         height: 12,
-                        backgroundColor: '#22c55e',
+                        backgroundColor: '#fbbf24',
                         borderRadius: 4,
                     }}
                 />
-                <span style={{ fontSize: 12, color: '#4a5568', fontWeight: 500 }}>Your Community</span>
+                <span style={{ fontSize: 12, color: '#4a5568', fontWeight: 500 }}>Low</span>
             </div>
 
-            {/* Other Community */}
+            {/* Medium */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <div
                     style={{
                         width: 20,
                         height: 12,
-                        backgroundColor: '#6b7280',
+                        backgroundColor: '#fb923c',
                         borderRadius: 4,
                     }}
                 />
-                <span style={{ fontSize: 12, color: '#4a5568', fontWeight: 500 }}>Other Community</span>
+                <span style={{ fontSize: 12, color: '#4a5568', fontWeight: 500 }}>Medium</span>
+            </div>
+
+            {/* High */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div
+                    style={{
+                        width: 20,
+                        height: 12,
+                        backgroundColor: '#f43f5e',
+                        borderRadius: 4,
+                    }}
+                />
+                <span style={{ fontSize: 12, color: '#4a5568', fontWeight: 500 }}>High</span>
             </div>
         </div>
     );

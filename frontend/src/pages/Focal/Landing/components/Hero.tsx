@@ -13,6 +13,8 @@ export function LandingHero({ showSearch, setShowSearch }: { showSearch: boolean
     screen: { x: number; y: number };
   } | null>(null);
   const [mapFeatures, setMapFeatures] = useState<GeoJSON.Feature<GeoJSON.Point>[]>([]);
+  const mapRef = useRef<mapboxgl.Map | null>(null);
+  const featuresRef = useRef<GeoJSON.Feature<GeoJSON.Point>[]>(mapFeatures);
 
   // Fetch terminals data for map
   useEffect(() => {
@@ -32,8 +34,14 @@ export function LandingHero({ showSearch, setShowSearch }: { showSearch: boolean
     fetchMapData();
   }, []);
 
+  // Keep featuresRef in sync so the map init can read the latest snapshot
+  useEffect(() => { featuresRef.current = mapFeatures; }, [mapFeatures]);
+
+  // Initialize the map once (render base map even if features are empty). We'll
+  // add an initially-empty 'signals' source and update it later when data arrives.
   useEffect(() => {
-    if (!mapContainer.current || mapFeatures.length === 0) return;
+    if (!mapContainer.current) return;
+    if (mapRef.current) return; // already initialized
 
     const map = new mapboxgl.Map({
       container: mapContainer.current,
@@ -44,6 +52,7 @@ export function LandingHero({ showSearch, setShowSearch }: { showSearch: boolean
       bearing: 0,
       antialias: true,
     });
+    mapRef.current = map;
 
     // Enable perspective rotation with right-click + drag
     map.dragRotate.enable();
@@ -52,53 +61,55 @@ export function LandingHero({ showSearch, setShowSearch }: { showSearch: boolean
       map.touchZoomRotate.enableRotation();
     }
 
-      // Prepare data and layers once the style is loaded
-      map.on("load", () => {
-        const cinematicEasing = (t: number) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    // Prepare data and layers once the style is loaded
+    map.on("load", () => {
+      const cinematicEasing = (t: number) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 
-        // Add flood heatmap layer (same as dashboard)
-        try {
-          const floodFiles = [
-            { id: "metro-manila", url: "/MetroManila_Flood.geojson" },
-          ];
-          floodFiles.forEach(file => {
-            const sourceId = `floods-${file.id}`;
-            const polygonLayerId = `flood-polygons-${file.id}`;
+      // Add flood heatmap layer (same as dashboard)
+      try {
+        const floodFiles = [
+          { id: "metro-manila", url: "/MetroManila_Flood.geojson" },
+        ];
+        floodFiles.forEach(file => {
+          const sourceId = `floods-${file.id}`;
+          const polygonLayerId = `flood-polygons-${file.id}`;
 
-            // Add GeoJSON source
-            if (!map.getSource(sourceId)) {
-              map.addSource(sourceId, {
-                type: "geojson",
-                data: file.url
-              });
-            }
+          // Add GeoJSON source
+          if (!map.getSource(sourceId)) {
+            map.addSource(sourceId, {
+              type: "geojson",
+              data: file.url
+            });
+          }
 
-            // Add polygon fill layer
-            if (!map.getLayer(polygonLayerId)) {
-              map.addLayer({
-                id: polygonLayerId,
-                type: "fill",
-                source: sourceId,
-                paint: {
-                  "fill-color": [
-                    "match",
-                    ["get", "Var"],
-                    1, "#ffff00",   // Low hazard → Yellow
-                    2, "#ff9900",   // Medium hazard → Orange
-                    3, "#ff0000",   // High hazard → Red
-                    "#000000"       // fallback → Black
-                  ],
-                  "fill-opacity": 0.5
-                }
-              }, "waterway-label");
-            }
-          });
-        } catch (e) {
-          console.warn("[LandingHero] could not add flood polygons", e);
-        }
+          // Add polygon fill layer
+          if (!map.getLayer(polygonLayerId)) {
+            map.addLayer({
+              id: polygonLayerId,
+              type: "fill",
+              source: sourceId,
+              paint: {
+                "fill-color": [
+                  "match",
+                  ["get", "Var"],
+                  1, "#ffff00",   // Low hazard → Yellow
+                  2, "#ff9900",   // Medium hazard → Orange
+                  3, "#ff0000",   // High hazard → Red
+                  "#000000"       // fallback → Black
+                ],
+                "fill-opacity": 0.5
+              }
+            }, "waterway-label");
+          }
+        });
+      } catch (e) {
+        console.warn("[LandingHero] could not add flood polygons", e);
+      }
 
-        // Use fetched features from backend
-        const features = mapFeatures;      // Calculate center point from all terminal coordinates
+      // Use the latest snapshot of features (may be empty)
+      const features = featuresRef.current;
+
+      // Calculate center point from all terminal coordinates or fallback
       let centerPoint: [number, number] = [121.056764, 14.756603]; // Default fallback
       if (features.length > 0) {
         const avgLng = features.reduce((sum, f) => sum + f.geometry.coordinates[0], 0) / features.length;
@@ -158,6 +169,8 @@ export function LandingHero({ showSearch, setShowSearch }: { showSearch: boolean
         "#6b7280",
       ];
 
+      // Add signals source with current features (may be empty). We'll update
+      // this source when `mapFeatures` changes.
       map.addSource("signals", {
         type: "geojson",
         data: { type: "FeatureCollection", features } as GeoJSON.FeatureCollection,
@@ -271,10 +284,9 @@ export function LandingHero({ showSearch, setShowSearch }: { showSearch: boolean
       raf = requestAnimationFrame(tick);
       map.once('remove', () => cancelAnimationFrame(raf));
 
-      // Kick off cinematic once everything is ready (only if we have features)
-      if (features.length > 0) {
-        runCinematic();
-      }
+      // Kick off cinematic once everything is ready. Run it regardless of
+      // whether there are features so the map animation starts the same way.
+      runCinematic();
 
       // Click interactions to open popover
       const clickableLayers = ["signals-core", "signals-core-stroke", "signals-ring-1", "signals-ring-2", "signals-ring-3"];
@@ -327,7 +339,28 @@ export function LandingHero({ showSearch, setShowSearch }: { showSearch: boolean
     });
 
     // Clean up on unmount
-    return () => map.remove();
+    return () => {
+      try {
+        map.remove();
+      } catch { /* ignore */ }
+      mapRef.current = null;
+    };
+  }, []);
+
+  // When features change, update the 'signals' source data but do NOT re-run
+  // the cinematic or recreate the map. This ensures the base map and cinematic
+  // behavior are identical whether or not data existed at load time.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    try {
+      const src = map.getSource('signals') as mapboxgl.GeoJSONSource | undefined;
+      if (src) {
+        src.setData({ type: 'FeatureCollection', features: mapFeatures } as GeoJSON.FeatureCollection);
+      }
+    } catch {
+      // source might not be ready yet; ignore
+    }
   }, [mapFeatures]);
 
   return (

@@ -6,6 +6,7 @@ const {
     setCache,
     deleteCache
 } = require("../config/cache");
+const { diffFields, addLogs } = require("../utils/logs");
 const registrationRepo = AppDataSource.getRepository("FocalPersonRegistration");
 const neighborhoodRepo = AppDataSource.getRepository("Neighborhood");
 const focalRepo = AppDataSource.getRepository("FocalPerson");
@@ -402,11 +403,44 @@ const updateFocalPhotos = async (req, res) => {
             return res.status(400).json({ message: "No Files Uploaded" });
         }
 
+        // Track changes for logging
+        const changes = [];
+
         // Save Buffers into BLOB 
-        if (main?.buffer) fp.photo = main.buffer;
-        if (alt?.buffer) fp.alternativeFPImage = alt.buffer
+        if (main?.buffer) {
+            const hadPhoto = !!fp.photo;
+            fp.photo = main.buffer;
+            changes.push({
+                field: "photo",
+                oldValue: hadPhoto ? "Previous photo" : "No photo",
+                newValue: "Updated new photo"
+            });
+        }
+        if (alt?.buffer) {
+            const hadAltPhoto = !!fp.alternativeFPImage;
+            fp.alternativeFPImage = alt.buffer;
+            changes.push({
+                field: "alternativeFPImage",
+                oldValue: hadAltPhoto ? "Previous photo" : "No photo",
+                newValue: "Updated new photo"
+            });
+        }
 
         await focalPersonRepo.save(fp);
+
+        // Log the photo changes
+        if (changes.length > 0) {
+            const actorID = req.user?.focalPersonID || req.user?.id || id;
+            const actorRole = req.user?.role || "FocalPerson";
+
+            await addLogs({
+                entityType: "FocalPerson",
+                entityID: id,
+                changes,
+                actorID,
+                actorRole,
+            });
+        }
 
         // Invalidate 
         await deleteCache(`focalPerson:${id}`);
@@ -470,7 +504,48 @@ const getAlternativeFocalPhoto = async (req, res) => {
     }
 };
 
-// UPDATE Focal Person
+// DELETE Focal Person Photo
+const deleteFocalPhoto = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const fp = await focalPersonRepo.findOne({ where: { id } });
+        if (!fp) return res.status(404).json({ message: "Focal Person Not Found" });
+
+        // Only log if photo actually exists
+        if (fp.photo) {
+            fp.photo = null;
+            await focalPersonRepo.save(fp);
+
+            // Log the deletion
+            const actorID = req.user?.focalPersonID || req.user?.id || id;
+            const actorRole = req.user?.role || "FocalPerson";
+
+            await addLogs({
+                entityType: "FocalPerson",
+                entityID: id,
+                changes: [{
+                    field: "photo",
+                    oldValue: "Previous photo",
+                    newValue: "Removed photo"
+                }],
+                actorID,
+                actorRole,
+            });
+        }
+
+        // Invalidate cache
+        await deleteCache(`focalPerson:${id}`);
+        await deleteCache("focalPersons:all");
+        await deleteCache(`focalPhoto:${id}`);
+
+        return res.json({ message: "Focal person photo deleted successfully" });
+    } catch (err) {
+        console.error(err);
+        return res.status(500).json({ message: "Server Error - DELETE Photo" });
+    }
+};
+
+// UPDATE Focal Person Info
 const updateFocalPerson = async (req, res) => {
     try {
         const { id } = req.params;
@@ -481,6 +556,9 @@ const updateFocalPerson = async (req, res) => {
             return res.status(404).json({ message: "Focal Person Not Found" });
         }
 
+        // Take snapshot BEFORE changes
+        const fpBefore = { ...focalPerson };
+
         if (name) focalPerson.name = name;
         if (contactNumber) focalPerson.contactNumber = contactNumber;
         if (alternativeFP) focalPerson.alternativeFP = alternativeFP;
@@ -490,6 +568,27 @@ const updateFocalPerson = async (req, res) => {
         if (email !== undefined) focalPerson.email = email;
 
         await focalPersonRepo.save(focalPerson);
+
+        // Take snapshot AFTER changes
+        const fpAfter = { ...focalPerson };
+
+        // Log the changes
+        const actorID = req.user?.focalPersonID || req.user?.id || id;
+        const actorRole = req.user?.role || "FocalPerson";
+
+        const changes = diffFields(fpBefore, fpAfter, [
+            "firstName", "lastName", "contactNumber", "email"
+        ]);
+
+        if (changes.length > 0) {
+            await addLogs({
+                entityType: "FocalPerson",
+                entityID: id,
+                changes,
+                actorID,
+                actorRole,
+            });
+        }
 
         // Invalidate
         await deleteCache(`focalPerson:${id}`);
@@ -534,6 +633,22 @@ const changePassword = async (req, res) => {
         const hashed = await bcrypt.hash(String(newPassword), 10);
         await focalPersonRepo.update({ id: targetId }, { password: hashed });
 
+        // Log the password change
+        const actorID = req.user?.focalPersonID || req.user?.id || targetId;
+        const actorRole = req.user?.role || "FocalPerson";
+
+        await addLogs({
+            entityType: "FocalPerson",
+            entityID: targetId,
+            changes: [{
+                field: "password",
+                oldValue: "Previous password",
+                newValue: "Updated password"
+            }],
+            actorID,
+            actorRole,
+        });
+
         return res.json({ message: "Password updated" });
     } catch (err) {
         console.error(err);
@@ -549,6 +664,7 @@ module.exports = {
     updateFocalPhotos,
     getFocalPhoto,
     getAlternativeFocalPhoto,
+    deleteFocalPhoto,
     changePassword,
     approveFocalRegistration,
 };

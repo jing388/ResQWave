@@ -1,12 +1,29 @@
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover-focal';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip-white';
-import { Layers, Minus, PanelRight, Plus } from 'lucide-react';
+import { Layers, Minus, PanelRight, Plus, Waves } from 'lucide-react';
 import { useState } from 'react';
 import type { MapControlsProps } from '../types/controls';
 
 export default function MapControls({ mapRef, addCustomLayers, onToggleLiveReport, isLiveReportOpen }: MapControlsProps) {
     const [layersOpen, setLayersOpen] = useState(false);
     const [selectedLayer, setSelectedLayer] = useState<'terrain' | 'satellite'>('terrain');
+    const [heatmapVisible, setHeatmapVisible] = useState(true);
+
+    const toggleHeatmap = () => {
+        const map = mapRef.current;
+        if (!map) return;
+
+        const newVisibility = !heatmapVisible;
+        setHeatmapVisible(newVisibility);
+
+        // Toggle visibility of flood polygon layers
+        const floodLayerIds = ['flood-polygons-metro-manila'];
+        floodLayerIds.forEach(layerId => {
+            if (map.getLayer(layerId)) {
+                map.setLayoutProperty(layerId, 'visibility', newVisibility ? 'visible' : 'none');
+            }
+        });
+    };
 
     return (
         <>
@@ -28,10 +45,10 @@ export default function MapControls({ mapRef, addCustomLayers, onToggleLiveRepor
                                     boxShadow: isLiveReportOpen ? '0 6px 16px rgba(0,0,0,0.35)' : '0 4px 12px rgba(2,6,23,0.21)',
                                     transition: 'all 0.3s ease'
                                 }}
-                                onMouseEnter={e => { 
-                                    if (!isLiveReportOpen) e.currentTarget.style.background = '#EEEEEE' 
+                                onMouseEnter={e => {
+                                    if (!isLiveReportOpen) e.currentTarget.style.background = '#EEEEEE'
                                 }}
-                                onMouseLeave={e => { 
+                                onMouseLeave={e => {
                                     e.currentTarget.style.background = isLiveReportOpen ? '#111827' : '#fff'
                                 }}
                                 onClick={onToggleLiveReport}
@@ -50,6 +67,36 @@ export default function MapControls({ mapRef, addCustomLayers, onToggleLiveRepor
 
             {/* Existing Controls - Bottom Right */}
             <div style={{ position: 'absolute', right: 21, bottom: 21, zIndex: 40, display: 'flex', flexDirection: 'column', gap: 11 }}>
+                {/* Heatmap toggle button */}
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <div
+                            onClick={toggleHeatmap}
+                            style={{
+                                width: 50,
+                                height: 50,
+                                borderRadius: 7,
+                                background: heatmapVisible
+                                    ? 'linear-gradient(135deg, #fbbf24 0%, #fb923c 50%, #f43f5e 100%)'
+                                    : '#fff',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                cursor: 'pointer',
+                                boxShadow: heatmapVisible ? '0 6px 16px rgba(0,0,0,0.35)' : '0 4px 12px rgba(2,6,23,0.21)',
+                                transition: 'background 0.18s, box-shadow 0.18s'
+                            }}
+                            onMouseEnter={e => { if (!heatmapVisible) e.currentTarget.style.background = '#EEEEEE' }}
+                            onMouseLeave={e => { if (!heatmapVisible) e.currentTarget.style.background = '#fff' }}
+                        >
+                            <Waves size={21} style={{ color: heatmapVisible ? '#fff' : '#000', filter: heatmapVisible ? 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))' : 'none' }} />
+                        </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="left" sideOffset={8}>
+                        {heatmapVisible ? 'Hide Heatmap' : 'Show Heatmap'}
+                    </TooltipContent>
+                </Tooltip>
+
                 {/* Layers popover */}
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                     <Popover onOpenChange={(open) => setLayersOpen(open)}>
@@ -93,14 +140,14 @@ export default function MapControls({ mapRef, addCustomLayers, onToggleLiveRepor
                                         const m = mapRef.current;
                                         if (!m) return;
                                         m.setStyle('mapbox://styles/mapbox/outdoors-v12');
-                                        
+
                                         // Use both styledata event and timeout as fallback
                                         const handleStyleData = () => {
                                             addCustomLayers(m);
                                             m.off('styledata', handleStyleData);
                                         };
                                         m.on('styledata', handleStyleData);
-                                        
+
                                         // Fallback timeout in case styledata doesn't fire
                                         setTimeout(() => {
                                             if (m.isStyleLoaded()) {
@@ -127,14 +174,14 @@ export default function MapControls({ mapRef, addCustomLayers, onToggleLiveRepor
                                         const m = mapRef.current;
                                         if (!m) return;
                                         m.setStyle('mapbox://styles/mapbox/satellite-streets-v12');
-                                        
+
                                         // Use both styledata event and timeout as fallback
                                         const handleStyleData = () => {
                                             addCustomLayers(m);
                                             m.off('styledata', handleStyleData);
                                         };
                                         m.on('styledata', handleStyleData);
-                                        
+
                                         // Fallback timeout in case styledata doesn't fire
                                         setTimeout(() => {
                                             if (m.isStyleLoaded()) {

@@ -28,16 +28,18 @@ const getOwnLogs = async (req, res) => {
     const lastUpdated = rows[0]?.createdAt || null;
 
 
-    // Group by day, then by createdAt (up to the second)
+    // Group by day, then by createdAt+entityType (to keep Neighborhood and FocalPerson separate)
     const byDay = {};
     for (const r of rows) {
       const d = new Date(r.createdAt);
       const dateLabel = d.toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" });
       // Format createdAt up to the second (YYYY-MM-DD HH:mm:ss)
       const createdAtSec = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, '0') + "-" + String(d.getDate()).padStart(2, '0') + " " + String(d.getHours()).padStart(2, '0') + ":" + String(d.getMinutes()).padStart(2, '0') + ":" + String(d.getSeconds()).padStart(2, '0');
+      // Combine createdAt and entityType to keep them separate even if same timestamp
+      const groupKey = `${createdAtSec}|${r.entityType}`;
       if (!byDay[dateLabel]) byDay[dateLabel] = {};
-      if (!byDay[dateLabel][createdAtSec]) byDay[dateLabel][createdAtSec] = [];
-      byDay[dateLabel][createdAtSec].push({
+      if (!byDay[dateLabel][groupKey]) byDay[dateLabel][groupKey] = [];
+      byDay[dateLabel][groupKey].push({
         time: d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }),
         actorName,
         entityType: r.entityType,
@@ -54,14 +56,14 @@ const getOwnLogs = async (req, res) => {
       const actions = Object.keys(byDay[date])
         .sort()
         .reverse()
-        .map(createdAtSec => {
-          const fields = byDay[date][createdAtSec];
+        .map(groupKey => {
+          const fields = byDay[date][groupKey];
           return {
             time: fields[0].time,
             actorName: fields[0].actorName,
             entityType: fields[0].entityType,
             message: fields[0].message,
-            createdAt: createdAtSec,
+            createdAt: fields[0].createdAt,
             fields: fields.map(f => ({
               field: f.field,
               oldValue: f.oldValue,

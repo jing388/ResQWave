@@ -3,7 +3,7 @@ import Alert, { AlertDescription } from '@/components/ui/alert-focal';
 import { CheckCircle2Icon, Info } from 'lucide-react';
 import type { DashboardAlertsProps } from '../types/alerts';
 
-const DashboardAlerts = forwardRef(function DashboardAlerts({ editBoundaryOpen, canSave, savedTrigger, savedMessage, onViewLogs }: DashboardAlertsProps, ref) {
+const DashboardAlerts = forwardRef(function DashboardAlerts({ editBoundaryOpen, canSave, savedTrigger, savedMessage, onViewLogs, showViewLogs = true }: DashboardAlertsProps, ref) {
 	const [showEditAlert, setShowEditAlert] = useState(false);
 	const editAlertTimer = useRef<number | null>(null);
 
@@ -80,10 +80,12 @@ const DashboardAlerts = forwardRef(function DashboardAlerts({ editBoundaryOpen, 
 			window.clearTimeout(savedAlertTimer.current);
 		}
 		setShowSavedAlert(true);
+		// Use a shorter duration for refresh-style toasts (no View Logs button)
+		const savedDuration = showViewLogs ? 4500 : 1200; // ms
 		savedAlertTimer.current = window.setTimeout(() => {
 			setShowSavedAlert(false);
 			savedAlertTimer.current = null;
-		}, 4500);
+		}, savedDuration);
 
 		return () => {
 			if (savedAlertTimer.current) {
@@ -91,7 +93,7 @@ const DashboardAlerts = forwardRef(function DashboardAlerts({ editBoundaryOpen, 
 				savedAlertTimer.current = null;
 			}
 		};
-	}, [savedTrigger]);
+	}, [savedTrigger, showViewLogs]);
 
 	// expose imperative API to parent: hideValidAlert(), hideEditAlert(), hideSavedAlert()
 	useImperativeHandle(ref, () => ({
@@ -131,17 +133,19 @@ const DashboardAlerts = forwardRef(function DashboardAlerts({ editBoundaryOpen, 
 			</div>
 
 			{/* Saved confirmation alert with View Logs button */}
-			<div style={{ position: 'absolute', left: 30, bottom: 30, transform: `translateX(${showSavedAlert ? '0' : '-180px'})`, transition: 'transform 320ms cubic-bezier(.2,.9,.2,1), opacity 220ms linear', opacity: showSavedAlert ? 1 : 0, pointerEvents: showSavedAlert ? 'auto' : 'none', zIndex: 70 }}>
-				<div style={{ minWidth: 220, maxWidth: 520 }}>
+			<div style={{ position: 'absolute', left: 30, bottom: 30, transform: `translateX(${showSavedAlert ? '0' : '-180px'})`, transition: 'transform 320ms cubic-bezier(.2,.9,.2,1), opacity 220ms linear', opacity: showSavedAlert ? 1 : 0, pointerEvents: showSavedAlert ? 'auto' : 'none', zIndex: 100001 }}>
+				<div style={showViewLogs ? { minWidth: 230, maxWidth: 530 } : { minWidth: 190, maxWidth: 350 }}>
 					<Alert iconBoxVariant="success">
 						<CheckCircle2Icon color="#22c55e" />
-						<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-							<div style={{ minWidth: 290 }}>
+						<div style={{ display: 'flex', alignItems: 'center', justifyContent: showViewLogs ? 'space-between' : 'flex-start', gap: 12 }}>
+							<div style={showViewLogs ? { minWidth: 290 } : {}}>
 								<AlertDescription>{savedMessage ?? 'Saved successfully!'}</AlertDescription>
 							</div>
-							<div>
-								<button onClick={() => onViewLogs?.()} style={{ background: '#3B82F6', fontSize: "13px", color: '#fff', padding: '8px 14px', borderRadius: 4, border: 'none', cursor: 'pointer' }}>View Logs</button>
-							</div>
+							{showViewLogs && (
+								<div>
+									<button onClick={() => onViewLogs?.()} style={{ background: '#3B82F6', fontSize: "13px", color: '#fff', padding: '8px 14px', borderRadius: 4, border: 'none', cursor: 'pointer' }}>View Logs</button>
+								</div>
+							)}
 						</div>
 					</Alert>
 				</div>
