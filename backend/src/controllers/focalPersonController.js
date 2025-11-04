@@ -12,6 +12,32 @@ const neighborhoodRepo = AppDataSource.getRepository("Neighborhood");
 const focalRepo = AppDataSource.getRepository("FocalPerson");
 const terminalRepo = AppDataSource.getRepository("Terminal");
 
+// Helper to check database configuration
+const checkDatabaseConfig = async () => {
+    try {
+        const result = await AppDataSource.query("SHOW VARIABLES LIKE 'max_allowed_packet'");
+        const maxPacketSize = result[0]?.Value || "unknown";
+        console.log("Database max_allowed_packet:", maxPacketSize);
+        
+        // Convert bytes to MB for easier reading
+        if (maxPacketSize !== "unknown") {
+            const sizeInMB = (parseInt(maxPacketSize) / (1024 * 1024)).toFixed(2);
+            console.log("Database max_allowed_packet in MB:", sizeInMB);
+            
+            // Warn if packet size is too small for photo uploads
+            if (parseInt(maxPacketSize) < 4 * 1024 * 1024) { // Less than 4MB
+                console.warn("WARNING: max_allowed_packet is quite small for photo uploads.");
+                console.warn("Consider increasing it in MySQL config: SET GLOBAL max_allowed_packet=16777216; (16MB)");
+            }
+        }
+        
+        return maxPacketSize;
+    } catch (err) {
+        console.error("Could not check database config:", err.message);
+        return "unknown";
+    }
+};
+
 // Helper to strip sensitive fields before caching
 function sanitizeFP(fp) {
     if (!fp) return fp;
@@ -23,6 +49,14 @@ function sanitizeFP(fp) {
 // CREATE FocalPerson 
 const createFocalPerson = async (req, res) => {
     try {
+        console.log("CREATE Focal Person - Request received");
+        console.log("Body keys:", req.body ? Object.keys(req.body) : "no body");
+        console.log("Files:", req.files ? Object.keys(req.files) : "no files");
+        console.log("Body sample:", req.body ? JSON.stringify(req.body, null, 2).substring(0, 500) : "no body");
+        
+        // Check database configuration for debugging
+        await checkDatabaseConfig();
+        
         const {
             terminalID,
             firstName,
@@ -33,6 +67,7 @@ const createFocalPerson = async (req, res) => {
             address,
             altFirstName,
             altLastName,
+            altEmail,
             altContactNumber,
             noOfHouseholds,
             noOfResidents,
@@ -116,6 +151,22 @@ const createFocalPerson = async (req, res) => {
         const mainPhoto = files.photo?.[0];
         const altPhotoFile = files.altPhoto?.[0]; // incoming field name "altPhoto"
 
+        // Log file sizes for debugging
+        if (mainPhoto) {
+            console.log("Main photo size:", mainPhoto.size, "bytes");
+            if (mainPhoto.size > 2 * 1024 * 1024) {
+                console.warn("Main photo exceeds 2MB limit:", mainPhoto.size);
+                return res.status(400).json({ message: "Main photo file too large. Maximum size is 2MB." });
+            }
+        }
+        if (altPhotoFile) {
+            console.log("Alt photo size:", altPhotoFile.size, "bytes");
+            if (altPhotoFile.size > 2 * 1024 * 1024) {
+                console.warn("Alt photo exceeds 2MB limit:", altPhotoFile.size);
+                return res.status(400).json({ message: "Alternative photo file too large. Maximum size is 2MB." });
+            }
+        }
+
         // Always store address as JSON string (prevents [object Object])
         let addressString;
         if (typeof address === "object" && address !== null) {
@@ -137,10 +188,11 @@ const createFocalPerson = async (req, res) => {
             hazardsString = JSON.stringify([]); // default
         }
 
-        // Create focal person
+        // Create focal person without photos first (smaller packet size)
         const focalPerson = focalPersonRepo.create({
             id: newFocalID,
             terminalID,
+            firstName,
             lastName,
             email,
             contactNumber,
@@ -151,12 +203,29 @@ const createFocalPerson = async (req, res) => {
             altEmail: altEmail || null,
             altContactNumber: altContactNumber || null,
             createdBy: req.user?.id || null,
-            ...(mainPhoto?.buffer ? { photo: mainPhoto.buffer } : {}),
-            // IMPORTANT: save alt photo in the column "alternativeFPImage" to match your model
-            ...(altPhotoFile?.buffer ? { alternativeFPImage: altPhotoFile.buffer } : {}),
         });
 
-        await focalPersonRepo.save(focalPerson);
+        // Save focal person without photos first
+        const savedFocalPerson = await focalPersonRepo.save(focalPerson);
+
+        // Add photos in separate updates to avoid large packet sizes
+        if (mainPhoto?.buffer || altPhotoFile?.buffer) {
+            console.log("Updating with photos separately to avoid packet size issues");
+            
+            if (mainPhoto?.buffer) {
+                await focalPersonRepo.update(
+                    { id: newFocalID },
+                    { photo: mainPhoto.buffer }
+                );
+            }
+            
+            if (altPhotoFile?.buffer) {
+                await focalPersonRepo.update(
+                    { id: newFocalID },
+                    { alternativeFPImage: altPhotoFile.buffer }
+                );
+            }
+        }
 
         // Generate Neighborhood ID (N001, N002, ...) by numeric suffix
         const lastNeighborhood = await neighborhoodRepo
@@ -176,9 +245,9 @@ const createFocalPerson = async (req, res) => {
             id: newNeighborhoodID,
             focalPersonID: newFocalID,
             terminalID,
-            noOfHouseholds: Number(noOfHouseholds) || 0,
-            noOfResidents: Number(noOfResidents) || 0,
-            floodSubsideHours: Number(floodSubsideHours) || 0,
+            noOfHouseholds: noOfHouseholds || "",
+            noOfResidents: noOfResidents || "",
+            floodSubsideHours: floodSubsideHours || "",
             hazards: hazardsString,
             otherInformation: otherInformation || "",
             archived: false,
@@ -205,12 +274,36 @@ const createFocalPerson = async (req, res) => {
             newNeighborhoodID,
         };
 
-        if (!password) response.temporaryPassword = plainPassword;
+        if (!password) response.generatedPassword = plainPassword;
 
         return res.status(201).json(response);
     } catch (err) {
-        console.error(err);
-        return res.status(500).json({ message: "Server Error - CREATE Focal Person" });
+        console.error("CREATE Focal Person Error:", err);
+        console.error("Error stack:", err.stack);
+        console.error("Request body keys:", req.body ? Object.keys(req.body) : "no body");
+        console.error("Request files:", req.files ? Object.keys(req.files) : "no files");
+        
+        // Handle specific database errors
+        let errorMessage = err.message || "Unknown error occurred";
+        let statusCode = 500;
+        
+        if (err.message && err.message.includes("max_allowed_packet")) {
+            errorMessage = "File upload too large for database. Please try smaller photos (under 1MB each).";
+            statusCode = 413; // Payload Too Large
+            console.error("Database packet size exceeded. Consider increasing max_allowed_packet in MySQL config.");
+        } else if (err.code === 'ER_TOO_BIG_ROWSIZE') {
+            errorMessage = "Data too large for database row. Please use smaller photos.";
+            statusCode = 413;
+        } else if (err.message && err.message.includes("Data too long")) {
+            errorMessage = "Photo data too large for database column.";
+            statusCode = 413;
+        }
+        
+        return res.status(statusCode).json({ 
+            message: "Server Error - CREATE Focal Person", 
+            error: errorMessage,
+            details: process.env.NODE_ENV === 'development' ? err.stack : undefined
+        });
     }
 };
 
@@ -667,4 +760,5 @@ module.exports = {
     deleteFocalPhoto,
     changePassword,
     approveFocalRegistration,
+    checkDatabaseConfig,
 };

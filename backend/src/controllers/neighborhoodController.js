@@ -199,9 +199,9 @@ const viewAboutYourNeighborhood = async (req, res) => {
     const payload = {
       neighborhoodID: nb.id,
       terminalID: nb.terminalID,
-      noOfHouseholds: nb.noOfHouseholds !== undefined && nb.noOfHouseholds !== null ? String(nb.noOfHouseholds) : '',
-      noOfResidents: nb.noOfResidents !== undefined && nb.noOfResidents !== null ? String(nb.noOfResidents) : '',
-      floodwaterSubsidenceDuration: nb.floodSubsideHours !== undefined && nb.floodSubsideHours !== null ? String(nb.floodSubsideHours) : '',
+      noOfHouseholds: nb.noOfHouseholds || '',
+      noOfResidents: nb.noOfResidents || '',
+      floodwaterSubsidenceDuration: nb.floodSubsideHours || '',
       hazards: parseHazards(nb.hazards),
       otherInformation: nb.otherInformation ?? null,
       focalPerson: {
@@ -661,34 +661,61 @@ const getArchivedNeighborhoods = async (req, res) => {
     const cached = await getCache(cacheKey);
     if (cached) return res.json(cached);
 
+    // Include focalPersonID for later lookup (same as active neighborhoods)
     const neighborhoods = await neighborhoodRepo
       .createQueryBuilder("n")
-      .select(["n.id", "n.terminalID", "n.noOfHouseholds", "n.noOfResidents", "n.floodSubsideHours", "n.hazards", "n.createdAt"])
+      .select([
+        "n.id",
+        "n.terminalID",
+        "n.focalPersonID",
+        "n.createdAt",
+      ])
       .where("n.archived = :arch", { arch: true })
       .orderBy("n.createdAt", "DESC")
       .getRawMany();
 
+    // Terminal status lookup (but for archived we don't show status)
     const terminalIds = Array.from(new Set(neighborhoods.map(x => x.n_terminalID).filter(Boolean)));
-
     const terminals = terminalIds.length
       ? await terminalRepo
         .createQueryBuilder("t")
-        .select(["t.id", "t.availability"])
+        .select(["t.id", "t.status"])
         .where("t.id IN (:...ids)", { ids: terminalIds })
         .getRawMany()
       : [];
     const byTerminal = {};
-    terminals.forEach(t => (byTerminal[t.t_id] = t.t_availability));
+    terminals.forEach(t => (byTerminal[t.t_id] = t.t_status));
 
-    const result = neighborhoods.map(n => ({
-      neighborhoodID: n.n_id,
-      terminalStatus: byTerminal[n.n_terminalID] || (n.n_terminalID ? "unknown" : "unlinked"),
-      noOfHouseholds: n.n_noOfHouseholds ?? 0,
-      noOfResidents: n.n_noOfResidents ?? 0,
-      floodSubsideHours: n.n_floodSubsideHours ?? 0,
-      hazards: parseHazards(n.n_hazards),
-      createdDate: n.n_createdAt || null,
-    }));
+    // Focal person lookup (name, contact, address) - same as active neighborhoods
+    const focalIds = Array.from(new Set(neighborhoods.map(x => x.n_focalPersonID).filter(Boolean)));
+    const focalRows = focalIds.length
+      ? await focalPersonRepo
+        .createQueryBuilder("f")
+        .select(["f.id", "f.firstName", "f.lastName", "f.contactNumber", "f.address"])
+        .where("f.id IN (:...ids)", { ids: focalIds })
+        .getRawMany()
+      : [];
+    const byFocal = {};
+    focalRows.forEach(f => {
+      byFocal[f.f_id] = {
+        name: [f.f_firstName, f.f_lastName].filter(Boolean).join(" ").trim() || null,
+        contactNumber: f.f_contactNumber || null,
+        address: f.f_address || null,
+      };
+    });
+
+    const result = neighborhoods.map(n => {
+      const focal = byFocal[n.n_focalPersonID] || {};
+      return {
+        neighborhoodID: n.n_id,
+        terminalID: n.n_terminalID, // Include terminalID in the response
+        terminalStatus: "N/A", // For archived neighborhoods, no terminal status
+        focalPerson: focal.name || null,
+        contactNumber: focal.contactNumber || null,
+        address: focal.address || null,
+        registeredAt: n.n_createdAt || null,
+      };
+    });
 
     await setCache(cacheKey, result, 120);
     return res.json(result);

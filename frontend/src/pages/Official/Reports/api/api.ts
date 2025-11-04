@@ -1,8 +1,12 @@
 // src/lib/api.ts
 // Utility for making API requests to the backend using the VITE_BACKEND_URL env variable
 
-
 export const API_BASE_URL = import.meta.env.VITE_BACKEND_URL;
+
+// Extended Error interface for API errors with response data
+interface ApiError extends Error {
+  response?: unknown;
+}
 
 // Global logout handler for 401/403 errors
 let logoutCallback: (() => void) | null = null;
@@ -30,6 +34,28 @@ export async function apiFetch<T = unknown>(
 
   // Handle authentication errors
   if (res.status === 401 || res.status === 403) {
+    // First, try to get the error response to check if it's an admin restriction
+    let errorData: { message?: string; code?: string } | null = null;
+    let isAdminRestriction = false;
+    
+    try {
+      const responseText = await res.text();
+      errorData = JSON.parse(responseText);
+      
+      // Check if this is an admin restriction error rather than authentication error
+      if (errorData?.code === 'ADMIN_CANNOT_CREATE_RESCUE_FORM' || 
+          errorData?.message?.includes('You are currently in the admin interface')) {
+        isAdminRestriction = true;
+      }
+    } catch {
+      // If we can't parse the response, treat as authentication error
+    }
+    
+    // If it's an admin restriction, don't trigger logout - just throw the error
+    if (isAdminRestriction && errorData) {
+      throw new Error(errorData.message || 'Access denied');
+    }
+    
     // Check if this is a focal route - don't trigger official logout for focal auth errors
     const isFocalRoute = window.location.pathname.startsWith('/focal') || 
                         window.location.pathname.startsWith('/login-focal') || 
@@ -55,13 +81,35 @@ export async function apiFetch<T = unknown>(
       }
     }
 
-    const error = await res.text();
-    throw new Error(error || 'Session expired. Please login again.');
+    const error = errorData?.message || 'Session expired. Please login again.';
+    throw new Error(error);
   }
 
   if (!res.ok) {
-    const error = await res.text();
-    throw new Error(error || res.statusText);
+    let errorMessage = res.statusText;
+    let errorResponse;
+    
+    try {
+      const responseText = await res.text();
+      try {
+        errorResponse = JSON.parse(responseText);
+        if (errorResponse.message) {
+          errorMessage = errorResponse.message;
+        }
+      } catch {
+        // If JSON parsing fails, use the text as is
+        errorMessage = responseText || res.statusText;
+      }
+    } catch {
+      errorMessage = res.statusText;
+    }
+    
+    const error = new Error(errorMessage);
+    // Add the full error response as a property for more detailed error handling
+    if (errorResponse) {
+      (error as ApiError).response = errorResponse;
+    }
+    throw error;
   }
 
   return res.json();

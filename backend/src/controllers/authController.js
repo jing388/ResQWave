@@ -3,6 +3,13 @@ const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const nodemailer = require("nodemailer");
 const { AppDataSource } = require("../config/dataSource");
+const SibApiV3Sdk = require('sib-api-v3-sdk');
+
+const client = SibApiV3Sdk.ApiClient.instance;
+const apiKey = client.authentications['api-key'];
+apiKey.apiKey = process.env.BREVO_API_KEY; 
+
+const tranEmailApi = new SibApiV3Sdk.TransactionalEmailsApi();
 
 const adminRepo = AppDataSource.getRepository("Admin");
 const dispatcherRepo = AppDataSource.getRepository("Dispatcher");
@@ -132,31 +139,32 @@ const focalLogin = async (req, res) => {
     });
     await loginVerificationRepo.save(focalVerification);
 
-    // Send OTP via Email
-    var focalTransporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-      },
-      tls: { rejectUnauthorized: false }
-    });
-
+    // Send OTP using Brevo
     try {
-      await focalTransporter.sendMail({
-        from: `"ResQWave" <${process.env.EMAIL_USER}>`,
-        to: focal.email,
-        subject: "ResQWave 2FA Verification",
-        text: `Your login verification is ${focalCode}. It  will expire in 5 Minutes`
+      const sender = { email: 'rielkai01@gmail.com', name: 'ResQWave' }; 
+      const receivers = [{ email: focal.email }];
+
+      await tranEmailApi.sendTransacEmail({
+        sender,
+        to: receivers,
+        subject: 'ResQWave 2FA Verification',
+        htmlContent: `
+          <p>Dear ${focal.name || "User"},</p>
+          <p>Your login verification code is:</p>
+          <h2 style="color:#2E86C1;">${focalCode}</h2>
+          <p>This code will expire in 5 minutes.</p>
+          <p>Thank you,<br/>ResQWave Team</p>
+        `,
       });
+
+      console.log(`OTP email sent to ${focal.email}`);
     } catch (err) {
-      console.error('[focalLogin] Failed to send OTP email', err);
-      // Do not issue temp token if email sending fails
+      console.error('[focalLogin] Failed to send OTP via Brevo:', err);
       return res.status(500).json({ message: 'Failed to send verification email' });
     }
 
     // For dev only, log code
-    console.log(`🔑 2FA code for ${focal.id}: ${focalCode}`);
+    console.log(` 2FA code for ${focal.id}: ${focalCode}`);
     var focalTempToken = jwt.sign(
       { id: focal.id, role: "focalPerson", step: "2fa" },
       process.env.JWT_SECRET,
@@ -215,20 +223,6 @@ const focalLogin = async (req, res) => {
     const code = crypto.randomInt(100000, 999999).toString();
     const expiry = new Date(Date.now() + 5 * 60 * 1000);
     await loginVerificationRepo.save({ userID: user.id, userType: role, code, expiry });
-
-    // Send email
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
-      tls: { rejectUnauthorized: false }
-    });
-
-    await transporter.sendMail({
-      from: `"ResQWave" <${process.env.EMAIL_USER}>`,
-      to: recipientEmail,
-      subject: "ResQWave Login Verification Code",
-      text: `Your verification code is ${code}. It expires in 5 minutes.`,
-    });
 
     console.log(` 2FA code: ${code}`);
 
@@ -389,18 +383,28 @@ const adminDispatcherLogin = async (req, res) => {
     await loginVerificationRepo.save({ userID: user.id, userType: role, code, expiry });
 
     // Send email
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
-      tls: { rejectUnauthorized: false }
-    });
+      try {
+        const sender = { email: 'rielkai01@gmail.com', name: 'ResQWave' }; // or your verified Brevo sender
+        const receivers = [{ email: recipientEmail }];
 
-    await transporter.sendMail({
-      from: `"ResQWave" <${process.env.EMAIL_USER}>`,
-      to: recipientEmail,
-      subject: "ResQWave Login Verification Code",
-      text: `Your verification code is ${code}. It expires in 5 minutes.`,
-    });
+        await tranEmailApi.sendTransacEmail({
+          sender,
+          to: receivers,
+          subject: 'ResQWave Login Verification Code',
+          htmlContent: `
+            <p>Dear ${user.name || "User"},</p>
+            <p>Your verification code is:</p>
+            <h2 style="color:#2E86C1;">${code}</h2>
+            <p>This code will expire in 5 minutes.</p>
+            <p>Thank you,<br/>ResQWave Team</p>
+          `,
+        });
+
+      console.log(`Verification email sent to ${recipientEmail}`);
+    } catch (err) {
+      console.error('[dispatcherLogin] Failed to send OTP via Brevo:', err);
+      return res.status(500).json({ message: 'Failed to send verification email' });
+    }
 
     console.log(` 2FA code: ${code}`);
 

@@ -90,7 +90,19 @@ export default function SignalPopover({
                     onShowDispatchAlert?.(popover.focalPerson || 'Unknown');
                 } catch (error) {
                     console.error('[SignalPopover] Error dispatching rescue form:', error);
-                    onShowErrorAlert?.('Failed to dispatch rescue form. Please try again.');
+                    
+                    // Check for admin-specific error using code or message
+                    const err = error as { message?: string; response?: { code?: string; message?: string } };
+                    const errorCode = err.response?.code;
+                    const errorMessage = err.response?.message || err.message || '';
+                    
+                    if (errorCode === 'ADMIN_CANNOT_CREATE_RESCUE_FORM' || errorMessage.includes('You are currently in the admin interface')) {
+                        onShowErrorAlert?.('Cannot create rescue form: You are currently in the admin interface. Only dispatchers can create rescue forms.');
+                    } else if (errorCode === 'INVALID_USER_ROLE' || errorMessage.includes('Only dispatchers can create rescue forms')) {
+                        onShowErrorAlert?.('Access denied: Only dispatchers can create rescue forms.');
+                    } else {
+                        onShowErrorAlert?.('Failed to dispatch rescue form. Please try again.');
+                    }
                 }
             });
         } else if (formData) {

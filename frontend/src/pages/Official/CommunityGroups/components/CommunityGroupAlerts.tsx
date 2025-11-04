@@ -4,7 +4,7 @@ import { Home, HomeIcon, Trash2 } from "lucide-react"
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react"
 
 export type CommunityGroupAlertsHandle = {
-	showCreateSuccess: (groupName: string, temporaryPassword?: string) => void
+	showCreateSuccess: (groupName: string) => void
 	showUpdateSuccess: (groupName: string) => void
 	showArchiveSuccess: (groupName: string) => void
 	showDeleteSuccess: (groupName: string) => void
@@ -18,8 +18,6 @@ export default forwardRef<CommunityGroupAlertsHandle>(function CommunityGroupAle
 	// Create success alert (bottom left)
 	const [showCreate, setShowCreate] = useState(false)
 	const [createMessage, setCreateMessage] = useState("")
-	const [showTempPassword, setShowTempPassword] = useState(false)
-	const [tempPassword, setTempPassword] = useState("")
 	const createTimer = useRef<number | null>(null)
 
 	// Update success alert (bottom left)
@@ -99,20 +97,14 @@ export default forwardRef<CommunityGroupAlertsHandle>(function CommunityGroupAle
 	}
 
 	useImperativeHandle(ref, () => ({
-		showCreateSuccess: (groupName: string, temporaryPassword?: string) => {
+		showCreateSuccess: (groupName: string) => {
 			hideAllAlerts()
 			setCreateMessage(`Neighborhood Group "${groupName}" created successfully!`)
-			if (temporaryPassword) {
-				setTempPassword(temporaryPassword)
-				setShowTempPassword(true)
-			} else {
-				setShowTempPassword(false)
-			}
 			setShowCreate(true)
 			createTimer.current = window.setTimeout(() => {
 				setShowCreate(false)
 				createTimer.current = null
-			}, temporaryPassword ? 8000 : 3000) // Longer duration if showing temp password
+			}, 3000)
 		},
 		showUpdateSuccess: (groupName: string) => {
 			hideAllAlerts()
@@ -177,13 +169,6 @@ export default forwardRef<CommunityGroupAlertsHandle>(function CommunityGroupAle
 					</div>
 					<AlertDescription className="text-[13px] leading-tight">
 						<div>{createMessage}</div>
-						{showTempPassword && (
-							<div className="mt-2 p-2 bg-blue-600/20 rounded border border-blue-600/30">
-								<div className="text-[12px] text-blue-200 mb-1">Temporary Password:</div>
-								<div className="font-mono text-[13px] text-blue-100 font-semibold">{tempPassword}</div>
-								<div className="text-[11px] text-blue-300 mt-1">Please save this and share with the focal person.</div>
-							</div>
-						)}
 					</AlertDescription>
 				</Alert>
 			</div>

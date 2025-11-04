@@ -62,9 +62,9 @@ export interface CommunityGroupDetails {
   name: string
   terminalId: string
   communityId: string
-  individuals: number
-  families: number
-  floodSubsideHours?: number
+  individuals: string
+  families: string
+  floodSubsideHours?: string
   hazards: string[]
   notableInfo: string[]
   address?: string

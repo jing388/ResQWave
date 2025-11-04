@@ -16,7 +16,7 @@ export async function deleteNeighborhood(id: string): Promise<{ message: string 
 }
 
 /**
- * Update an existing neighborhood and its focal person
+ * Update an existing neighborhood and its focal person (like EditAboutCommunity pattern)
  */
 export async function updateNeighborhood(
   id: string,
@@ -24,61 +24,44 @@ export async function updateNeighborhood(
   photos?: {
     mainPhoto?: File
     altPhoto?: File
+  },
+  deletedPhotos?: {
+    mainPhotoDeleted?: boolean
+    altPhotoDeleted?: boolean
   }
 ): Promise<{ message: string }> {
   const payload = transformFormDataToPayload(formData)
 
-  // Use FormData to handle both JSON data and file uploads
-  const formDataToSend = new FormData()
-
-  // Add all text fields
-  Object.entries(payload).forEach(([key, value]) => {
-    if (value !== undefined && value !== null) {
-      if (Array.isArray(value)) {
-        formDataToSend.append(key, JSON.stringify(value))
-      } else {
-        formDataToSend.append(key, String(value))
-      }
-    }
-  })
-
-  // Add photo files if provided
-  if (photos?.mainPhoto) {
-    formDataToSend.append('photo', photos.mainPhoto)
-  }
-  if (photos?.altPhoto) {
-    formDataToSend.append('altPhoto', photos.altPhoto)
-  }
-
-  const token = localStorage.getItem('resqwave_token')
-
-  const response = await fetch(`${API_BASE_URL}/neighborhood/${id}`, {
+  // First, update the neighborhood data (without photos)
+  const response = await apiFetch(`/neighborhood/${id}`, {
     method: 'PUT',
-    credentials: 'include',
-    headers: {
-      ...(token && { Authorization: `Bearer ${token}` }),
-      // Don't set Content-Type - browser will set it with boundary for multipart
-    },
-    body: formDataToSend,
-  })
+    body: JSON.stringify(payload),
+  }) as { message: string }
 
-  if (!response.ok) {
-    let errorMessage = response.statusText
-    try {
-      const errorData = await response.json()
-      errorMessage = errorData.message || errorData.error || errorMessage
-    } catch {
-      // If JSON parsing fails, try text
-      try {
-        errorMessage = await response.text() || errorMessage
-      } catch {
-        // Keep the original statusText if both fail
-      }
-    }
-    throw new Error(errorMessage)
+  // Get the neighborhood details to get the focal person ID
+  const neighborhoodDetails = await getNeighborhoodDetails(id) as Record<string, unknown>
+  const focalPersonData = neighborhoodDetails.focalPerson as Record<string, unknown> | null
+  const focalPersonId = focalPersonData?.id as string
+
+  if (!focalPersonId) {
+    throw new Error('Focal person not found for this neighborhood')
   }
 
-  return response.json()
+  // Handle photo deletions first (like EditAboutCommunity)
+  if (deletedPhotos?.altPhotoDeleted) {
+    await deleteAltFocalPhoto(id)
+  }
+
+  // Handle photo uploads (like EditAboutCommunity)
+  if (photos?.mainPhoto) {
+    await updateFocalPersonPhoto(focalPersonId, photos.mainPhoto)
+  }
+  
+  if (photos?.altPhoto) {
+    await uploadAltFocalPhoto(id, photos.altPhoto)
+  }
+
+  return response
 }
 
 export interface CreateCommunityGroupPayload {
@@ -93,9 +76,9 @@ export interface CreateCommunityGroupPayload {
   altLastName?: string
   altEmail?: string
   altContactNumber?: string
-  noOfHouseholds: number
-  noOfResidents: number
-  floodSubsideHours: number
+  noOfHouseholds: string
+  noOfResidents: string
+  floodSubsideHours: string
   hazards: string[]
   otherInformation: string
 }
@@ -190,9 +173,9 @@ export async function fetchNeighborhoodDetailsTransformed(id: string): Promise<C
     name: String(raw.name || focalPerson.name || `Neighborhood ${raw.id}`),
     terminalId: String(raw.terminalID || raw.terminalId || ""),
     communityId: String(raw.id),
-    individuals: Number(raw.noOfResidents) || 0,
-    families: Number(raw.noOfHouseholds) || 0,
-    floodSubsideHours: Number(raw.floodSubsideHours) || 0,
+    individuals: String(raw.noOfResidents || ""),
+    families: String(raw.noOfHouseholds || ""),
+    floodSubsideHours: String(raw.floodSubsideHours || ""),
     hazards: raw.hazards ? (Array.isArray(raw.hazards) ? raw.hazards : [String(raw.hazards)]) : [],
     notableInfo: raw.otherInformation ? (Array.isArray(raw.otherInformation) ? raw.otherInformation : [String(raw.otherInformation)]) : [],
     address: (function () {
@@ -274,13 +257,9 @@ export function transformFormDataToPayload(formData: CommunityFormData): CreateC
     altLastName: formData.altFocalPersonLastName || undefined,
     altEmail: formData.altFocalPersonEmail || undefined,
     altContactNumber: formData.altFocalPersonContact || undefined,
-    noOfHouseholds: typeof formData.totalFamilies === 'string'
-      ? parseInt(formData.totalFamilies) || 0
-      : formData.totalFamilies,
-    noOfResidents: typeof formData.totalIndividuals === 'string'
-      ? parseInt(formData.totalIndividuals) || 0
-      : formData.totalIndividuals,
-    floodSubsideHours: parseInt(formData.floodwaterDuration) || 0,
+    noOfHouseholds: formData.totalFamilies || "",
+    noOfResidents: formData.totalIndividuals || "",
+    floodSubsideHours: formData.floodwaterDuration || "",
     hazards: formData.floodHazards,
     otherInformation: formData.notableInfo || ""
   }
@@ -289,6 +268,110 @@ export function transformFormDataToPayload(formData: CommunityFormData): CreateC
 /**
  * Creates a new community group by creating focal person and neighborhood records
  */
+/**
+ * Upload alternative focal person photo separately (like EditAboutCommunity)
+ */
+export async function uploadAltFocalPhoto(neighborhoodId: string, photo: File): Promise<{ message: string }> {
+  const formData = new FormData()
+  formData.append('alternativeFPImage', photo)
+  
+  const token = localStorage.getItem('resqwave_token')
+  
+  const response = await fetch(`${API_BASE_URL}/neighborhood/${neighborhoodId}/alt-photo`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      ...(token && { Authorization: `Bearer ${token}` }),
+    },
+    body: formData,
+  })
+
+  if (!response.ok) {
+    let errorMessage = response.statusText
+    try {
+      const errorData = await response.json()
+      errorMessage = errorData.message || errorData.error || errorMessage
+    } catch {
+      try {
+        errorMessage = await response.text() || errorMessage
+      } catch {
+        // Keep the original statusText if both fail
+      }
+    }
+    throw new Error(errorMessage)
+  }
+
+  return response.json()
+}
+
+/**
+ * Delete alternative focal person photo (like EditAboutCommunity)
+ */
+export async function deleteAltFocalPhoto(neighborhoodId: string): Promise<{ message: string }> {
+  const token = localStorage.getItem('resqwave_token')
+  
+  const response = await fetch(`${API_BASE_URL}/neighborhood/${neighborhoodId}/alt-photo`, {
+    method: 'DELETE',
+    credentials: 'include',
+    headers: {
+      ...(token && { Authorization: `Bearer ${token}` }),
+    },
+  })
+
+  if (!response.ok) {
+    let errorMessage = response.statusText
+    try {
+      const errorData = await response.json()
+      errorMessage = errorData.message || errorData.error || errorMessage
+    } catch {
+      try {
+        errorMessage = await response.text() || errorMessage
+      } catch {
+        // Keep the original statusText if both fail
+      }
+    }
+    throw new Error(errorMessage)
+  }
+
+  return response.json()
+}
+
+/**
+ * Update main focal person photo separately  
+ */
+export async function updateFocalPersonPhoto(focalPersonId: string, photo: File): Promise<{ message: string }> {
+  const formData = new FormData()
+  formData.append('photo', photo)
+  
+  const token = localStorage.getItem('resqwave_token')
+  
+  const response = await fetch(`${API_BASE_URL}/focalperson/${focalPersonId}/photos`, {
+    method: 'PUT',
+    credentials: 'include',
+    headers: {
+      ...(token && { Authorization: `Bearer ${token}` }),
+    },
+    body: formData,
+  })
+
+  if (!response.ok) {
+    let errorMessage = response.statusText
+    try {
+      const errorData = await response.json()
+      errorMessage = errorData.message || errorData.error || errorMessage
+    } catch {
+      try {
+        errorMessage = await response.text() || errorMessage
+      } catch {
+        // Keep the original statusText if both fail
+      }
+    }
+    throw new Error(errorMessage)
+  }
+
+  return response.json()
+}
+
 export async function createCommunityGroup(
   formData: CommunityFormData,
   photos?: {
@@ -437,9 +520,15 @@ export async function getNeighborhoodByTerminalId(terminalId: string): Promise<C
 /**
  * Transforms backend neighborhood data to frontend CommunityGroup format
  */
-export function transformNeighborhoodToCommunityGroup(neighborhood: NeighborhoodApiResponse): import('../types').CommunityGroup {
+export function transformNeighborhoodToCommunityGroup(
+  neighborhood: NeighborhoodApiResponse, 
+  isArchived: boolean = false
+): import('../types').CommunityGroup {
   // Map terminal status to our frontend status format
   const getStatus = (terminalStatus: string): "ONLINE" | "OFFLINE" | "N/A" => {
+    // For archived neighborhoods, always show N/A regardless of terminal status
+    if (isArchived) return "N/A"
+    
     if (terminalStatus === "Online") return "ONLINE"
     if (terminalStatus === "Offline") return "OFFLINE"
     return "N/A"

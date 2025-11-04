@@ -201,7 +201,7 @@ export function ReportsTable({ type, data, onReportCreated }: ReportsTableProps)
             </DropdownMenuTrigger>
             <DropdownMenuContent
               align="start" side="left" sideOffset={2}
-              className="bg-[#171717] border border-[#2a2a2a] text-white hover:text-white w-50 h-20 p-1 rounded-[5px] shadow-lg flex flex-col space-y-1"
+              className="bg-[#171717] border border-[#2a2a2a] text-white hover:text-white w-48 p-1 rounded-[5px] shadow-lg"
             >
               <DropdownMenuItem className="hover:bg-[#404040] focus:bg-[#404040] rounded-[5px] cursor-pointer hover:text-white focus:text-white">
                 View details
@@ -238,18 +238,18 @@ export function ReportsTable({ type, data, onReportCreated }: ReportsTableProps)
     state: {},
     initialState: {
       pagination: {
-        pageSize: 8,
+        pageSize: isCompleted ? 5 : 6, // Reduce page size for completed to account for extra column
       },
     },
   });
 
   return (
-    <div className="w-full h-full flex flex-col">
+    <div className={`w-full h-full flex flex-col overflow-hidden min-h-0 ${isCompleted ? 'max-h-full overflow-hidden' : ''}`}>
       <div className="bg-[#191818] rounded-[5px] border border-[#262626] flex-1 min-h-0 flex flex-col overflow-hidden">
         {/* Fixed Header */}
         <div className="flex-shrink-0">
-          <div className="w-full overflow-x-auto">
-            <table className="w-full caption-bottom text-sm table-fixed">
+          <div className="w-full overflow-x-hidden">
+            <table className="w-full caption-bottom text-sm overflow-hidden table-fixed min-w-[1100px]">
               <colgroup>
                 <col className="col-emergency-id" />
                 <col className="col-community-name" />
@@ -270,7 +270,7 @@ export function ReportsTable({ type, data, onReportCreated }: ReportsTableProps)
                       return (
                         <TableHead
                           key={header.id}
-                          className={`text-black font-medium px-3 py-2 ${isFirst ? 'rounded-tl-[5px]' : ''
+                          className={`text-black font-medium px-2 py-2 ${isFirst ? 'rounded-tl-[5px]' : ''
                             } ${isLast ? 'rounded-tr-[5px]' : ''
                             }`}
                         >
@@ -291,7 +291,7 @@ export function ReportsTable({ type, data, onReportCreated }: ReportsTableProps)
 
         {/* Scrollable Body */}
         <div className="flex-1 overflow-y-auto overflow-x-auto min-h-0 reports-table-scrollable">
-          <table className="w-full caption-bottom text-sm table-fixed">
+          <table className="w-full caption-bottom text-sm table-fixed min-w-[1100px]">
             <colgroup>
               <col className="col-emergency-id" />
               <col className="col-community-name" />
@@ -332,11 +332,11 @@ export function ReportsTable({ type, data, onReportCreated }: ReportsTableProps)
       </div>
 
       {/* Pagination */}
-      <div className="flex items-center justify-between space-x-2 py-4">
+      <div className={`flex-shrink-0 flex items-center justify-between space-x-2 py-2 px-1 ${isCompleted ? 'py-1' : 'py-2'}`}>
         <div className="text-sm text-[#a1a1a1]">
           Showing {table.getFilteredRowModel().rows.length} report(s).
         </div>
-        <div className="flex items-center space-x-6 lg:space-x-8">
+        <div className="flex items-center space-x-4">
           <div className="flex items-center space-x-2">
             <p className="text-sm font-medium text-[#a1a1a1]">Rows per page:</p>
             <Select
@@ -349,11 +349,18 @@ export function ReportsTable({ type, data, onReportCreated }: ReportsTableProps)
                 <SelectValue placeholder={table.getState().pagination.pageSize} />
               </SelectTrigger>
               <SelectContent side="top" className="bg-[#262626] border-[#404040] text-white">
-                {[8, 16, 24, 32, 50].map((pageSize) => (
-                  <SelectItem key={pageSize} value={`${pageSize}`}>
-                    {pageSize}
-                  </SelectItem>
-                ))}
+                {isCompleted 
+                  ? [5, 10, 15, 20].map((pageSize) => (
+                      <SelectItem key={pageSize} value={`${pageSize}`}>
+                        {pageSize}
+                      </SelectItem>
+                    ))
+                  : [6, 12, 18, 24].map((pageSize) => (
+                      <SelectItem key={pageSize} value={`${pageSize}`}>
+                        {pageSize}
+                      </SelectItem>
+                    ))
+                }
               </SelectContent>
             </Select>
           </div>

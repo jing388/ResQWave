@@ -18,7 +18,8 @@ export function CreateTerminalSheet({
   open,
   onOpenChange,
   onSave,
-  editData
+  editData,
+  loading = false
 }: TerminalDrawerProps) {
   const isEditing = !!editData
 
@@ -29,6 +30,7 @@ export function CreateTerminalSheet({
   const [errors, setErrors] = useState<FormErrors>({})
   const [displayId, setDisplayId] = useState<string>("")
   const [isLoadingId, setIsLoadingId] = useState<boolean>(false)
+  const [isSaving, setIsSaving] = useState<boolean>(false)
 
   // Fetch next terminal ID from backend
   const fetchNextTerminalId = useCallback(async (): Promise<void> => {
@@ -104,6 +106,11 @@ export function CreateTerminalSheet({
   }, [errors])
 
   const handleSave = useCallback(() => {
+    // Prevent double clicks - if already saving, don't proceed
+    if (isSaving || loading) {
+      return
+    }
+
     // Validate all fields
     const nameError = validateName(formData.name)
 
@@ -120,6 +127,9 @@ export function CreateTerminalSheet({
       console.log("Validation errors:", newErrors)
       return
     }
+
+    // Set local saving state
+    setIsSaving(true)
 
     // Prepare the data
     const terminalFormData: TerminalFormData = {
@@ -139,11 +149,23 @@ export function CreateTerminalSheet({
     }).catch((err) => {
       console.error('Error saving terminal:', err)
       // Error is handled by the parent component
+    }).finally(() => {
+      // Clear local saving state
+      setIsSaving(false)
     })
-  }, [formData, onSave, onOpenChange])
+  }, [formData, onSave, onOpenChange, isSaving, loading])
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog 
+      open={open} 
+      onOpenChange={(newOpen) => {
+        // Prevent closing during save operation
+        if (!newOpen && (isSaving || loading)) {
+          return
+        }
+        onOpenChange(newOpen)
+      }}
+    >
       <DialogContent className="bg-[#171717] border-[#2a2a2a] text-white max-w-md">
         <DialogHeader>
           <DialogTitle className="text-white text-xl font-medium">
@@ -173,7 +195,8 @@ export function CreateTerminalSheet({
             <Input
               value={formData.name}
               onChange={(e) => handleInputChange("name", e.target.value)}
-              className="bg-[#262626] border-[#404040] text-white placeholder:text-[#a1a1a1] focus:border-[#4285f4]"
+              disabled={isSaving || loading}
+              className="bg-[#262626] border-[#404040] text-white placeholder:text-[#a1a1a1] focus:border-[#4285f4] disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="Enter terminal name"
             />
             {errors.name && (
@@ -185,10 +208,17 @@ export function CreateTerminalSheet({
           <div className="pt-4">
             <Button
               onClick={handleSave}
-              disabled={!isFormValid()}
-              className="w-full bg-[#4285f4] text-white hover:bg-[#3367d6] disabled:bg-[#404040] disabled:text-[#a1a1a1] py-3 text-lg"
+              disabled={!isFormValid() || isSaving || loading}
+              className="w-full bg-[#4285f4] text-white hover:bg-[#3367d6] disabled:bg-[#404040] disabled:text-[#a1a1a1] py-3 text-lg flex items-center justify-center gap-2"
             >
-              {isEditing ? "Update Terminal" : "Create Terminal"}
+              {(isSaving || loading) && (
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+              )}
+              {(isSaving || loading) ? (
+                isEditing ? "Updating..." : "Creating..."
+              ) : (
+                isEditing ? "Update Terminal" : "Create Terminal"
+              )}
             </Button>
           </div>
         </div>

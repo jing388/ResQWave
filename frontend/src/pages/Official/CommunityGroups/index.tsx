@@ -141,8 +141,8 @@ export function CommunityGroups() {
         getNeighborhoods(),
         getArchivedNeighborhoods()
       ])
-      setActiveGroups(activeData.map(transformNeighborhoodToCommunityGroup))
-      setArchivedGroups(archivedData.map(transformNeighborhoodToCommunityGroup))
+      setActiveGroups(activeData.map(neighborhood => transformNeighborhoodToCommunityGroup(neighborhood, false)))
+      setArchivedGroups(archivedData.map(neighborhood => transformNeighborhoodToCommunityGroup(neighborhood, true)))
 
       // Show success alert
       alertsRef.current?.showArchiveSuccess(group.name || group.focalPerson || 'Neighborhood Group')
@@ -166,7 +166,7 @@ export function CommunityGroups() {
           await deleteNeighborhood(group.id)
           // Refetch archived list to sync frontend with backend
           const archivedData = await getArchivedNeighborhoods()
-          setArchivedGroups(archivedData.map(transformNeighborhoodToCommunityGroup))
+          setArchivedGroups(archivedData.map(neighborhood => transformNeighborhoodToCommunityGroup(neighborhood, true)))
           setInfoById((prev) => {
             const newState = { ...prev };
             delete newState[group.id];
@@ -300,8 +300,8 @@ export function CommunityGroups() {
         ])
 
         // Transform backend data to frontend format
-        const transformedActive = activeData.map(transformNeighborhoodToCommunityGroup)
-        const transformedArchived = archivedData.map(transformNeighborhoodToCommunityGroup)
+        const transformedActive = activeData.map(neighborhood => transformNeighborhoodToCommunityGroup(neighborhood, false))
+        const transformedArchived = archivedData.map(neighborhood => transformNeighborhoodToCommunityGroup(neighborhood, true))
 
         setActiveGroups(transformedActive)
         setArchivedGroups(transformedArchived)
@@ -419,8 +419,8 @@ export function CommunityGroups() {
                     getArchivedNeighborhoods()
                   ])
 
-                  const transformedActive = activeData.map(transformNeighborhoodToCommunityGroup)
-                  const transformedArchived = archivedData.map(transformNeighborhoodToCommunityGroup)
+                  const transformedActive = activeData.map(neighborhood => transformNeighborhoodToCommunityGroup(neighborhood, false))
+                  const transformedArchived = archivedData.map(neighborhood => transformNeighborhoodToCommunityGroup(neighborhood, true))
 
                   setActiveGroups(transformedActive)
                   setArchivedGroups(transformedArchived)
@@ -437,10 +437,7 @@ export function CommunityGroups() {
                     if (editingGroup) {
                       alertsRef.current?.showUpdateSuccess(saveInfo.groupName)
                     } else {
-                      alertsRef.current?.showCreateSuccess(
-                        saveInfo.groupName,
-                        saveInfo.generatedPassword
-                      )
+                      alertsRef.current?.showCreateSuccess(saveInfo.groupName)
                     }
                   }
 

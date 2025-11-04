@@ -76,9 +76,20 @@ export default function RescueFormPreview({ isOpen, onClose, onBack, formData, o
 
             onClose();
         } catch (err: unknown) {
-            const error = err as { message?: string };
+            const error = err as { message?: string; response?: { code?: string; message?: string } };
             console.error('[RescueFormPreview] Error creating rescue form:', err);
-            setError(error.message || 'Failed to create rescue form');
+            
+            // Check for admin-specific error using code or message
+            const errorCode = error.response?.code;
+            const errorMessage = error.response?.message || error.message || '';
+            
+            if (errorCode === 'ADMIN_CANNOT_CREATE_RESCUE_FORM' || errorMessage.includes('You are currently in the admin interface')) {
+                setError('Cannot create rescue form: You are currently in the admin interface. Only dispatchers can create rescue forms.');
+            } else if (errorCode === 'INVALID_USER_ROLE' || errorMessage.includes('Only dispatchers can create rescue forms')) {
+                setError('Access denied: Only dispatchers can create rescue forms.');
+            } else {
+                setError(errorMessage || 'Failed to create rescue form');
+            }
         } finally {
             setIsSubmitting(false);
         }

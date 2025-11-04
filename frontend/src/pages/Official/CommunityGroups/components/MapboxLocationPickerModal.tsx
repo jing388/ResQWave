@@ -79,8 +79,10 @@ export function MapboxLocationPickerModal({
       reverseGeocode(lng, lat).then((address) => {
         setSelectedPoint({ lng, lat, address })
         console.log(`✅ Initial location geocoded: ${address}`)
+        console.log(`📍 Initial coordinates: [${lng.toFixed(6)}, ${lat.toFixed(6)}] (lng, lat)`)
       }).catch((err) => {
         console.error("❌ Failed to geocode initial location:", err)
+        console.log(`📍 Failed initial coordinates: [${lng.toFixed(6)}, ${lat.toFixed(6)}] (lng, lat)`)
         setSelectedPoint({ lng, lat, address: `${lat.toFixed(6)}, ${lng.toFixed(6)}` })
       })
     }
@@ -149,10 +151,12 @@ export function MapboxLocationPickerModal({
       // Reverse geocode for address
       reverseGeocode(lng, lat).then((address) => {
         console.log(`✅ Address found: ${address}`)
+        console.log(`📍 Clicked coordinates: [${lng.toFixed(6)}, ${lat.toFixed(6)}] (lng, lat)`)
         setSelectedPoint({ lng, lat, address })
         alertsRef.current?.showPinAlert(`${address}\n${lng.toFixed(6)}, ${lat.toFixed(6)}`)
       }).catch((err) => {
         console.error("❌ Geocoding failed:", err)
+        console.log(`📍 Failed coordinates: [${lng.toFixed(6)}, ${lat.toFixed(6)}] (lng, lat)`)
         const fallback = `${lng.toFixed(6)}, ${lat.toFixed(6)}`
         setSelectedPoint({ lng, lat, address: fallback })
         alertsRef.current?.showPinAlert(`Coordinates: ${fallback}`)

@@ -415,6 +415,7 @@ export function Terminals() {
         }}
         editData={editData}
         onSave={handleSaveTerminal}
+        loading={saving}
       />
 
       {/* Terminal Alerts */}

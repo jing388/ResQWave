@@ -1,36 +1,36 @@
-import { useRef, useEffect, useState, useCallback } from "react";
+import MapboxDraw from "@mapbox/mapbox-gl-draw";
 import mapboxgl from "mapbox-gl";
-import { flyToSignal, cinematicMapEntrance } from './utils/flyingEffects';
-import Header from "./components/Header";
-import AccountSettingsModal from "./components/AccountSettingsModal";
+import { useCallback, useEffect, useRef, useState } from "react";
 import AboutCommunity from "./components/AboutCommunity";
-import EditAboutCommunity from "./components/EditAboutCommunity";
-import { CommunityDataProvider } from "./context/CommunityDataContext";
-import HistoryCommunity from "./components/HistoryCommunity";
+import AccountSettingsModal from "./components/AccountSettingsModal";
 import ActivityLogModal from "./components/ActivityLogModal";
+import EditAboutCommunity from "./components/EditAboutCommunity";
+import { HazardLegend } from './components/HazardLegend';
+import Header from "./components/Header";
+import HistoryCommunity from "./components/HistoryCommunity";
 import MapControls from './components/MapControls';
 import SignalPopover from './components/SignalPopover';
+import SignalStatusLegend from './components/SignalStatusLegend';
+import { CommunityDataProvider } from "./context/CommunityDataContext";
 import useSignals from './hooks/useSignals';
 import type { DashboardSignals, Signal } from './types/signals';
-import MapboxDraw from "@mapbox/mapbox-gl-draw";
-import { createDraw, ensureSquareGreenImage, changeToDrawPolygon, makeUpdateCanSave } from './utils/drawMapBoundary';
+import { changeToDrawPolygon, createDraw, ensureSquareGreenImage, makeUpdateCanSave } from './utils/drawMapBoundary';
+import { cinematicMapEntrance, flyToSignal } from './utils/flyingEffects';
 import { addCustomLayers, makeTooltip } from './utils/mapHelpers';
-import { HazardLegend } from './components/HazardLegend';
-import SignalStatusLegend from './components/SignalStatusLegend';
 
-import DashboardAlerts from './components/DashboardAlerts';
 import {
     AlertDialog,
-    AlertDialogContent,
-    AlertDialogHeader,
-    AlertDialogFooter,
-    AlertDialogTitle,
-    AlertDialogDescription,
     AlertDialogAction,
     AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
 } from '@/components/ui/alert-dialog-focal';
-import "mapbox-gl/dist/mapbox-gl.css";
 import "@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css";
+import "mapbox-gl/dist/mapbox-gl.css";
+import DashboardAlerts from './components/DashboardAlerts';
 // lucide icons removed (unused in this file)
 
 
@@ -167,7 +167,7 @@ export default function Dashboard() {
                 setSavedMessage(msg);
                 setSavedShowViewLogs(showViewLogs);
                 setSavedTrigger(prev => (prev == null ? 1 : prev + 1));
-            } catch (e) { /* ignore */ }
+            } catch { /* ignore */ }
         };
         window.addEventListener('dashboard:show-saved', handler as EventListener);
         return () => window.removeEventListener('dashboard:show-saved', handler as EventListener);

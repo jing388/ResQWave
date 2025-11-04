@@ -4,15 +4,14 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
-import { Map } from "lucide-react"
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { Loader2, Map, Trash, Upload } from "lucide-react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { createCommunityGroup, getAllTerminals, getAvailableTerminals, updateNeighborhood, type Terminal } from "../api/communityGroupApi"
 import type { CommunityGroupDrawerProps } from "../types"
 import type { CommunityFormData } from "../types/forms"
 import { convertFormToInfoData } from "../utils/formHelpers"
 import { CloseCreateDialog } from "./CloseCreateDialog"
 import { MapboxLocationPickerModal } from "./MapboxLocationPickerModal"
-import { PhotoUploadArea } from "./PhotoUploadArea"
 
 // Validation utility functions
 const validateEmail = (email: string): boolean => {
@@ -23,8 +22,8 @@ const validateEmail = (email: string): boolean => {
 const validatePhoneNumber = (phone: string): boolean => {
   // Remove any non-digit characters for validation
   const cleanPhone = phone.replace(/\D/g, '')
-  // Check if it's exactly 11 digits (for Philippines +63 format)
-  return cleanPhone.length === 11
+  // Check if it's exactly 11 digits and starts with "09" (for Philippines format)
+  return cleanPhone.length === 11 && cleanPhone.startsWith('09')
 }
 
 const formatPhoneNumber = (phone: string): string => {
@@ -38,6 +37,32 @@ const sanitizeName = (name: string): string => {
   // Remove any numbers from the name, keep only letters, spaces, and common name characters
   return name.replace(/[0-9]/g, '')
 }
+
+// Photo validation function (like EditAboutCommunity)
+const validatePhoto = (file: File): Promise<string> => new Promise((resolve) => {
+  if (!file) return resolve('')
+  const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+  if (!allowed.includes(file.type)) return resolve('Allowed formats: JPG, PNG, WebP')
+  const MAX_BYTES = 2 * 1024 * 1024 // 2MB to match backend and database limits
+  const MIN_BYTES = 10 * 1024 // 10KB
+  if (file.size > MAX_BYTES) return resolve('File must be less than 2MB')
+  if (file.size < MIN_BYTES) return resolve('File is too small (min 10KB)')
+  const img = new Image()
+  const tmpUrl = URL.createObjectURL(file)
+  img.onload = () => {
+    const w = img.width
+    const h = img.height
+    URL.revokeObjectURL(tmpUrl)
+    if (w < 200 || h < 200) return resolve('Image dimensions must be at least 200x200px')
+    if (w > 4096 || h > 4096) return resolve('Image dimensions must be at most 4096x4096px')
+    return resolve('')
+  }
+  img.onerror = () => {
+    try { URL.revokeObjectURL(tmpUrl) } catch { /* ignore */ }
+    return resolve('Unable to read image file')
+  }
+  img.src = tmpUrl
+})
 
 // Create initial empty form data
 const createEmptyFormData = (): CommunityFormData => ({
@@ -85,6 +110,23 @@ export function CommunityGroupDrawer({ open, onOpenChange, onSave, editData, isE
   })
   const [isDirty, setIsDirty] = useState(false)
   
+  // Photo-specific state variables (like EditAboutCommunity)
+  const [focalPhotoLoading, setFocalPhotoLoading] = useState(false)
+  const [focalPhotoError, setFocalPhotoError] = useState('')
+  const [focalPhotoFile, setFocalPhotoFile] = useState<File | null>(null)
+  const [focalPhotoDeleted, setFocalPhotoDeleted] = useState(false)
+  const [initialFocalPhotoExists, setInitialFocalPhotoExists] = useState(false)
+  
+  const [altPhotoLoading, setAltPhotoLoading] = useState(false)
+  const [altPhotoError, setAltPhotoError] = useState('')
+  const [altPhotoFile, setAltPhotoFile] = useState<File | null>(null)
+  const [altPhotoDeleted, setAltPhotoDeleted] = useState(false)
+  const [initialAltPhotoExists, setInitialAltPhotoExists] = useState(false)
+  
+  // File input refs
+  const focalFileInputRef = useRef<HTMLInputElement | null>(null)
+  const altFileInputRef = useRef<HTMLInputElement | null>(null)
+  
   // Simple update function - just like Terminal modal
   const updateFormData = useCallback((data: Partial<CommunityFormData>) => {
     setFormData(prev => ({ ...prev, ...data }))
@@ -104,39 +146,6 @@ export function CommunityGroupDrawer({ open, onOpenChange, onSave, editData, isE
     }
     
     setErrors(clearedErrors)
-  }, [errors])
-  
-  // Simple photo upload handler
-  const handleFileUpload = useCallback((field: "focalPersonPhoto" | "altFocalPersonPhoto", file: File | null) => {
-    setFormData(prev => ({ ...prev, [field]: file }))
-    setIsDirty(true)
-    
-    // Clear field-specific errors when user makes changes to those fields
-    const clearedErrors = { ...errors }
-    if (clearedErrors[field]) {
-      delete clearedErrors[field]
-    }
-    
-    // Clear general errors when user makes changes
-    if (errors.general) {
-      delete clearedErrors.general
-    }
-    
-    setErrors(clearedErrors)
-    
-    // Update photo URLs for display
-    if (file) {
-      const url = URL.createObjectURL(file)
-      setPhotoUrls(prev => ({ ...prev, [field]: url }))
-    } else {
-      // Clean up existing URL
-      setPhotoUrls(prev => {
-        if (prev[field]) {
-          URL.revokeObjectURL(prev[field]!)
-        }
-        return { ...prev, [field]: null }
-      })
-    }
   }, [errors])
 
   // Form validation
@@ -190,7 +199,14 @@ export function CommunityGroupDrawer({ open, onOpenChange, onSave, editData, isE
       case 'focalPersonContact':
       case 'altFocalPersonContact':
         if (value && !validatePhoneNumber(value)) {
-          newErrors[fieldName] = 'Contact number must be exactly 11 digits'
+          const cleanPhone = value.replace(/\D/g, '')
+          if (cleanPhone.length !== 11) {
+            newErrors[fieldName] = 'Contact number must be exactly 11 digits'
+          } else if (!cleanPhone.startsWith('09')) {
+            newErrors[fieldName] = 'Contact number must start with "09"'
+          } else {
+            newErrors[fieldName] = 'Please enter a valid contact number'
+          }
         } else {
           delete newErrors[fieldName]
         }
@@ -246,27 +262,6 @@ export function CommunityGroupDrawer({ open, onOpenChange, onSave, editData, isE
       const altFirstName = altNameParts[0] || ""
       const altLastName = altNameParts.slice(1).join(" ") || ""
       
-      // Convert numeric values to range strings that match the select options
-      const mapToIndividualsRange = (num: number): string => {
-        if (num <= 10) return "5-10"
-        if (num <= 15) return "10-15"
-        return "15-20"
-      }
-      
-      const mapToFamiliesRange = (num: number): string => {
-        if (num <= 10) return "5-10"
-        if (num <= 15) return "10-15"
-        return "15-20"
-      }
-      
-      const mapToFloodDuration = (hours: number): string => {
-        if (hours < 1) return "< 1 hr"
-        if (hours <= 3) return "1-3 hrs"
-        if (hours <= 6) return "3-6 hrs"
-        if (hours <= 12) return "6-12 hrs"
-        return "> 12 hrs"
-      }
-      
       // Load photo URLs if available - fetch and convert to blob URLs
       const token = localStorage.getItem('resqwave_token')
       const fetchPhoto = async (url?: string) => {
@@ -289,22 +284,24 @@ export function CommunityGroupDrawer({ open, onOpenChange, onSave, editData, isE
       ]).then(([mainPhoto, altPhoto]) => {
         if (mainPhoto) {
           setPhotoUrls(prev => ({ ...prev, focalPersonPhoto: mainPhoto }))
+          setInitialFocalPhotoExists(true)
         }
         if (altPhoto) {
           setPhotoUrls(prev => ({ ...prev, altFocalPersonPhoto: altPhoto }))
+          setInitialAltPhotoExists(true)
         }
       })
       
       const newFormData: CommunityFormData = {
         assignedTerminal: editData.terminalId || "",
         communityGroupName: editData.name || "",
-        totalIndividuals: mapToIndividualsRange(editData.individuals || 0),
-        totalFamilies: mapToFamiliesRange(editData.families || 0),
+        totalIndividuals: editData.individuals || "",
+        totalFamilies: editData.families || "",
         totalKids: 0,
         totalSeniorCitizen: 0,
         totalPregnantWomen: 0,
         totalPWDs: 0,
-        floodwaterDuration: mapToFloodDuration(editData.floodSubsideHours || 0),
+        floodwaterDuration: editData.floodSubsideHours || "",
         floodHazards: Array.isArray(editData.hazards) ? editData.hazards : [],
         notableInfo: Array.isArray(editData.notableInfo) ? editData.notableInfo.join(", ") : (editData.notableInfo || ""),
         focalPersonPhoto: null,
@@ -328,8 +325,30 @@ export function CommunityGroupDrawer({ open, onOpenChange, onSave, editData, isE
       setIsDirty(false)
     } else if (!isEditing) {
       // Reset form for new creation
+      // Clean up blob URLs before resetting
+      if (photoUrls.focalPersonPhoto && photoUrls.focalPersonPhoto.startsWith('blob:')) {
+        try { URL.revokeObjectURL(photoUrls.focalPersonPhoto) } catch { /* Ignore revoke errors */ }
+      }
+      if (photoUrls.altFocalPersonPhoto && photoUrls.altFocalPersonPhoto.startsWith('blob:')) {
+        try { URL.revokeObjectURL(photoUrls.altFocalPersonPhoto) } catch { /* Ignore revoke errors */ }
+      }
+      
+      // Clear file inputs to allow re-uploading the same files
+      if (focalFileInputRef.current) {
+        focalFileInputRef.current.value = ''
+      }
+      if (altFileInputRef.current) {
+        altFileInputRef.current.value = ''
+      }
+      
       setFormData(createEmptyFormData())
       setPhotoUrls({ focalPersonPhoto: null, altFocalPersonPhoto: null })
+      setFocalPhotoError('')
+      setAltPhotoError('')
+      setFocalPhotoFile(null)
+      setAltPhotoFile(null)
+      setFocalPhotoDeleted(false)
+      setAltPhotoDeleted(false)
       setIsDirty(false)
       setErrors({})
     }
@@ -387,8 +406,19 @@ export function CommunityGroupDrawer({ open, onOpenChange, onSave, editData, isE
       }
       
       if (isEditing && editData) {
-        // UPDATE existing neighborhood
-        await updateNeighborhood(editData.communityId, formData, photos)
+        // UPDATE existing neighborhood (like EditAboutCommunity pattern)
+        await updateNeighborhood(
+          editData.communityId, 
+          formData, 
+          {
+            mainPhoto: focalPhotoFile || undefined,
+            altPhoto: altPhotoFile || undefined,
+          },
+          {
+            mainPhotoDeleted: focalPhotoDeleted && !focalPhotoFile && initialFocalPhotoExists,
+            altPhotoDeleted: altPhotoDeleted && !altPhotoFile && initialAltPhotoExists,
+          }
+        )
         
         // Convert to frontend format for local state update
         const infoData = convertFormToInfoData(formData, [formData.notableInfo].filter(Boolean))
@@ -423,8 +453,30 @@ export function CommunityGroupDrawer({ open, onOpenChange, onSave, editData, isE
       }
       
       // Only reset form and close sheet on successful save
+      // Clean up blob URLs before resetting
+      if (photoUrls.focalPersonPhoto && photoUrls.focalPersonPhoto.startsWith('blob:')) {
+        try { URL.revokeObjectURL(photoUrls.focalPersonPhoto) } catch { /* Ignore revoke errors */ }
+      }
+      if (photoUrls.altFocalPersonPhoto && photoUrls.altFocalPersonPhoto.startsWith('blob:')) {
+        try { URL.revokeObjectURL(photoUrls.altFocalPersonPhoto) } catch { /* Ignore revoke errors */ }
+      }
+      
+      // Clear file inputs to allow re-uploading the same files
+      if (focalFileInputRef.current) {
+        focalFileInputRef.current.value = ''
+      }
+      if (altFileInputRef.current) {
+        altFileInputRef.current.value = ''
+      }
+      
       setFormData(createEmptyFormData())
       setPhotoUrls({ focalPersonPhoto: null, altFocalPersonPhoto: null })
+      setFocalPhotoError('')
+      setAltPhotoError('')
+      setFocalPhotoFile(null)
+      setAltPhotoFile(null)
+      setFocalPhotoDeleted(false)
+      setAltPhotoDeleted(false)
       setIsDirty(false)
       setErrors({})
       onOpenChange(false)
@@ -471,9 +523,31 @@ export function CommunityGroupDrawer({ open, onOpenChange, onSave, editData, isE
   const handleDiscard = () => {
     setShowCloseConfirm(false)
     
+    // Clean up blob URLs before resetting
+    if (photoUrls.focalPersonPhoto && photoUrls.focalPersonPhoto.startsWith('blob:')) {
+      try { URL.revokeObjectURL(photoUrls.focalPersonPhoto) } catch { /* Ignore revoke errors */ }
+    }
+    if (photoUrls.altFocalPersonPhoto && photoUrls.altFocalPersonPhoto.startsWith('blob:')) {
+      try { URL.revokeObjectURL(photoUrls.altFocalPersonPhoto) } catch { /* Ignore revoke errors */ }
+    }
+    
+    // Clear file inputs to allow re-uploading the same files
+    if (focalFileInputRef.current) {
+      focalFileInputRef.current.value = ''
+    }
+    if (altFileInputRef.current) {
+      altFileInputRef.current.value = ''
+    }
+    
     // Reset form
     setFormData(createEmptyFormData())
     setPhotoUrls({ focalPersonPhoto: null, altFocalPersonPhoto: null })
+    setFocalPhotoError('')
+    setAltPhotoError('')
+    setFocalPhotoFile(null)
+    setAltPhotoFile(null)
+    setFocalPhotoDeleted(false)
+    setAltPhotoDeleted(false)
     setIsDirty(false)
     setErrors({})
     onOpenChange(false)
@@ -785,14 +859,117 @@ export function CommunityGroupDrawer({ open, onOpenChange, onSave, editData, isE
             Main Focal Person
           </div>
 
-          <PhotoUploadArea
-            inputId="focal-photo-upload"
-            photo={formData.focalPersonPhoto}
-            onDelete={() => handleFileUpload("focalPersonPhoto", null)}
-            onFileSelect={(file) => handleFileUpload("focalPersonPhoto", file)}
-            photoUrlKey="focalPersonPhoto"
-            photoUrls={photoUrls}
-          />
+          {/* Main Focal Person Photo Upload */}
+          {focalPhotoLoading ? (
+            <div style={{ background: '#0b0b0b', borderRadius: 6, display: 'flex', justifyContent: 'center' }}>
+              <div style={{ width: '100%', maxWidth: '100%', height: 240, borderRadius: 8, overflow: 'hidden', position: 'relative', backgroundColor: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Loader2 className="w-12 h-12 text-blue-500 animate-spin" />
+              </div>
+            </div>
+          ) : photoUrls.focalPersonPhoto ? (
+            <div style={{ background: '#0b0b0b', borderRadius: 6, display: 'flex', justifyContent: 'center' }}>
+              <div style={{ width: '100%', maxWidth: '100%', height: 240, borderRadius: 8, overflow: 'hidden', position: 'relative', backgroundColor: '#111' }}>
+                <div style={{ position: 'absolute', inset: 0, backgroundImage: `url(${photoUrls.focalPersonPhoto})`, backgroundSize: 'cover', backgroundRepeat: 'no-repeat', backgroundPosition: 'center', filter: 'blur(18px) brightness(0.55)', transform: 'scale(1.2)' }} />
+                <img src={photoUrls.focalPersonPhoto} alt="Main Focal" style={{ position: 'relative', width: 'auto', height: '100%', maxWidth: '60%', margin: '0 auto', objectFit: 'contain', display: 'block' }} />
+                <button
+                  aria-label="Delete"
+                  onClick={() => {
+                    if (photoUrls.focalPersonPhoto && photoUrls.focalPersonPhoto.startsWith('blob:')) {
+                      try { URL.revokeObjectURL(photoUrls.focalPersonPhoto) } catch { /* Ignore revoke errors */ }
+                    }
+                    setPhotoUrls(prev => ({ ...prev, focalPersonPhoto: null }))
+                    setFormData(prev => ({ ...prev, focalPersonPhoto: null }))
+                    setFocalPhotoFile(null)
+                    setFocalPhotoError('')
+                    setFocalPhotoDeleted(true)
+                    setIsDirty(true)
+                    // Clear the file input to allow re-uploading the same file
+                    if (focalFileInputRef.current) {
+                      focalFileInputRef.current.value = ''
+                    }
+                  }}
+                  style={{ position: 'absolute', right: 15, bottom: 15, width: 36, height: 36, borderRadius: 1, background: '#fff', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 2px 6px rgba(0,0,0,0.3)' }}>
+                  <Trash size={15} color="red" strokeWidth={3} />
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div style={{ marginTop: 6 }}>
+              <div
+                onClick={() => focalFileInputRef.current?.click()}
+                role="button"
+                tabIndex={0}
+                onKeyDown={() => focalFileInputRef.current?.click()}
+                title="Upload main focal person photo&#10;Max size: 2MB | Min dimensions: 200x200px&#10;Allowed formats: JPG, PNG, WebP"
+                style={{ cursor: 'pointer', background: '#262626', padding: '28px', borderRadius: 8, border: focalPhotoError ? '1px dashed #ef4444' : '1px dashed #404040', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 5 }}
+              >
+                <div style={{ background: '#1f2937', width: 48, height: 48, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Upload color="#60A5FA" />
+                </div>
+                <div style={{ color: '#fff', fontWeight: 700 }}>Upload photo</div>
+                <div style={{ color: '#9ca3af', fontSize: 12 }}>Drag and drop or click to upload</div>
+              </div>
+              {focalPhotoError && (
+                <div style={{ color: '#ef4444', fontSize: 12, marginTop: 6 }}>
+                  {focalPhotoError}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Hidden file input for main focal photo */}
+          <input 
+            ref={focalFileInputRef} 
+            type="file" 
+            accept="image/png,image/jpeg,image/webp" 
+            style={{ display: 'none' }} 
+            aria-label="Upload focal person photo"
+            onChange={(e) => {
+            const f = e.target.files?.[0]
+            if (!f) return
+            
+            setFocalPhotoLoading(true)
+            validatePhoto(f).then(err => {
+              if (err) {
+                setFocalPhotoError(err)
+                if (photoUrls.focalPersonPhoto && photoUrls.focalPersonPhoto.startsWith('blob:')) {
+                  try { URL.revokeObjectURL(photoUrls.focalPersonPhoto) } catch { /* Ignore revoke errors */ }
+                }
+                setPhotoUrls(prev => ({ ...prev, focalPersonPhoto: null }))
+                setFormData(prev => ({ ...prev, focalPersonPhoto: null }))
+                setFocalPhotoFile(null)
+                setFocalPhotoLoading(false)
+                // Clear the input value to allow re-uploading the same file
+                if (focalFileInputRef.current) {
+                  focalFileInputRef.current.value = ''
+                }
+              } else {
+                setFocalPhotoError('')
+                try {
+                  const url = URL.createObjectURL(f)
+                  if (photoUrls.focalPersonPhoto && photoUrls.focalPersonPhoto.startsWith('blob:')) {
+                    try { URL.revokeObjectURL(photoUrls.focalPersonPhoto) } catch { /* Ignore revoke errors */ }
+                  }
+                  setPhotoUrls(prev => ({ ...prev, focalPersonPhoto: url }))
+                  setFormData(prev => ({ ...prev, focalPersonPhoto: f }))
+                  setFocalPhotoFile(f)
+                  setFocalPhotoLoading(false)
+                  setIsDirty(true)
+                  // Clear the input value to allow re-uploading the same file
+                  if (focalFileInputRef.current) {
+                    focalFileInputRef.current.value = ''
+                  }
+                } catch {
+                  setFocalPhotoError('Failed to read file')
+                  setFocalPhotoLoading(false)
+                  // Clear the input value to allow re-uploading the same file
+                  if (focalFileInputRef.current) {
+                    focalFileInputRef.current.value = ''
+                  }
+                }
+              }
+            })
+          }} />
 
           {/* First Name and Last Name */}
           <div className="grid grid-cols-2 gap-4">
@@ -862,14 +1039,117 @@ export function CommunityGroupDrawer({ open, onOpenChange, onSave, editData, isE
             Alternative Focal Person
           </div>
 
-          <PhotoUploadArea
-            inputId="alt-focal-photo-upload"
-            photo={formData.altFocalPersonPhoto}
-            onDelete={() => handleFileUpload("altFocalPersonPhoto", null)}
-            onFileSelect={(file) => handleFileUpload("altFocalPersonPhoto", file)}
-            photoUrlKey="altFocalPersonPhoto"
-            photoUrls={photoUrls}
-          />
+          {/* Alternative Focal Person Photo Upload */}
+          {altPhotoLoading ? (
+            <div style={{ background: '#0b0b0b', borderRadius: 6, display: 'flex', justifyContent: 'center' }}>
+              <div style={{ width: '100%', maxWidth: '100%', height: 240, borderRadius: 8, overflow: 'hidden', position: 'relative', backgroundColor: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Loader2 className="w-12 h-12 text-blue-500 animate-spin" />
+              </div>
+            </div>
+          ) : photoUrls.altFocalPersonPhoto ? (
+            <div style={{ background: '#0b0b0b', borderRadius: 6, display: 'flex', justifyContent: 'center' }}>
+              <div style={{ width: '100%', maxWidth: '100%', height: 240, borderRadius: 8, overflow: 'hidden', position: 'relative', backgroundColor: '#111' }}>
+                <div style={{ position: 'absolute', inset: 0, backgroundImage: `url(${photoUrls.altFocalPersonPhoto})`, backgroundSize: 'cover', backgroundRepeat: 'no-repeat', backgroundPosition: 'center', filter: 'blur(18px) brightness(0.55)', transform: 'scale(1.2)' }} />
+                <img src={photoUrls.altFocalPersonPhoto} alt="Alt Focal" style={{ position: 'relative', width: 'auto', height: '100%', maxWidth: '60%', margin: '0 auto', objectFit: 'contain', display: 'block' }} />
+                <button
+                  aria-label="Delete"
+                  onClick={() => {
+                    if (photoUrls.altFocalPersonPhoto && photoUrls.altFocalPersonPhoto.startsWith('blob:')) {
+                      try { URL.revokeObjectURL(photoUrls.altFocalPersonPhoto) } catch { /* Ignore revoke errors */ }
+                    }
+                    setPhotoUrls(prev => ({ ...prev, altFocalPersonPhoto: null }))
+                    setFormData(prev => ({ ...prev, altFocalPersonPhoto: null }))
+                    setAltPhotoFile(null)
+                    setAltPhotoError('')
+                    setAltPhotoDeleted(true)
+                    setIsDirty(true)
+                    // Clear the file input to allow re-uploading the same file
+                    if (altFileInputRef.current) {
+                      altFileInputRef.current.value = ''
+                    }
+                  }}
+                  style={{ position: 'absolute', right: 15, bottom: 15, width: 36, height: 36, borderRadius: 1, background: '#fff', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 2px 6px rgba(0,0,0,0.3)' }}>
+                  <Trash size={15} color="red" strokeWidth={3} />
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div style={{ marginTop: 6 }}>
+              <div
+                onClick={() => altFileInputRef.current?.click()}
+                role="button"
+                tabIndex={0}
+                onKeyDown={() => altFileInputRef.current?.click()}
+                title="Upload alternative focal person photo&#10;Max size: 2MB | Min dimensions: 200x200px&#10;Allowed formats: JPG, PNG, WebP"
+                style={{ cursor: 'pointer', background: '#262626', padding: '28px', borderRadius: 8, border: altPhotoError ? '1px dashed #ef4444' : '1px dashed #404040', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 5 }}
+              >
+                <div style={{ background: '#1f2937', width: 48, height: 48, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Upload color="#60A5FA" />
+                </div>
+                <div style={{ color: '#fff', fontWeight: 700 }}>Upload photo</div>
+                <div style={{ color: '#9ca3af', fontSize: 12 }}>Drag and drop or click to upload</div>
+              </div>
+              {altPhotoError && (
+                <div style={{ color: '#ef4444', fontSize: 12, marginTop: 6 }}>
+                  {altPhotoError}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Hidden file input for alternative focal photo */}
+          <input 
+            ref={altFileInputRef} 
+            type="file" 
+            accept="image/png,image/jpeg,image/webp" 
+            style={{ display: 'none' }} 
+            aria-label="Upload alternative focal person photo"
+            onChange={(e) => {
+            const f = e.target.files?.[0]
+            if (!f) return
+            
+            setAltPhotoLoading(true)
+            validatePhoto(f).then(err => {
+              if (err) {
+                setAltPhotoError(err)
+                if (photoUrls.altFocalPersonPhoto && photoUrls.altFocalPersonPhoto.startsWith('blob:')) {
+                  try { URL.revokeObjectURL(photoUrls.altFocalPersonPhoto) } catch { /* Ignore revoke errors */ }
+                }
+                setPhotoUrls(prev => ({ ...prev, altFocalPersonPhoto: null }))
+                setFormData(prev => ({ ...prev, altFocalPersonPhoto: null }))
+                setAltPhotoFile(null)
+                setAltPhotoLoading(false)
+                // Clear the input value to allow re-uploading the same file
+                if (altFileInputRef.current) {
+                  altFileInputRef.current.value = ''
+                }
+              } else {
+                setAltPhotoError('')
+                try {
+                  const url = URL.createObjectURL(f)
+                  if (photoUrls.altFocalPersonPhoto && photoUrls.altFocalPersonPhoto.startsWith('blob:')) {
+                    try { URL.revokeObjectURL(photoUrls.altFocalPersonPhoto) } catch { /* Ignore revoke errors */ }
+                  }
+                  setPhotoUrls(prev => ({ ...prev, altFocalPersonPhoto: url }))
+                  setFormData(prev => ({ ...prev, altFocalPersonPhoto: f }))
+                  setAltPhotoFile(f)
+                  setAltPhotoLoading(false)
+                  setIsDirty(true)
+                  // Clear the input value to allow re-uploading the same file
+                  if (altFileInputRef.current) {
+                    altFileInputRef.current.value = ''
+                  }
+                } catch {
+                  setAltPhotoError('Failed to read file')
+                  setAltPhotoLoading(false)
+                  // Clear the input value to allow re-uploading the same file
+                  if (altFileInputRef.current) {
+                    altFileInputRef.current.value = ''
+                  }
+                }
+              }
+            })
+          }} />
 
           {/* Alt First Name and Last Name */}
           <div className="grid grid-cols-2 gap-4">
@@ -954,7 +1234,7 @@ export function CommunityGroupDrawer({ open, onOpenChange, onSave, editData, isE
                   : "bg-gray-500 text-gray-300 cursor-not-allowed"
               }`}
             >
-              {isSubmitting ? "Saving..." : (isEditing ? "Update" : "Save Community Group")}
+              {isSubmitting ? "Saving..." : (isEditing ? "Update" : "Save Neighborhood Group")}
             </Button>
           </div>
         </div>

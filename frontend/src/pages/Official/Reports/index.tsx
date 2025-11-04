@@ -17,7 +17,7 @@ export function Reports() {
 
   return (
     <div 
-      className="p-4 flex flex-col bg-[#171717] gap-1 h-[calc(100vh-70px)] min-h-[600px]"
+      className="p-4 flex flex-col bg-[#171717] gap-1 h-[calc(100vh-73px)] max-h-[calc(100vh-73px)] overflow-hidden"
     >
       {loading && (
         <div className="flex items-center justify-center h-32">
@@ -32,9 +32,9 @@ export function Reports() {
       )}
 
       {!loading && !error && (
-        <>
+        <div className="flex-1 flex flex-col min-h-0 gap-1">
           {/* Top section with chart - 40% of available height */}
-          <div className="h-[40%]">
+          <div className="h-[40%] min-h-[200px]">
             {/* Alert Type Chart - Full width */}
             <Card className="border-border flex flex-col h-full" style={{ backgroundColor: "#211f1f" }}>
               <CardHeader className="flex-shrink-0">
@@ -43,15 +43,15 @@ export function Reports() {
                   Real-time data showing user-initiated and critical alerts from rescue forms
                 </CardDescription>
               </CardHeader>
-              <CardContent className="flex-1 flex flex-col">
+              <CardContent className="flex-1 flex flex-col min-h-0">
                 <AlertTypeChart />
               </CardContent>
             </Card>
           </div>
 
           {/* Reports Table - 60% of available height */}
-          <Card className="flex flex-col gap-3 border-0 h-[60%]">
-            <CardHeader className="flex-shrink-0 flex flex-row items-center gap-3">
+          <Card className="flex flex-col border-0 h-[60%] overflow-hidden min-h-0 max-h-[60%]">
+            <CardHeader className="flex-shrink-0 flex flex-row items-center gap-2">
               <CardTitle className="text-foreground text-2xl">Reports</CardTitle>
               <div className="flex items-center gap-3">
                 <Tabs value={activeTab} defaultValue="completed" onValueChange={setActiveTab}>
@@ -78,7 +78,7 @@ export function Reports() {
                 </Tabs>
               </div>
             </CardHeader>
-            <CardContent className="flex-1 flex flex-col min-h-0">
+            <CardContent className="flex-1 flex flex-col overflow-hidden min-h-0 max-h-full">
               {activeTab === "completed" ? (
                 <ReportsTable 
                   type="completed" 
@@ -94,7 +94,7 @@ export function Reports() {
               )}
             </CardContent>
           </Card>
-        </>
+        </div>
       )}
     </div>
   );

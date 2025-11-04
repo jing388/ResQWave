@@ -65,17 +65,17 @@ function OfficialLayoutContent({ children }: officialLayoutProps) {
   };
 
   return (
-    <div className="min-h-screen bg-background dark">
-      <div className="flex">
+    <div className="min-h-screen h-screen bg-background dark overflow-hidden">
+      <div className="flex h-full overflow-hidden">
         <Sidebar />
         <div
-          className="flex-1 flex flex-col transition-all duration-300 ease-in-out"
+          className="flex-1 flex flex-col transition-all duration-300 ease-in-out h-full overflow-hidden"
           style={{
             marginRight: getMarginRight()
           }}
         >
           <Header isVisualizationOpen={isVisualizationOpen} />
-          <main className="flex-1">{children}</main>
+          <main className="flex-1 overflow-hidden">{children}</main>
         </div>
       </div>
     </div>

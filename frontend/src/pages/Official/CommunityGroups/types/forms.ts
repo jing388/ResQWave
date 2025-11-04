@@ -3,8 +3,8 @@
 export interface CommunityFormData {
   assignedTerminal: string
   communityGroupName: string
-  totalIndividuals: number | string
-  totalFamilies: number | string
+  totalIndividuals: string
+  totalFamilies: string
   totalKids: number
   totalSeniorCitizen: number
   totalPregnantWomen: number

@@ -95,15 +95,25 @@ const createRescueForm = async (req, res) => {
             return res.status(401).json({ message: "Unauthorized: User Not Found" });
         }
 
-        // If user is admin, check if dispatcher with this ID exists
-        // If not, we'll allow admin to bypass the constraint by setting dispatcherID to null
-        let finalDispatcherID = dispatcherID;
+        // Check if user is admin - admins cannot create rescue forms
         if (userRole === 'admin') {
-            // For admins, we'll try to find a dispatcher with the same ID
-            // If not found, set to null (we'll need to remove the NOT NULL constraint)
-            console.log('[RescueForm] Admin user detected, allowing rescue form creation');
-            // For now, we'll keep the admin ID - you may want to assign a default dispatcher
+            console.log('[RescueForm] Admin attempting to create rescue form - blocking request');
+            return res.status(403).json({ 
+                message: "Access denied: Only dispatchers can create rescue forms. You are currently in the admin interface.",
+                code: "ADMIN_CANNOT_CREATE_RESCUE_FORM"
+            });
         }
+
+        // Only dispatchers can create rescue forms
+        if (userRole !== 'dispatcher') {
+            console.log('[RescueForm] Non-dispatcher user attempting to create rescue form:', userRole);
+            return res.status(403).json({ 
+                message: "Access denied: Only dispatchers can create rescue forms.",
+                code: "INVALID_USER_ROLE"
+            });
+        }
+
+        const finalDispatcherID = dispatcherID;
 
         // Combine main selection with details
         const waterLevelCombined = waterLevelDetails

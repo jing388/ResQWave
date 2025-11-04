@@ -48,4 +48,5 @@ export interface TerminalDrawerProps {
   onOpenChange: (open: boolean) => void
   onSave?: (formData: TerminalFormData) => Promise<void>
   editData?: TerminalDetails
+  loading?: boolean
 }
