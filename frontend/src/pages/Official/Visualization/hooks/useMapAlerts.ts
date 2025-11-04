@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { fetchAllMapAlerts, type MapSignal } from '../api/mapAlerts';
+import { fetchAllMapData, type MapSignal } from '../api/mapAlerts';
 
 interface UseMapAlertsReturn {
     signals: MapSignal[];
@@ -23,7 +23,7 @@ export function useMapAlerts(): UseMapAlertsReturn {
     const fetchSignals = useCallback(async () => {
         try {
             setError(null);
-            const data = await fetchAllMapAlerts();
+            const data = await fetchAllMapData();
             setSignals(data);
         } catch (err) {
             setError(err as Error);

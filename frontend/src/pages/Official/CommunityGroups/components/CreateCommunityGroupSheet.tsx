@@ -326,12 +326,15 @@ export function CommunityGroupDrawer({ open, onOpenChange, onSave, editData, isE
     } else if (!isEditing) {
       // Reset form for new creation
       // Clean up blob URLs before resetting
-      if (photoUrls.focalPersonPhoto && photoUrls.focalPersonPhoto.startsWith('blob:')) {
-        try { URL.revokeObjectURL(photoUrls.focalPersonPhoto) } catch { /* Ignore revoke errors */ }
-      }
-      if (photoUrls.altFocalPersonPhoto && photoUrls.altFocalPersonPhoto.startsWith('blob:')) {
-        try { URL.revokeObjectURL(photoUrls.altFocalPersonPhoto) } catch { /* Ignore revoke errors */ }
-      }
+      setPhotoUrls((prev) => {
+        if (prev.focalPersonPhoto && prev.focalPersonPhoto.startsWith('blob:')) {
+          try { URL.revokeObjectURL(prev.focalPersonPhoto) } catch { /* Ignore revoke errors */ }
+        }
+        if (prev.altFocalPersonPhoto && prev.altFocalPersonPhoto.startsWith('blob:')) {
+          try { URL.revokeObjectURL(prev.altFocalPersonPhoto) } catch { /* Ignore revoke errors */ }
+        }
+        return { focalPersonPhoto: null, altFocalPersonPhoto: null }
+      })
       
       // Clear file inputs to allow re-uploading the same files
       if (focalFileInputRef.current) {
@@ -342,7 +345,6 @@ export function CommunityGroupDrawer({ open, onOpenChange, onSave, editData, isE
       }
       
       setFormData(createEmptyFormData())
-      setPhotoUrls({ focalPersonPhoto: null, altFocalPersonPhoto: null })
       setFocalPhotoError('')
       setAltPhotoError('')
       setFocalPhotoFile(null)
