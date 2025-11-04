@@ -34,11 +34,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     setGlobalLogoutCallback(() => {
       setUser(null)
+      localStorage.removeItem('resqwave_token')
+      localStorage.removeItem('resqwave_user')
       navigate('/login-official', { replace: true })
     })
   }, [navigate])
 
-  // Validate token and restore session on mount
+  // Validate token ONLY ONCE on mount
+   
   useEffect(() => {
     const validateToken = async () => {
       // Skip token validation for focal routes (they have their own auth system)
@@ -54,17 +57,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       const storedToken = localStorage.getItem('resqwave_token')
+      const storedUser = localStorage.getItem('resqwave_user')
 
+      // If no token, just set loading to false
       if (!storedToken) {
         setIsLoading(false)
         return
       }
 
+      // Try to use stored user data first (faster UX)
+      if (storedUser) {
+        try {
+          const userData = JSON.parse(storedUser)
+          setUser(userData)
+        } catch (error) {
+          console.error('Failed to parse stored user data:', error)
+        }
+      }
+
       try {
-        // Validate token with backend
+        // Validate token with backend (but don't block UI)
         const userData = await getCurrentUser()
 
-        // Update user state with validated data
         const user: User = {
           id: userData.id,
           role: userData.role,
@@ -75,24 +89,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(user)
         localStorage.setItem('resqwave_user', JSON.stringify(user))
       } catch (error) {
-        // Token is invalid or expired, clear storage
         console.error('Token validation failed:', error)
-        localStorage.removeItem('resqwave_token')
-        localStorage.removeItem('resqwave_user')
-
-        // Only redirect to login if user is on a protected route
-        const publicRoutes = ['/login-official', '/verification-official', '/']
-        if (!publicRoutes.includes(location.pathname)) {
-          navigate('/login-official', { replace: true })
+        
+        // Only clear and redirect if it's actually an auth error
+        if (error instanceof ApiException && (error.status === 401 || error.status === 403)) {
+          localStorage.removeItem('resqwave_token')
+          localStorage.removeItem('resqwave_user')
+          setUser(null)
+          
+          // Only redirect if on a protected route
+          const publicRoutes = ['/login-official', '/verification-official', '/', '/login-focal']
+          if (!publicRoutes.includes(location.pathname)) {
+            navigate('/login-official', { replace: true })
+          }
         }
+        // For other errors (network, etc.), keep user logged in but show they're offline
       } finally {
         setIsLoading(false)
       }
     }
 
     validateToken()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []) // Run only once on mount
+  }, [location.pathname, navigate]) // Include dependencies to satisfy ESLint
 
   // Step 1: Unified login (both admin and dispatcher with 2FA)
   const login = async (id: string, password: string): Promise<boolean> => {

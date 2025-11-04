@@ -806,7 +806,7 @@ export default function AccountSettingsModal({ open, onClose, onSaved, onSavePro
                                 <label style={{ fontSize: 14, color: '#FFFFFF', display: 'block', marginBottom: 8 }}>Phone Number</label>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                                     <span className="flex items-center px-4 py-[12.5px] bg-[#171717] border border-[#404040] rounded-[6px] border: '1px solid #404040'">
-                                        <img src="/public/Landing/phFlag.png" alt="PH" className="w-4 h-3 mr-2" />
+                                        <img src="/phFlag.png" alt="PH" className="w-4 h-3 mr-2" />
                                         <span className="text-[#A3A3A3] text-[15px] font-medium">+63</span>
                                     </span>
                                     <div style={{ position: 'relative', flex: 1 }}>

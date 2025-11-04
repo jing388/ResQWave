@@ -989,6 +989,10 @@ export default function Dashboard() {
                     if (activityLogRef.current) {
                         activityLogRef.current.refresh();
                     }
+                    // Show saved alert
+                    setSavedMessage('Community Information Updated Successfully!');
+                    setSavedShowViewLogs(true);
+                    setSavedTrigger(prev => (prev == null ? 1 : prev + 1));
                 }} center={aboutCenter} />
             </CommunityDataProvider>
 
@@ -1051,7 +1055,7 @@ export default function Dashboard() {
                             } catch {
                                 setAccountSettingsOpen(false);
                             }
-                        }} className="px-4 py-2 mt-3 bg-[#fff] text-black hover:bg-[#e2e2e2] rounded cursor-pointer transition duration-175" style={{ borderRadius: 8, fontSize: 15 }}>
+                        }} className="px-4 py-2 mt-3 bg-white text-black hover:bg-[#e2e2e2] rounded cursor-pointer transition duration-175" style={{ borderRadius: 8, fontSize: 15 }}>
                             Continue
                         </AlertDialogAction>
                     </AlertDialogFooter>

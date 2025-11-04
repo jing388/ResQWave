@@ -1,4 +1,5 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs-focal";
 import { useState } from "react";
 import { AlertTypeChart, ReportsTable } from "./components";
@@ -6,6 +7,7 @@ import { useReports } from "./hooks/useReports";
 
 export function Reports() {
   const [activeTab, setActiveTab] = useState("completed");
+  const [timeRange, setTimeRange] = useState("last3months");
   const { 
     pendingReports, 
     completedReports, 
@@ -37,14 +39,26 @@ export function Reports() {
           <div className="h-[40%] min-h-[200px]">
             {/* Alert Type Chart - Full width */}
             <Card className="border-border flex flex-col h-full" style={{ backgroundColor: "#211f1f" }}>
-              <CardHeader className="flex-shrink-0">
-                <CardTitle className="text-foreground">Alert Type</CardTitle>
-                <CardDescription className="text-muted-foreground">
-                  Real-time data showing user-initiated and critical alerts from rescue forms
-                </CardDescription>
+              <CardHeader className="flex-shrink-0 flex flex-row items-start justify-between">
+                <div className="flex flex-col">
+                  <CardTitle className="text-foreground">Alert Type</CardTitle>
+                  <CardDescription className="text-muted-foreground">
+                    Real-time data showing user-initiated and critical alerts from rescue forms
+                  </CardDescription>
+                </div>
+                <Select value={timeRange} onValueChange={setTimeRange}>
+                  <SelectTrigger className="w-40 bg-[#2a2a2a] border-[#404040] text-white hover:bg-[#333333]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[#2a2a2a] border-[#404040]">
+                    <SelectItem value="last3months" className="text-white hover:bg-[#404040] focus:bg-[#404040]">Last 30 days</SelectItem>
+                    <SelectItem value="last6months" className="text-white hover:bg-[#404040] focus:bg-[#404040]">Last 6 months</SelectItem>
+                    <SelectItem value="lastyear" className="text-white hover:bg-[#404040] focus:bg-[#404040]">Last year</SelectItem>
+                  </SelectContent>
+                </Select>
               </CardHeader>
               <CardContent className="flex-1 flex flex-col min-h-0">
-                <AlertTypeChart />
+                <AlertTypeChart timeRange={timeRange} />
               </CardContent>
             </Card>
           </div>

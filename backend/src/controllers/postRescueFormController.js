@@ -174,10 +174,9 @@ const getAggregatedRescueReports = async (req, res) => {
 
     let qb = alertRepo
       .createQueryBuilder("alert")
-      .leftJoin("alert.terminal", "terminal")
-      .leftJoin("Neighborhood", "n", "n.terminalID = terminal.id")
-      .leftJoin("FocalPerson", "fp", "fp.id = n.focalPersonID")
       .leftJoin("RescueForm", "rf", "rf.emergencyID = alert.id")
+      .leftJoin("FocalPerson", "fp", "fp.id = rf.focalPersonID")
+      .leftJoin("Neighborhood", "n", "n.focalPersonID = fp.id")
       .leftJoin("PostRescueForm", "prf", "prf.alertID = alert.id");
 
     if (alertID) {

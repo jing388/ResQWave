@@ -1,5 +1,4 @@
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useEffect, useState } from "react";
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { fetchAlertTypeChartData, type AlertTypeChartData } from "../api/api";
@@ -15,8 +14,11 @@ const chartConfig = {
   },
 } satisfies ChartConfig
 
-export function AlertTypeChart() {
-  const [timeRange, setTimeRange] = useState("last3months");
+interface AlertTypeChartProps {
+  timeRange: string;
+}
+
+export function AlertTypeChart({ timeRange }: AlertTypeChartProps) {
   const [chartData, setChartData] = useState<AlertTypeChartData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -42,18 +44,6 @@ export function AlertTypeChart() {
 
   return (
     <div className="h-full flex flex-col">
-      <div className="flex justify-end flex-shrink-0 mb-4">
-        <Select value={timeRange} onValueChange={setTimeRange}>
-          <SelectTrigger className="w-40">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="last3months">Last 30 days</SelectItem>
-            <SelectItem value="last6months">Last 6 months</SelectItem>
-            <SelectItem value="lastyear">Last year</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
       
       <div className="flex-1">
         {loading && (

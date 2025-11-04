@@ -130,6 +130,9 @@ const EditAbout = forwardRef<EditAboutHandle, EditAboutProps>(({ open, onClose, 
         if (!value.trim()) return 'Name is required';
         if (value.trim().length < 2) return 'Name must be at least 2 characters';
         if (!/^[a-zA-Z\s]+$/.test(value)) return 'Name can only contain letters and spaces';
+        // Check if name has at least 2 words (first name and last name)
+        const nameParts = value.trim().split(/\s+/);
+        if (nameParts.length < 2) return 'Please enter both first name and last name';
         return '';
     };
 
@@ -707,7 +710,7 @@ const EditAbout = forwardRef<EditAboutHandle, EditAboutProps>(({ open, onClose, 
                                 setConfirmSaveOpen(true);
                             }
                         }}
-                        disabled={!!(nameError || contactError || emailError || !altFocalName.trim() || !altFocalContact.trim() || !altFocalEmail.trim())}
+                        disabled={!!(nameError || contactError || emailError || altPhotoError || !altFocalName.trim() || !altFocalContact.trim() || !altFocalEmail.trim())}
                         className="w-full bg-gradient-to-t from-[#3B82F6] to-[#70A6FF] transition-colors duration-150 cursor-pointer hover:from-[#2563eb] hover:to-[#60a5fa] text-white py-3 px-4.5 rounded-md font-medium text-[15px] tracking-[0.6px] border-0 disabled:opacity-50 disabled:cursor-not-allowed"
                         style={{ width: '100%' }}
                     >
@@ -735,7 +738,7 @@ const EditAbout = forwardRef<EditAboutHandle, EditAboutProps>(({ open, onClose, 
                                 } else {
                                     onClose();
                                 }
-                            }} className="px-4 py-2 mt-3 bg-[#fff] text-black hover:bg-[#e2e2e2] rounded cursor-pointer transition duration-175" style={{ borderRadius: 8, fontSize: 15 }}>
+                            }} className="px-4 py-2 mt-3 bg-white text-black hover:bg-[#e2e2e2] rounded cursor-pointer transition duration-175" style={{ borderRadius: 8, fontSize: 15 }}>
                                 Continue
                             </AlertDialogAction>
                         </AlertDialogFooter>

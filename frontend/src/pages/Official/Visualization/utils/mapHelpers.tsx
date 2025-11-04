@@ -1,7 +1,7 @@
 import type React from 'react';
 import type { Signal } from '../types/signals';
 
-export function addCustomLayers(map: mapboxgl.Map, otherSignals: Signal[], OwnCommunitySignal: Signal | null) {
+export function addCustomLayers(map: mapboxgl.Map, otherSignals: Signal[], OwnCommunitySignal: Signal) {
     // const getPinColor = (alertType: string) => {
     //     const colors: Record<string, string> = {
     //         'critical': '#ef4444',
