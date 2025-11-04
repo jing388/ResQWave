@@ -285,7 +285,7 @@ const verifyFocalLogin = async (req, res) => {
     await loginVerificationRepo.delete({ userID: focal.id, userType: "focalPerson", code });
     // Create session token (optional, for future use)
     const sessionID = crypto.randomUUID();
-    const sessionExpiry = new Date(Date.now() + 60 * 60 * 1000);
+    const sessionExpiry = new Date(Date.now() + 8 * 60 * 60 * 1000);
     await loginVerificationRepo.save({ userID: focal.id, userType: "focalPerson", code: "OK", sessionID, expiry: sessionExpiry });
     const token = jwt.sign(
       { id: focal.id, role: "focalPerson", name: focal.name, sessionID },
@@ -508,7 +508,7 @@ const adminDispatcherVerify = async (req, res) => {
 
     // Create session (so logout can invalidate)
     const sessionID = crypto.randomUUID();
-    const sessionExpiry = new Date(Date.now() + 60 * 60 * 1000);
+    const sessionExpiry = new Date(Date.now() + 8 * 60 * 60 * 1000);
     await loginVerificationRepo.save({
       userID: decoded.id,
       userType: decoded.role,
@@ -672,17 +672,28 @@ const resendFocalLoginCode = async (req, res) => {
     await loginVerificationRepo.save({ userID: focal.id, userType: "focalPerson", code, expiry });
 
     // Send email
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
-      tls: { rejectUnauthorized: false },
-    });
-    await transporter.sendMail({
-      from: `"ResQWave" <${process.env.EMAIL_USER}>`,
-      to: focal.email,
-      subject: "ResQWave 2FA Verification (Resend)",
-      text: `Your login verification code is ${code}. It expires in 5 minutes.`,
-    });
+    try {
+      const sender = { email: 'rielkai01@gmail.com', name: 'ResQWave' }; 
+      const receivers = [{ email: focal.email }];
+
+      await tranEmailApi.sendTransacEmail({
+        sender,
+        to: receivers,
+        subject: 'ResQWave 2FA Verification (Resend)',
+        htmlContent: `
+          <p>Dear ${focal.name || "Focal Person"},</p>
+          <p>Your login verification code is:</p>
+          <h2 style="color:#2E86C1;">${code}</h2>
+          <p>This code will expire in 5 minutes.</p>
+          <p>Thank you,<br/>ResQWave Team</p>
+        `,
+      });
+
+      console.log(` Resent verification code to ${focal.email}`);
+    } catch (emailErr) {
+      console.error(' Failed to send Brevo email:', emailErr.response?.text || emailErr);
+      return res.status(500).json({ message: 'Failed to send verification email' });
+    }
 
     // Return a fresh temp token for the new code window
     const newTempToken = jwt.sign(
@@ -758,17 +769,29 @@ const resendAdminDispatcherCode = async (req, res) => {
     await loginVerificationRepo.delete({ userID: user.id, userType: role });
     await loginVerificationRepo.save({ userID: user.id, userType: role, code, expiry });
 
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
-      tls: { rejectUnauthorized: false },
-    });
-    await transporter.sendMail({
-      from: `"ResQWave" <${process.env.EMAIL_USER}>`,
-      to: recipientEmail,
-      subject: "ResQWave Login Verification Code (Resend)",
-      text: `Your verification code is ${code}. It expires in 5 minutes.`,
-    });
+    // Send Email
+    try {
+      const sender = { email: 'rielkai01@gmail.com', name: 'ResQWave' }; // must be verified in Brevo
+      const receivers = [{ email: recipientEmail }];
+
+      await tranEmailApi.sendTransacEmail({
+        sender,
+        to: receivers,
+        subject: 'ResQWave Login Verification Code (Resend)',
+        htmlContent: `
+          <p>Dear ${user.name || role},</p>
+          <p>Your login verification code is:</p>
+          <h2 style="color:#2E86C1;">${code}</h2>
+          <p>This code will expire in 5 minutes.</p>
+          <p>Thank you,<br/>ResQWave Team</p>
+        `,
+      });
+
+      console.log(`Verification code sent to ${recipientEmail}`);
+    } catch (emailErr) {
+      console.error('Failed to send Brevo email:', emailErr.response?.text || emailErr);
+      return res.status(500).json({ message: 'Failed to send verification email' });
+    }
 
     const newTempToken = jwt.sign(
       { id: user.id, role, step: "2fa" },
