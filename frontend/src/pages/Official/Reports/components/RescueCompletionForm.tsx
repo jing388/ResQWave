@@ -10,6 +10,8 @@ interface RescueCompletionFormProps {
     emergencyData?: {
         emergencyId: string;
         communityName: string;
+        neighborhoodId?: string;
+        focalPersonName?: string;
         alertType: string;
         dispatcher: string;
         dateTimeOccurred: string;
@@ -158,34 +160,35 @@ export function RescueCompletionForm({ isOpen, onClose, onSuccess, emergencyData
                     <div className="space-y-0">
                         <div className="flex justify-between items-center py-3 border-b border-[#2a2a2a] last:border-b-0">
                             <span className="text-gray-400 font-medium text-sm">EMERGENCY ID</span>
-                            <span className="text-white font-medium">{emergencyData?.emergencyId || "EMG-001"}</span>
+                            <span className="text-white font-medium">{emergencyData?.emergencyId || "N/A"}</span>
                         </div>
                         
                         <div className="flex justify-between items-center py-3 border-b border-[#2a2a2a] last:border-b-0">
                             <span className="text-gray-400 font-medium text-sm">NEIGHBORHOOD ID</span>
-                            <span className="text-white font-medium">N-22</span>
+                            <span className="text-white font-medium">{emergencyData?.neighborhoodId || emergencyData?.communityName || "N/A"}</span>
                         </div>
                         
                         <div className="flex justify-between items-center py-3 border-b border-[#2a2a2a] last:border-b-0">
                             <span className="text-gray-400 font-medium text-sm">FOCAL PERSON</span>
-                            <span className="text-white font-medium">Gwyneth Uy</span>
-                        </div>
-                        
-                        <div className="flex justify-between items-center py-3 border-b border-[#2a2a2a] last:border-b-0">
-                            <span className="text-gray-400 font-medium text-sm">REPORT COMPLETION DATE</span>
-                            <span className="text-white font-medium">September 9, 2025</span>
+                            <span className="text-white font-medium">{emergencyData?.focalPersonName || "N/A"}</span>
                         </div>
                         
                         <div className="flex justify-between items-center py-3 border-b border-[#2a2a2a] last:border-b-0">
                             <span className="text-gray-400 font-medium text-sm">ALERT TYPE</span>
-                            <div className="px-2 py-1 border border-red-500 rounded text-red-500 text-xs font-medium">
-                                CRITICAL
+                            <div className={`px-2 py-1 border rounded text-xs font-medium ${
+                                emergencyData?.alertType?.toLowerCase() === 'critical' 
+                                    ? 'border-red-500 text-red-500' 
+                                    : emergencyData?.alertType?.toLowerCase() === 'user-initiated'
+                                    ? 'border-yellow-500 text-yellow-500'
+                                    : 'border-gray-500 text-gray-500'
+                            }`}>
+                                {emergencyData?.alertType?.toUpperCase() || "UNKNOWN"}
                             </div>
                         </div>
                         
                         <div className="flex justify-between items-center py-3">
                             <span className="text-gray-400 font-medium text-sm">HOUSE ADDRESS</span>
-                            <span className="text-white font-medium">{emergencyData?.address || "Block 1, Lot 17, Paraiso Rd, 1400"}</span>
+                            <span className="text-white font-medium">{emergencyData?.address || "N/A"}</span>
                         </div>
                     </div>
                 </div>

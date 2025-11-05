@@ -1,23 +1,23 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
-  getCoreRowModel,
-  getPaginationRowModel,
-  useReactTable,
-  type CellContext,
-  type ColumnDef,
+    getCoreRowModel,
+    getPaginationRowModel,
+    useReactTable,
+    type CellContext,
+    type ColumnDef,
 } from "@tanstack/react-table";
 import { MoreHorizontal } from "lucide-react";
 import { useState } from "react";
-import { fetchDetailedReportData } from "../api/api";
+import { fetchDetailedReportData, type DetailedReportData } from "../api/api";
 import { exportOfficialReportToPdf, type OfficialReportData } from "../utils/reportExportUtils";
 import "./ReportsTable.css";
 import { RescueCompletionForm } from "./RescueCompletionForm";
@@ -53,12 +53,28 @@ export function ReportsTable({ type, data, onReportCreated }: ReportsTableProps)
   const isCompleted = type === "completed";
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedReportData, setSelectedReportData] = useState<ReportData | null>(null);
+  const [detailedReportData, setDetailedReportData] = useState<DetailedReportData | null>(null);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [isLoadingDetails, setIsLoadingDetails] = useState(false);
 
 
-  const handleCreateReport = (reportData: ReportData) => {
-    setSelectedReportData(reportData);
-    setIsFormOpen(true);
+  const handleCreateReport = async (reportData: ReportData) => {
+    setIsLoadingDetails(true);
+    try {
+      // Fetch detailed report data from backend
+      const detailedData = await fetchDetailedReportData(reportData.emergencyId);
+      setDetailedReportData(detailedData);
+      setSelectedReportData(reportData);
+      setIsFormOpen(true);
+    } catch (error) {
+      console.error('Error fetching detailed report data:', error);
+      // Fallback to basic data if detailed fetch fails
+      setSelectedReportData(reportData);
+      setDetailedReportData(null);
+      setIsFormOpen(true);
+    } finally {
+      setIsLoadingDetails(false);
+    }
   };
 
   const handleGenerateReport = async (reportData: ReportData) => {
@@ -218,10 +234,11 @@ export function ReportsTable({ type, data, onReportCreated }: ReportsTableProps)
         ) : (
           <Button
             size="sm"
-            className="bg-blue-600 hover:bg-blue-700 rounded-[5px] text-white font-medium"
+            className="bg-blue-600 hover:bg-blue-700 rounded-[5px] text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             onClick={() => handleCreateReport(row.original)}
+            disabled={isLoadingDetails}
           >
-            Create Report
+            {isLoadingDetails ? 'Loading...' : 'Create Report'}
           </Button>
         )
       ),
@@ -425,6 +442,8 @@ export function ReportsTable({ type, data, onReportCreated }: ReportsTableProps)
         emergencyData={selectedReportData ? {
           emergencyId: selectedReportData.emergencyId,
           communityName: selectedReportData.communityName,
+          neighborhoodId: detailedReportData?.neighborhoodId,
+          focalPersonName: detailedReportData?.focalPersonName,
           alertType: selectedReportData.alertType,
           dispatcher: selectedReportData.dispatcher,
           dateTimeOccurred: selectedReportData.dateTimeOccurred,
