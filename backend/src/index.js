@@ -21,6 +21,8 @@ const logsRoute = require("./routes/logRoutes");
 const sensorDataRoutes = require("./routes/sensorDataRoutes");
 const { authMiddleware, requireRole } = require("./middleware/authMiddleware");
 const { getTerminalsForMap } = require("./controllers/terminalController");
+const { createCriticalAlert, createUserInitiatedAlert } = require("./controllers/alertController");
+
 // Test For Realtime
 // Remove the comment to test again
 const path = require("path");
@@ -63,6 +65,10 @@ AppDataSource.initialize()
 
     // Public endpoint for map data (landing page)
     app.get("/terminals/map", getTerminalsForMap);
+
+    // Public alert creation endpoints
+    app.post("/alerts/critical", createCriticalAlert);
+    app.post("/alerts/user", createUserInitiatedAlert);
 
     // Protect Everything After This
     app.use(authMiddleware);

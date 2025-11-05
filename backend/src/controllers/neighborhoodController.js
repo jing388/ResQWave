@@ -148,36 +148,63 @@ const viewMapOwnNeighborhood = async (req, res) => {
 
     const cacheKey = `viewMap:nb:${focalPersonID}`;
     const cached = await getCache(cacheKey);
-    if (cached) return res.json(cached);
+    if (cached) {
+      console.log('[BACKEND] Returning cached own neighborhood for focal:', focalPersonID);
+      return res.json(cached);
+    }
 
-    const focal = await focalPersonRepo.findOne({ where: { id: focalPersonID } });
-    if (!focal) return res.status(404).json({ message: "Focal Person Not Found" });
+    console.log('[BACKEND] Fetching own neighborhood for focal person:', focalPersonID);
 
-    const nb = await neighborhoodRepo.findOne({
-      where: { focalPersonID, archived: false },
-    });
-    if (!nb) return res.status(404).json({ message: "Neighborhood Not Found" });
+    // Use efficient query with joins similar to the terminals/map endpoint
+    const result = await neighborhoodRepo
+      .createQueryBuilder("n")
+      .innerJoin("FocalPerson", "fp", "fp.id = n.focalPersonID AND fp.archived = false")
+      .select([
+        "n.id AS neighborhoodID",
+        "n.terminalID AS terminalID",
+        "n.hazards AS hazards",
+        "n.createdAt AS createdDate",
+        "fp.firstName AS focalFirstName",
+        "fp.lastName AS focalLastName",
+        "fp.name AS focalName",
+        "fp.altFirstName AS altFirstName",
+        "fp.altLastName AS altLastName",
+        "fp.altEmail AS altEmail",
+        "fp.altContactNumber AS altContactNumber",
+        "fp.alternativeFPImage AS alternativeFPImage",
+        "fp.address AS focalAddress"
+      ])
+      .where("n.focalPersonID = :focalPersonID", { focalPersonID })
+      .andWhere("n.archived = false")
+      .getRawOne();
+
+    if (!result) {
+      console.log('[BACKEND] No neighborhood found for focal person:', focalPersonID);
+      return res.status(404).json({ message: "Neighborhood Not Found" });
+    }
 
     const payload = {
-      neighborhoodID: nb.id,
-      terminalID: nb.terminalID,
+      neighborhoodID: result.neighborhoodID,
+      terminalID: result.terminalID,
       focalPerson: {
-        name: [focal.firstName, focal.lastName].filter(Boolean).join(" ").trim() || focal.name || null,
-        alternativeFPFirstName: focal.altFirstName || null,
-        alternativeFPLastName: focal.altLastName || null,
-        alternativeFPEmail: focal.altEmail || null,
-        alternativeFPNumber: focal.altContactNumber || null,
-        alternativeFPImage: focal.alternativeFPImage || null,
+        name: [result.focalFirstName, result.focalLastName].filter(Boolean).join(" ").trim() || result.focalName || null,
+        alternativeFPFirstName: result.altFirstName || null,
+        alternativeFPLastName: result.altLastName || null,
+        alternativeFPEmail: result.altEmail || null,
+        alternativeFPNumber: result.altContactNumber || null,
+        alternativeFPImage: result.alternativeFPImage || null,
       },
-      address: focal.address ?? null, // your focal has address (JSON string)
-      hazards: parseHazards(nb.hazards),
-      createdDate: nb.createdAt ?? null,
+      address: result.focalAddress ?? null,
+      hazards: parseHazards(result.hazards),
+      createdDate: result.createdDate ?? null,
     };
+
+    console.log('[BACKEND] Found own neighborhood:', payload.neighborhoodID, 'with terminal:', payload.terminalID);
 
     await setCache(cacheKey, payload, 120);
     return res.json(payload);
   } catch (err) {
-    console.error(err);
+    console.error('[BACKEND] Error in viewMapOwnNeighborhood:', err);
     return res.status(500).json({ message: "Server Error -- VIEW OWN Neighborhood" });
   }
 };
@@ -231,46 +258,52 @@ const viewAboutYourNeighborhood = async (req, res) => {
 const viewOtherNeighborhoods = async (req, res) => {
   try {
     const focalPersonID = req.user?.id || req.params.focalPersonID || req.query.focalPersonID;
+    
+    console.log('[BACKEND] Fetching other neighborhoods for focal person:', focalPersonID);
+
+    // First get own neighborhood ID to exclude it
     let ownNeighborhoodId = null;
     if (focalPersonID) {
-      const nb = await neighborhoodRepo.findOne({ where: { focalPersonID } });
+      const nb = await neighborhoodRepo.findOne({ 
+        where: { focalPersonID, archived: false },
+        select: ["id"]
+      });
       ownNeighborhoodId = nb?.id || null;
+      console.log('[BACKEND] Own neighborhood ID to exclude:', ownNeighborhoodId);
     }
 
-    // Get all neighborhoods except own, with focal person info
+    // Use efficient single query with joins - similar to terminals/map endpoint
     const neighborhoods = await neighborhoodRepo
       .createQueryBuilder("n")
-      .select(["n.id", "n.hazards", "n.createdAt", "n.focalPersonID"])
-      .where("n.archived = :arch", { arch: false })
+      .innerJoin("FocalPerson", "fp", "fp.id = n.focalPersonID AND fp.archived = false")
+      .select([
+        "n.id AS neighborhoodID",
+        "n.terminalID AS terminalID",
+        "n.hazards AS hazards",
+        "n.createdAt AS createdDate",
+        "fp.address AS focalAddress",
+        "fp.firstName AS focalFirstName",
+        "fp.lastName AS focalLastName"
+      ])
+      .where("n.archived = false")
+      .andWhere("n.focalPersonID IS NOT NULL") // Only occupied neighborhoods
       .andWhere(ownNeighborhoodId ? "n.id <> :own" : "1=1", { own: ownNeighborhoodId })
       .getRawMany();
 
-    // Fetch all focal persons for these neighborhoods
-    const focalPersonIds = neighborhoods.map(n => n.n_focalPersonID).filter(Boolean);
-    let focalPersons = [];
-    if (focalPersonIds.length) {
-      focalPersons = await focalPersonRepo
-        .createQueryBuilder("f")
-        .select(["f.id", "f.address", "f.firstName", "f.lastName"])
-        .where("f.id IN (:...ids)", { ids: focalPersonIds })
-        .getRawMany();
-    }
-    const byFocalId = {};
-    focalPersons.forEach(fp => { byFocalId[fp.f_id] = fp; });
+    console.log('[BACKEND] Found other neighborhoods:', neighborhoods.length);
 
-    return res.json(
-      neighborhoods.map((n) => ({
-        neighborhoodID: n.n_id,
-        hazards: parseHazards(n.n_hazards),
-        createdDate: n.n_createdAt ?? null,
-        address: byFocalId[n.n_focalPersonID]?.f_address || null,
-        focalPerson: byFocalId[n.n_focalPersonID]
-          ? `${byFocalId[n.n_focalPersonID].f_firstName || ''} ${byFocalId[n.n_focalPersonID].f_lastName || ''}`.trim()
-          : null,
-      }))
-    );
+    const response = neighborhoods.map((n) => ({
+      neighborhoodID: n.neighborhoodID,
+      terminalID: n.terminalID,
+      hazards: parseHazards(n.hazards),
+      createdDate: n.createdDate ?? null,
+      address: n.focalAddress || null,
+      focalPerson: [n.focalFirstName, n.focalLastName].filter(Boolean).join(' ').trim() || null,
+    }));
+
+    return res.json(response);
   } catch (err) {
-    console.error(err);
+    console.error('[BACKEND] Error in viewOtherNeighborhoods:', err);
     return res.status(500).json({ message: "Server Error -- VIEW OTHER Neighborhoods" });
   }
 };
