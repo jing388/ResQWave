@@ -145,68 +145,71 @@ const getTerminalsForMap = async (req, res) => {
     try {
         const cacheKey = "terminals:map";
         const cached = await getCache(cacheKey);
-        if (cached) {
-            console.log('[BACKEND] Returning cached terminals for map:', cached.features?.length || 0);
-            return res.json(cached);
-        }
+        if (cached) return res.json(cached);
 
-        console.log('[BACKEND] Fetching all occupied terminals for map...');
+        // Get all active terminals
+        const terminals = await terminalRepo.find({
+            where: { archived: false },
+            select: ["id", "name", "status", "dateCreated"],
+        });
 
-        // Fetch all terminals that have a neighborhood with focal person (occupied terminals)
-        // Uses efficient single query with joins instead of multiple queries
-        const terminals = await terminalRepo
-            .createQueryBuilder("t")
-            .innerJoin("Neighborhood", "n", "n.terminalID = t.id AND n.archived = false")
-            .innerJoin("FocalPerson", "fp", "fp.id = n.focalPersonID AND fp.archived = false")
-            .select([
-                "t.id AS terminalId",
-                "t.name AS terminalName",
-                "t.status AS terminalStatus",
-                "fp.address AS focalAddress",
-                "fp.createdAt AS focalCreatedAt"
-            ])
-            .where("t.archived = false")
-            .andWhere("n.focalPersonID IS NOT NULL") // Only occupied terminals
-            .getRawMany();
+        // For each terminal, find associated neighborhood and focal person
+        const mapData = await Promise.all(
+            terminals.map(async (terminal) => {
+                // Find neighborhood linked to this terminal
+                const neighborhood = await neighborhoodRepo.findOne({
+                    where: { terminalID: terminal.id, archived: false },
+                });
 
-        console.log('[BACKEND] Found occupied terminals for map:', terminals.length);
-
-        // Transform to GeoJSON format
-        const features = terminals
-            .map((terminal) => {
-                // Parse address JSON to get coordinates
-                let coordinates = null;
-                let addressString = "—";
-
-                try {
-                    const addressData = typeof terminal.focalAddress === "string"
-                        ? JSON.parse(terminal.focalAddress)
-                        : terminal.focalAddress;
-
-                    // Extract coordinates
-                    if (addressData && addressData.lat && addressData.lng) {
-                        // Convert from {lat, lng} to [lng, lat] for Mapbox
-                        coordinates = [addressData.lng, addressData.lat];
-                    }
-
-                    // Extract address string
-                    if (addressData && addressData.address) {
-                        addressString = addressData.address;
-                    }
-                } catch (err) {
-                    console.warn(`[BACKEND] Failed to parse address for terminal ${terminal.terminalId}:`, err);
-                    // Continue without coordinates for this terminal
+                if (!neighborhood || !neighborhood.focalPersonID) {
+                    return null; // Skip terminals without linked neighborhood/focal person
                 }
 
-                // Skip terminals without valid coordinates
-                if (!coordinates) {
-                    console.warn(`[BACKEND] Skipping terminal ${terminal.terminalId} - no valid coordinates`);
+                // Find focal person
+                const focalPersonRepo = AppDataSource.getRepository("FocalPerson");
+                const focalPerson = await focalPersonRepo.findOne({
+                    where: { id: neighborhood.focalPersonID, archived: false },
+                    select: ["id", "address", "createdAt"],
+                });
+
+                if (!focalPerson || !focalPerson.address) {
+                    return null; // Skip if no focal person or address
+                }
+
+                // Parse address JSON to get coordinates
+                let coordinates = null;
+                try {
+                    const addressData = typeof focalPerson.address === "string"
+                        ? JSON.parse(focalPerson.address)
+                        : focalPerson.address;
+
+                    if (addressData.lat && addressData.lng) {
+                        // Convert from [lat, lng] to [lng, lat] for Mapbox
+                        coordinates = [addressData.lng, addressData.lat];
+                    }
+                } catch (err) {
+                    console.error(`Failed to parse address for focal person ${focalPerson.id}:`, err);
                     return null;
                 }
 
-                // Format registration date
-                const dateRegistered = terminal.focalCreatedAt
-                    ? new Date(terminal.focalCreatedAt).toLocaleDateString("en-US", {
+                if (!coordinates) {
+                    return null; // Skip if no valid coordinates
+                }
+
+                // Format the address string (without coordinates)
+                let addressString = "";
+                try {
+                    const addressData = typeof focalPerson.address === "string"
+                        ? JSON.parse(focalPerson.address)
+                        : focalPerson.address;
+                    addressString = addressData.address || "—";
+                } catch {
+                    addressString = "—";
+                }
+
+                // Format date
+                const dateRegistered = focalPerson.createdAt
+                    ? new Date(focalPerson.createdAt).toLocaleDateString("en-US", {
                         year: "numeric",
                         month: "long",
                         day: "numeric"
@@ -216,8 +219,8 @@ const getTerminalsForMap = async (req, res) => {
                 return {
                     type: "Feature",
                     properties: {
-                        status: terminal.terminalStatus.toLowerCase(), // "online" or "offline"
-                        name: terminal.terminalName,
+                        status: terminal.status.toLowerCase(), // "online" or "offline"
+                        name: terminal.name,
                         address: addressString,
                         date: dateRegistered,
                     },
@@ -227,19 +230,20 @@ const getTerminalsForMap = async (req, res) => {
                     },
                 };
             })
-            .filter((feature) => feature !== null); // Filter out terminals without coordinates
+        );
+
+        // Filter out null entries
+        const features = mapData.filter((item) => item !== null);
 
         const geoJSON = {
             type: "FeatureCollection",
             features: features,
         };
 
-        console.log('[BACKEND] Returning GeoJSON with features:', features.length);
-
         await setCache(cacheKey, geoJSON, 300); // Cache for 5 minutes
         res.json(geoJSON);
     } catch (err) {
-        console.error('[BACKEND] Error in getTerminalsForMap:', err);
+        console.error(err);
         res.status(500).json({ message: "Server Error - GET Terminals for Map" });
     }
 };
@@ -481,4 +485,3 @@ module.exports = {
     permanentDeleteTerminal,
     getTerminalsForMap
 };
-
