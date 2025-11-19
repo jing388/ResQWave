@@ -70,19 +70,13 @@ export function Reports() {
               <div className="flex items-center gap-3">
                 <Tabs value={activeTab} defaultValue="completed" onValueChange={setActiveTab}>
                   <TabsList>
-                    <TabsTrigger
-                      value="completed"
-                      className="text-white text-base px-6 py-2 rounded transition-colors cursor-pointer hover:bg-[#333333]"
-                    >
+                    <TabsTrigger value="completed">
                       Completed
                       <span className="ml-2 px-2 py-0.5 bg-[#707070] rounded text-xs">
                         {completedReports.length}
                       </span>
                     </TabsTrigger>
-                    <TabsTrigger
-                      value="pending"
-                      className="text-white text-base px-6 py-2 rounded transition-colors cursor-pointer hover:bg-[#333333]"
-                    >
+                    <TabsTrigger value="pending">
                       Pending
                       <span className="ml-2 px-2 py-0.5 bg-[#707070] rounded text-xs">
                         {pendingReports.length}
