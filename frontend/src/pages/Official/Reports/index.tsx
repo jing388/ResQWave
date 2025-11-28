@@ -1,5 +1,17 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs-focal";
 import { useState } from "react";
 import { AlertTypeChart, ReportsTable } from "./components";
@@ -8,25 +20,22 @@ import { useReports } from "./hooks/useReports";
 export function Reports() {
   const [activeTab, setActiveTab] = useState("completed");
   const [timeRange, setTimeRange] = useState("last3months");
-  const { 
-    pendingReports, 
-    completedReports, 
-    loading, 
+  const {
+    pendingReports,
+    completedReports,
+    loading,
     error,
-    refreshAllReports
+    refreshAllReports,
   } = useReports();
 
-
   return (
-    <div 
-      className="p-4 flex flex-col bg-[#171717] gap-1 h-[calc(100vh-73px)] max-h-[calc(100vh-73px)] overflow-hidden"
-    >
+    <div className="p-4 flex flex-col bg-[#171717] gap-1 h-[calc(100vh-73px)] max-h-[calc(100vh-73px)] overflow-hidden">
       {loading && (
         <div className="flex items-center justify-center h-32">
           <div className="text-white">Loading reports...</div>
         </div>
       )}
-      
+
       {error && (
         <div className="flex items-center justify-center h-32">
           <div className="text-red-400">Error: {error}</div>
@@ -38,12 +47,16 @@ export function Reports() {
           {/* Top section with chart - 40% of available height */}
           <div className="h-[40%] min-h-[200px]">
             {/* Alert Type Chart - Full width */}
-            <Card className="border-border flex flex-col h-full" style={{ backgroundColor: "#211f1f" }}>
-              <CardHeader className="flex-shrink-0 flex flex-row items-start justify-between">
+            <Card
+              className="border-border flex flex-col h-full"
+              style={{ backgroundColor: "#211f1f" }}
+            >
+              <CardHeader className="shrink-0 flex flex-row items-start justify-between">
                 <div className="flex flex-col">
                   <CardTitle className="text-foreground">Alert Type</CardTitle>
                   <CardDescription className="text-muted-foreground">
-                    Real-time data showing user-initiated and critical alerts from rescue forms
+                    Real-time data showing user-initiated and critical alerts
+                    from rescue forms
                   </CardDescription>
                 </div>
                 <Select value={timeRange} onValueChange={setTimeRange}>
@@ -51,9 +64,24 @@ export function Reports() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-[#2a2a2a] border-[#404040]">
-                    <SelectItem value="last3months" className="text-white hover:bg-[#404040] focus:bg-[#404040]">Last 30 days</SelectItem>
-                    <SelectItem value="last6months" className="text-white hover:bg-[#404040] focus:bg-[#404040]">Last 6 months</SelectItem>
-                    <SelectItem value="lastyear" className="text-white hover:bg-[#404040] focus:bg-[#404040]">Last year</SelectItem>
+                    <SelectItem
+                      value="last3months"
+                      className="text-white hover:bg-[#404040] focus:bg-[#404040]"
+                    >
+                      Last 30 days
+                    </SelectItem>
+                    <SelectItem
+                      value="last6months"
+                      className="text-white hover:bg-[#404040] focus:bg-[#404040]"
+                    >
+                      Last 6 months
+                    </SelectItem>
+                    <SelectItem
+                      value="lastyear"
+                      className="text-white hover:bg-[#404040] focus:bg-[#404040]"
+                    >
+                      Last year
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </CardHeader>
@@ -65,10 +93,16 @@ export function Reports() {
 
           {/* Reports Table - 60% of available height */}
           <Card className="flex flex-col border-0 h-[60%] overflow-hidden min-h-0 max-h-[60%]">
-            <CardHeader className="flex-shrink-0 flex flex-row items-center gap-2">
-              <CardTitle className="text-foreground text-2xl">Reports</CardTitle>
+            <CardHeader className="shrink-0 flex flex-row items-center gap-2">
+              <CardTitle className="text-foreground text-2xl">
+                Reports
+              </CardTitle>
               <div className="flex items-center gap-3">
-                <Tabs value={activeTab} defaultValue="completed" onValueChange={setActiveTab}>
+                <Tabs
+                  value={activeTab}
+                  defaultValue="completed"
+                  onValueChange={setActiveTab}
+                >
                   <TabsList>
                     <TabsTrigger value="completed">
                       Completed
@@ -88,14 +122,14 @@ export function Reports() {
             </CardHeader>
             <CardContent className="flex-1 flex flex-col overflow-hidden min-h-0 max-h-full">
               {activeTab === "completed" ? (
-                <ReportsTable 
-                  type="completed" 
+                <ReportsTable
+                  type="completed"
                   data={completedReports}
                   onReportCreated={refreshAllReports}
                 />
               ) : (
-                <ReportsTable 
-                  type="pending" 
+                <ReportsTable
+                  type="pending"
                   data={pendingReports}
                   onReportCreated={refreshAllReports}
                 />
