@@ -48,7 +48,7 @@ import type { CommunityGroupDetails } from "./types";
 const makeArchivedColumns = (
   onMoreInfo: (g: CommunityGroup) => void,
   onRestore?: (g: CommunityGroup) => void,
-  onDeletePermanent?: (g: CommunityGroup) => void,
+  onDeletePermanent?: (g: CommunityGroup) => void
 ) => [
   ...createColumns({ onMoreInfo }).slice(0, -1),
   {
@@ -142,11 +142,9 @@ export function CommunityGroups() {
   const [activeGroups, setActiveGroups] = useState<CommunityGroup[]>([]);
   const [archivedGroups, setArchivedGroups] = useState<CommunityGroup[]>([]);
   const [awaitingGroups, setAwaitingGroups] = useState<CommunityGroup[]>(
-    predefinedAwaitingGroups,
+    predefinedAwaitingGroups
   );
-  const [infoById, setInfoById] = useState<
-    Record<string, CommunityGroupDetails>
-  >({});
+  const [, setInfoById] = useState<Record<string, CommunityGroupDetails>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [awaitingInfoById, setAwaitingInfoById] = useState<
@@ -156,7 +154,7 @@ export function CommunityGroups() {
   const [searchQuery, setSearchQuery] = useState("");
   const [editingGroup, setEditingGroup] = useState<CommunityGroup | null>(null);
   const [editData, setEditData] = useState<CommunityGroupDetails | undefined>(
-    undefined,
+    undefined
   );
 
   // Available terminals for assignment
@@ -196,9 +194,8 @@ export function CommunityGroups() {
           setLoading(false);
         }
       })();
-       
     },
-    [infoById, awaitingInfoById, activeTab],
+    [awaitingInfoById, activeTab]
   );
 
   const handleArchive = useCallback(async (group: CommunityGroup) => {
@@ -211,22 +208,22 @@ export function CommunityGroups() {
       ]);
       setActiveGroups(
         activeData.map((neighborhood) =>
-          transformNeighborhoodToCommunityGroup(neighborhood, false),
-        ),
+          transformNeighborhoodToCommunityGroup(neighborhood, false)
+        )
       );
       setArchivedGroups(
         archivedData.map((neighborhood) =>
-          transformNeighborhoodToCommunityGroup(neighborhood, true),
-        ),
+          transformNeighborhoodToCommunityGroup(neighborhood, true)
+        )
       );
 
       // Show success alert
       alertsRef.current?.showArchiveSuccess(
-        group.name || group.focalPerson || "Neighborhood Group",
+        group.name || group.focalPerson || "Neighborhood Group"
       );
     } catch {
       alertsRef.current?.showError(
-        "Failed to archive neighborhood. Please try again.",
+        "Failed to archive neighborhood. Please try again."
       );
     }
   }, []);
@@ -248,8 +245,8 @@ export function CommunityGroups() {
           const archivedData = await getArchivedNeighborhoods();
           setArchivedGroups(
             archivedData.map((neighborhood) =>
-              transformNeighborhoodToCommunityGroup(neighborhood, true),
-            ),
+              transformNeighborhoodToCommunityGroup(neighborhood, true)
+            )
           );
           setInfoById((prev) => {
             const newState = { ...prev };
@@ -259,14 +256,14 @@ export function CommunityGroups() {
 
           // Show success alert
           alertsRef.current?.showDeleteSuccess(
-            group.name || group.focalPerson || "Neighborhood Group",
+            group.name || group.focalPerson || "Neighborhood Group"
           );
         } catch {
           alertsRef.current?.showError(
-            "Failed to delete neighborhood. Please try again.",
+            "Failed to delete neighborhood. Please try again."
           );
         }
-      },
+      }
     );
   }, []);
 
@@ -284,7 +281,7 @@ export function CommunityGroups() {
 
       // Move from awaiting to active groups with assigned terminal
       const awaitingGroup = awaitingGroups.find(
-        (g) => g.id === pendingApprovalData.communityId,
+        (g) => g.id === pendingApprovalData.communityId
       );
       if (awaitingGroup) {
         // Generate new RSQW ID for approved group
@@ -308,7 +305,7 @@ export function CommunityGroups() {
 
         // Remove from awaiting
         setAwaitingGroups((prev) =>
-          prev.filter((g) => g.id !== awaitingGroup.id),
+          prev.filter((g) => g.id !== awaitingGroup.id)
         );
         setAwaitingInfoById((prev) => {
           const newState = { ...prev };
@@ -325,18 +322,18 @@ export function CommunityGroups() {
       setSelectedTerminal("");
       setTerminalAssignmentOpen(false);
     },
-    [pendingApprovalData, awaitingGroups],
+    [pendingApprovalData, awaitingGroups]
   );
 
   const handleDiscard = useCallback(
     (communityData: CommunityGroupDetails) => {
       // Remove from awaiting groups
       const awaitingGroup = awaitingGroups.find(
-        (g) => g.id === communityData.communityId,
+        (g) => g.id === communityData.communityId
       );
       if (awaitingGroup) {
         setAwaitingGroups((prev) =>
-          prev.filter((g) => g.id !== awaitingGroup.id),
+          prev.filter((g) => g.id !== awaitingGroup.id)
         );
         setAwaitingInfoById((prev) => {
           const newState = { ...prev };
@@ -345,7 +342,7 @@ export function CommunityGroups() {
         });
       }
     },
-    [awaitingGroups],
+    [awaitingGroups]
   );
 
   const handleEdit = useCallback(async (group: CommunityGroup) => {
@@ -360,7 +357,7 @@ export function CommunityGroups() {
     } catch (err) {
       console.error("Failed to load neighborhood details for editing:", err);
       alertsRef.current?.showError(
-        "Failed to load neighborhood details for editing",
+        "Failed to load neighborhood details for editing"
       );
     } finally {
       setLoading(false);
@@ -374,16 +371,16 @@ export function CommunityGroups() {
         onEdit: handleEdit,
         onArchive: handleArchive,
       }),
-    [handleMoreInfo, handleEdit, handleArchive],
+    [handleMoreInfo, handleEdit, handleArchive]
   );
   const archivedColumns = useMemo(
     () =>
       makeArchivedColumns(handleMoreInfo, handleRestore, handleDeletePermanent),
-    [handleMoreInfo, handleRestore, handleDeletePermanent],
+    [handleMoreInfo, handleRestore, handleDeletePermanent]
   );
   const awaitingColumns = useMemo(
     () => createColumns({ onMoreInfo: handleMoreInfo }),
-    [handleMoreInfo],
+    [handleMoreInfo]
   );
 
   // Filter function for search
@@ -395,7 +392,7 @@ export function CommunityGroups() {
         group.focalPerson.toLowerCase().includes(searchQuery.toLowerCase()) ||
         group.contactNumber.includes(searchQuery) ||
         group.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        group.id.toLowerCase().includes(searchQuery.toLowerCase()),
+        group.id.toLowerCase().includes(searchQuery.toLowerCase())
     );
   };
 
@@ -407,14 +404,14 @@ export function CommunityGroups() {
     activeTab === "active"
       ? filteredActiveGroups
       : activeTab === "archived"
-        ? filteredArchivedGroups
-        : filteredAwaitingGroups;
+      ? filteredArchivedGroups
+      : filteredAwaitingGroups;
   const tableColumns =
     activeTab === "active"
       ? activeColumns
       : activeTab === "archived"
-        ? archivedColumns
-        : awaitingColumns;
+      ? archivedColumns
+      : awaitingColumns;
 
   // Fetch neighborhoods data on component mount
   useEffect(() => {
@@ -431,10 +428,10 @@ export function CommunityGroups() {
 
         // Transform backend data to frontend format
         const transformedActive = activeData.map((neighborhood) =>
-          transformNeighborhoodToCommunityGroup(neighborhood, false),
+          transformNeighborhoodToCommunityGroup(neighborhood, false)
         );
         const transformedArchived = archivedData.map((neighborhood) =>
-          transformNeighborhoodToCommunityGroup(neighborhood, true),
+          transformNeighborhoodToCommunityGroup(neighborhood, true)
         );
 
         setActiveGroups(transformedActive);
@@ -518,7 +515,9 @@ export function CommunityGroups() {
             <Button
               variant="ghost"
               size="icon"
-              className={`text-[#a1a1a1] hover:text-white hover:bg-[#262626] transition-all duration-200 ${searchVisible ? "bg-[#262626] text-white" : ""}`}
+              className={`text-[#a1a1a1] hover:text-white hover:bg-[#262626] transition-all duration-200 ${
+                searchVisible ? "bg-[#262626] text-white" : ""
+              }`}
               onClick={() => {
                 setSearchVisible(!searchVisible);
                 if (searchVisible) {
@@ -584,10 +583,10 @@ export function CommunityGroups() {
                   ]);
 
                   const transformedActive = activeData.map((neighborhood) =>
-                    transformNeighborhoodToCommunityGroup(neighborhood, false),
+                    transformNeighborhoodToCommunityGroup(neighborhood, false)
                   );
                   const transformedArchived = archivedData.map((neighborhood) =>
-                    transformNeighborhoodToCommunityGroup(neighborhood, true),
+                    transformNeighborhoodToCommunityGroup(neighborhood, true)
                   );
 
                   setActiveGroups(transformedActive);

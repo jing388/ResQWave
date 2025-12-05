@@ -4,6 +4,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -20,6 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   getCoreRowModel,
   getPaginationRowModel,
@@ -27,7 +29,7 @@ import {
   type CellContext,
   type ColumnDef,
 } from "@tanstack/react-table";
-import { MoreHorizontal } from "lucide-react";
+import { Archive, ArchiveRestore, FileText, Info, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { fetchDetailedReportData, type DetailedReportData } from "../api/api";
 import {
@@ -57,9 +59,12 @@ interface PendingReport {
 }
 
 interface ReportsTableProps {
-  type: "completed" | "pending";
+  type: "completed" | "pending" | "archive";
   data: CompletedReport[] | PendingReport[];
   onReportCreated?: () => void; // Callback when a report is successfully created
+  onArchive?: (reportId: string) => void; // Callback when a report is archived
+  onRestore?: (reportId: string) => void; // Callback when a report is restored
+  onDelete?: (reportId: string) => void; // Callback when a report is deleted
 }
 
 type ReportData = CompletedReport | PendingReport;
@@ -68,8 +73,13 @@ export function ReportsTable({
   type,
   data,
   onReportCreated,
+  onArchive,
+  onRestore,
+  onDelete,
 }: ReportsTableProps) {
+  const { isAdmin } = useAuth();
   const isCompleted = type === "completed";
+  const isArchive = type === "archive";
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedReportData, setSelectedReportData] =
     useState<ReportData | null>(null);
@@ -248,46 +258,163 @@ export function ReportsTable({
     {
       id: "actions",
       header: "",
-      cell: ({ row }) =>
-        isCompleted ? (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
-              >
-                <span className="sr-only">Open menu</span>
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              align="start"
-              side="left"
-              sideOffset={2}
-              className="bg-[#171717] border border-[#2a2a2a] text-white hover:text-white w-48 p-1 rounded-[5px] shadow-lg"
+      cell: ({ row }) => (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
             >
-              <DropdownMenuItem className="hover:bg-[#404040] focus:bg-[#404040] rounded-[5px] cursor-pointer hover:text-white focus:text-white">
-                View details
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                className="hover:bg-[#404040] focus:bg-[#404040] rounded-[5px] cursor-pointer hover:text-white focus:text-white"
-                onClick={() => handleGenerateReport(row.original)}
-                disabled={isGeneratingPdf}
-              >
-                {isGeneratingPdf ? "Generating..." : "Generate report"}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        ) : (
-          <Button
-            size="sm"
-            className="bg-blue-600 hover:bg-blue-700 rounded-[5px] text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-            onClick={() => handleCreateReport(row.original)}
-            disabled={isLoadingDetails}
+              <span className="sr-only">Open menu</span>
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="start"
+            side="left"
+            sideOffset={2}
+            className="bg-[#171717] border border-[#2a2a2a] text-white hover:text-white w-48 p-1 rounded-[5px] shadow-lg"
           >
-            {isLoadingDetails ? "Loading..." : "Create Report"}
-          </Button>
-        ),
+            {isArchive ? (
+              // Archive tab - Only available for admin
+              <>
+                <DropdownMenuItem className="hover:bg-[#404040] focus:bg-[#404040] rounded-[5px] cursor-pointer hover:text-white focus:text-white">
+                  <Info className="mr-2 h-4 w-4 text-white" />
+                  <span className="text-xs">View Neighborhood Info</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem className="hover:bg-[#404040] focus:bg-[#404040] rounded-[5px] cursor-pointer hover:text-white focus:text-white">
+                  <Info className="mr-2 h-4 w-4 text-white" />
+                  <span className="text-xs">View Rescue Form</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  className="hover:bg-[#404040] focus:bg-[#404040] rounded-[5px] cursor-pointer hover:text-white focus:text-white"
+                  onClick={() => onRestore?.(row.original.emergencyId)}
+                >
+                  <ArchiveRestore className="mr-2 h-4 w-4 text-white" />
+                  <span className="text-xs">Restore</span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator className="bg-[#404040]" />
+                <DropdownMenuItem 
+                  className="hover:bg-[#404040] focus:bg-[#FF00001A] text-[#FF0000] rounded-[5px] cursor-pointer hover:text-[#FF0000] focus:text-[#FF0000] text-xs"
+                  onClick={() => onDelete?.(row.original.emergencyId)}
+                >
+                  <Trash2 className="mr-2 h-4 w-4 text-[#FF0000]" />
+                  <span className="text-xs">Delete Permanently</span>
+                </DropdownMenuItem>
+              </>
+            ) : isCompleted ? (
+              // Completed tab - Different options for admin vs dispatcher
+              <>
+                {isAdmin() ? (
+                  // Admin options for completed tab
+                  <>
+                    <DropdownMenuItem 
+                      className="hover:bg-[#404040] focus:bg-[#404040] rounded-[5px] cursor-pointer hover:text-white focus:text-white"
+                      onClick={() => handleGenerateReport(row.original)}
+                      disabled={isGeneratingPdf}
+                    >
+                      <FileText className="mr-2 h-4 w-4 text-white" />
+                      <span className="text-xs">{isGeneratingPdf ? "Generating..." : "Generate Report"}</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="hover:bg-[#404040] focus:bg-[#404040] rounded-[5px] cursor-pointer hover:text-white focus:text-white">
+                      <Info className="mr-2 h-4 w-4 text-white" />
+                      <span className="text-xs">View Neighborhood Info</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="hover:bg-[#404040] focus:bg-[#404040] rounded-[5px] cursor-pointer hover:text-white focus:text-white">
+                      <Info className="mr-2 h-4 w-4 text-white" />
+                      <span className="text-xs">View Rescue Form</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="hover:bg-[#404040] focus:bg-[#404040] rounded-[5px] cursor-pointer hover:text-white focus:text-white">
+                      <Info className="mr-2 h-4 w-4 text-white" />
+                      <span className="text-xs">View Post-Rescue Form</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator className="bg-[#404040]" />
+                    <DropdownMenuItem 
+                      className="hover:bg-[#404040] focus:bg-[#FF00001A] text-[#FF0000] rounded-[5px] cursor-pointer hover:text-[#FF0000] focus:text-[#FF0000] text-xs"
+                      onClick={() => onArchive?.(row.original.emergencyId)}
+                    >
+                      <Archive className="mr-2 h-4 w-4 text-[#FF0000]" />
+                      <span>Archive</span>
+                    </DropdownMenuItem>
+                  </>
+                ) : (
+                  // Dispatcher options for completed tab
+                  <>
+                    <DropdownMenuItem className="hover:bg-[#404040] focus:bg-[#404040] rounded-[5px] cursor-pointer hover:text-white focus:text-white">
+                      <Info className="mr-2 h-4 w-4 text-white" />
+                      <span className="text-xs">View Neighborhood Info</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="hover:bg-[#404040] focus:bg-[#404040] rounded-[5px] cursor-pointer hover:text-white focus:text-white">
+                      <Info className="mr-2 h-4 w-4 text-white" />
+                      <span className="text-xs">View Rescue Form</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="hover:bg-[#404040] focus:bg-[#404040] rounded-[5px] cursor-pointer hover:text-white focus:text-white">
+                      <Info className="mr-2 h-4 w-4 text-white" />
+                      <span className="text-xs">View Post-Rescue Form</span>
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </>
+            ) : (
+              // Pending tab - Different options for admin vs dispatcher  
+              <>
+                {isAdmin() ? (
+                  // Admin options for pending tab
+                  <>
+                    <DropdownMenuItem 
+                      className="hover:bg-[#404040] focus:bg-[#404040] rounded-[5px] cursor-pointer hover:text-white focus:text-white"
+                      onClick={() => handleGenerateReport(row.original)}
+                      disabled={isGeneratingPdf}
+                    >
+                      <FileText className="h-4 w-4 mr-2" />
+                      {isGeneratingPdf ? "Generating..." : "Generate Report"}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="hover:bg-[#404040] focus:bg-[#404040] rounded-[5px] cursor-pointer hover:text-white focus:text-white">
+                      <Info className="h-4 w-4 mr-2" />
+                      View Neighborhood Info
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="hover:bg-[#404040] focus:bg-[#404040] rounded-[5px] cursor-pointer hover:text-white focus:text-white">
+                      <Info className="h-4 w-4 mr-2" />
+                      View Rescue Form
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="hover:bg-[#404040] focus:bg-[#404040] rounded-[5px] cursor-pointer hover:text-white focus:text-white">
+                      <Info className="h-4 w-4 mr-2" />
+                      View Post-Rescue Form
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      className="hover:bg-[#404040] focus:bg-[#404040] rounded-[5px] cursor-pointer hover:text-white focus:text-white"
+                      onClick={() => onArchive?.(row.original.emergencyId)}
+                    >
+                      <Archive className="h-4 w-4 mr-2" />
+                      Archive
+                    </DropdownMenuItem>
+                  </>
+                ) : (
+                  // Dispatcher options for pending tab
+                  <>
+                    <DropdownMenuItem 
+                      className="hover:bg-[#404040] focus:bg-[#404040] rounded-[5px] cursor-pointer hover:text-white focus:text-white"
+                      onClick={() => handleCreateReport(row.original)}
+                      disabled={isLoadingDetails}
+                    >
+                      <Pencil className="mr-2 h-4 w-4 text-white" />
+                      <span className="text-xs">Create Post Rescue Form</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="hover:bg-[#404040] focus:bg-[#404040] rounded-[5px] cursor-pointer hover:text-white focus:text-white">
+                      <Info className="mr-2 h-4 w-4 text-white" />
+                      <span className="text-xs">View Neighborhood Info</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="hover:bg-[#404040] focus:bg-[#404040] rounded-[5px] cursor-pointer hover:text-white focus:text-white">
+                      <Info className="mr-2 h-4 w-4 text-white" />
+                      <span className="text-xs">View Rescue Form</span>
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ),
       enableSorting: false,
       enableHiding: false,
     },

@@ -218,7 +218,7 @@ export function LoginOfficial() {
             type="submit"
             disabled={isLoading}
             className="text-white py-6 rounded-md font-medium text-base flex items-center justify-center gap-2
-             bg-gradient-to-t from-[#3B82F6] to-[#70A6FF] 
+             bg-linear-to-t from-[#3B82F6] to-[#70A6FF] 
              hover:from-[#1052BE] hover:to-[#70A6FF]
              transition duration-300 ease-in cursor-pointer mt-1"
             style={{

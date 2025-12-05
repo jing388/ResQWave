@@ -37,7 +37,7 @@ interface DispatcherDrawerProps {
   onOpenChange: (open: boolean) => void;
   onSave?: (
     dispatcherData: DispatcherDetails,
-    formData?: DispatcherFormData,
+    formData?: DispatcherFormData
   ) => Promise<boolean>; // Make async and return success status
   editData?: DispatcherDetails;
   isEditing?: boolean;
@@ -75,7 +75,7 @@ export function CreateDispatcherSheet({
   // Merge local errors with server errors, with server errors taking precedence
   const errors = useMemo(
     () => ({ ...localErrors, ...serverErrors }),
-    [localErrors, serverErrors],
+    [localErrors, serverErrors]
   );
 
   // Clear local errors when server errors change (to allow fresh start)
@@ -94,7 +94,7 @@ export function CreateDispatcherSheet({
         return `${field} must be at least 2 characters long`;
       return undefined;
     },
-    [],
+    []
   );
 
   const validateContactNumber = useCallback(
@@ -107,7 +107,7 @@ export function CreateDispatcherSheet({
         return "Contact number must start with 09";
       return undefined;
     },
-    [],
+    []
   );
 
   const validateEmail = useCallback((email: string): string | undefined => {
@@ -140,7 +140,7 @@ export function CreateDispatcherSheet({
 
       return undefined;
     },
-    [isEditing],
+    [isEditing]
   );
 
   const validateConfirmPassword = useCallback(
@@ -151,17 +151,17 @@ export function CreateDispatcherSheet({
         return "Passwords do not match";
       return undefined;
     },
-    [isEditing],
+    [isEditing]
   );
 
   // Validate email uniqueness on blur
   const handleEmailBlur = useCallback(async () => {
     const email = formData.email.trim();
-    
+
     // First check basic email validation
     const basicError = validateEmail(email);
     if (basicError) {
-      setLocalErrors(prev => ({ ...prev, email: basicError }));
+      setLocalErrors((prev) => ({ ...prev, email: basicError }));
       return;
     }
 
@@ -171,21 +171,22 @@ export function CreateDispatcherSheet({
       try {
         const excludeId = isEditing && editData ? editData.id : undefined;
         const result = await checkEmailExists(email, excludeId);
-        
+
         if (result.exists) {
-          setLocalErrors(prev => ({ 
-            ...prev, 
-            email: "Email is already in use by another dispatcher" 
+          setLocalErrors((prev) => ({
+            ...prev,
+            email: "Email is already in use by another dispatcher",
           }));
         } else {
           // Clear email error if it was about duplication
-          setLocalErrors(prev => {
+          setLocalErrors((prev) => {
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             const { email: _, ...rest } = prev;
             return rest;
           });
         }
       } catch (error) {
-        console.error('Error checking email uniqueness:', error);
+        console.error("Error checking email uniqueness:", error);
         // Don't show error to user for network issues during blur validation
       } finally {
         setIsCheckingEmail(false);
@@ -276,7 +277,7 @@ export function CreateDispatcherSheet({
       setLocalErrors((prev) => ({ ...prev, [field]: error }));
       setIsDirty(true);
     },
-    [errors, validateName],
+    [errors, validateName]
   );
 
   // Special handler for contact number with digit limiting
@@ -316,7 +317,7 @@ export function CreateDispatcherSheet({
       serverErrors.contactNumber,
       onClearServerError,
       validateContactNumber,
-    ],
+    ]
   );
 
   const handleInputChange = useCallback(
@@ -350,7 +351,7 @@ export function CreateDispatcherSheet({
         if (formData.confirmPassword) {
           const confirmError = validateConfirmPassword(
             formData.confirmPassword,
-            value,
+            value
           );
           setLocalErrors((prev) => ({
             ...prev,
@@ -373,7 +374,7 @@ export function CreateDispatcherSheet({
       validateEmail,
       validatePassword,
       validateConfirmPassword,
-    ],
+    ]
   );
 
   const handleSave = useCallback(async () => {
@@ -408,7 +409,7 @@ export function CreateDispatcherSheet({
 
       const confirmPasswordError = validateConfirmPassword(
         formData.confirmPassword,
-        formData.password,
+        formData.password
       );
       if (confirmPasswordError) {
         newErrors.confirmPassword = confirmPasswordError;

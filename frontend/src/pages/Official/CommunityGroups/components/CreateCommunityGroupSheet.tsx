@@ -3,27 +3,27 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import {
-    Sheet,
-    SheetContent,
-    SheetHeader,
-    SheetTitle,
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
 } from "@/components/ui/sheet";
 import { Loader2, Map, Trash, Upload } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-    checkFocalEmailExists,
-    createCommunityGroup,
-    getAllTerminals,
-    getAvailableTerminals,
-    updateNeighborhood,
-    type Terminal,
+  checkFocalEmailExists,
+  createCommunityGroup,
+  getAllTerminals,
+  getAvailableTerminals,
+  updateNeighborhood,
+  type Terminal,
 } from "../api/communityGroupApi";
 import type { CommunityGroupDrawerProps } from "../types";
 import type { CommunityFormData } from "../types/forms";
@@ -136,7 +136,7 @@ export function CommunityGroupDrawer({
 
   // Use ONLY local state - like Terminal modal (simple and no infinite loops)
   const [formData, setFormData] = useState<CommunityFormData>(
-    createEmptyFormData(),
+    createEmptyFormData()
   );
   const [photoUrls, setPhotoUrls] = useState<{
     focalPersonPhoto: string | null;
@@ -189,7 +189,7 @@ export function CommunityGroupDrawer({
 
       setErrors(clearedErrors);
     },
-    [errors],
+    [errors]
   );
 
   // Form validation
@@ -216,10 +216,10 @@ export function CommunityGroupDrawer({
     ];
 
     const allStringFieldsFilled = requiredStringFields.every(
-      (field) => field && typeof field === "string" && field.trim() !== "",
+      (field) => field && typeof field === "string" && field.trim() !== ""
     );
     const allSelectFieldsFilled = requiredSelectFields.every(
-      (field) => field !== null && field !== undefined && field !== "",
+      (field) => field !== null && field !== undefined && field !== ""
     );
 
     const isMainFocalEmailValid = formData.focalPersonEmail
@@ -281,17 +281,19 @@ export function CommunityGroupDrawer({
 
       setErrors(newErrors);
     },
-    [errors],
+    [errors]
   );
 
   // Validate focal person email uniqueness on blur
   const handleFocalEmailBlur = useCallback(async () => {
     const email = formData.focalPersonEmail.trim();
-    
+
     // First check basic email validation
-    const basicError = validateEmail(email) ? null : "Please enter a valid email address";
+    const basicError = validateEmail(email)
+      ? null
+      : "Please enter a valid email address";
     if (basicError) {
-      setErrors(prev => ({ ...prev, focalPersonEmail: basicError }));
+      setErrors((prev) => ({ ...prev, focalPersonEmail: basicError }));
       return;
     }
 
@@ -299,23 +301,27 @@ export function CommunityGroupDrawer({
     if (email) {
       setIsCheckingFocalEmail(true);
       try {
-        const excludeId = isEditing && editData?.focalPerson?.id ? editData.focalPerson.id : undefined;
+        const excludeId =
+          isEditing && editData?.focalPerson?.id
+            ? editData.focalPerson.id
+            : undefined;
         const result = await checkFocalEmailExists(email, excludeId);
-        
+
         if (result.exists) {
-          setErrors(prev => ({ 
-            ...prev, 
-            focalPersonEmail: "Email is already in use by another focal person" 
+          setErrors((prev) => ({
+            ...prev,
+            focalPersonEmail: "Email is already in use by another focal person",
           }));
         } else {
           // Clear email error if it was about duplication
-          setErrors(prev => {
+          setErrors((prev) => {
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             const { focalPersonEmail: _, ...rest } = prev;
             return rest;
           });
         }
       } catch (error) {
-        console.error('Error checking focal email uniqueness:', error);
+        console.error("Error checking focal email uniqueness:", error);
         // Don't show error to user for network issues during blur validation
       } finally {
         setIsCheckingFocalEmail(false);
@@ -326,11 +332,13 @@ export function CommunityGroupDrawer({
   // Validate alternative focal person email uniqueness on blur
   const handleAltEmailBlur = useCallback(async () => {
     const email = formData.altFocalPersonEmail.trim();
-    
+
     // First check basic email validation
-    const basicError = validateEmail(email) ? null : "Please enter a valid email address";
+    const basicError = validateEmail(email)
+      ? null
+      : "Please enter a valid email address";
     if (basicError) {
-      setErrors(prev => ({ ...prev, altFocalPersonEmail: basicError }));
+      setErrors((prev) => ({ ...prev, altFocalPersonEmail: basicError }));
       return;
     }
 
@@ -338,23 +346,28 @@ export function CommunityGroupDrawer({
     if (email) {
       setIsCheckingAltEmail(true);
       try {
-        const excludeId = isEditing && editData?.focalPerson?.id ? editData.focalPerson.id : undefined;
+        const excludeId =
+          isEditing && editData?.focalPerson?.id
+            ? editData.focalPerson.id
+            : undefined;
         const result = await checkFocalEmailExists(email, excludeId);
-        
+
         if (result.exists) {
-          setErrors(prev => ({ 
-            ...prev, 
-            altFocalPersonEmail: "Email is already in use by another focal person" 
+          setErrors((prev) => ({
+            ...prev,
+            altFocalPersonEmail:
+              "Email is already in use by another focal person",
           }));
         } else {
           // Clear email error if it was about duplication
-          setErrors(prev => {
+          setErrors((prev) => {
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             const { altFocalPersonEmail: _, ...rest } = prev;
             return rest;
           });
         }
       } catch (error) {
-        console.error('Error checking alt email uniqueness:', error);
+        console.error("Error checking alt email uniqueness:", error);
         // Don't show error to user for network issues during blur validation
       } finally {
         setIsCheckingAltEmail(false);
@@ -378,7 +391,7 @@ export function CommunityGroupDrawer({
           if (isEditing && editData?.terminalId) {
             const availableOrAssigned = terminalList.filter(
               (t) =>
-                t.availability === "Available" || t.id === editData.terminalId,
+                t.availability === "Available" || t.id === editData.terminalId
             );
             setTerminals(availableOrAssigned);
           } else {
@@ -540,7 +553,7 @@ export function CommunityGroupDrawer({
         focalPersonCoordinates: coordinates,
       });
     },
-    [updateFormData],
+    [updateFormData]
   );
 
   // Centralized handler when an attempt is made to close the sheet
@@ -561,7 +574,7 @@ export function CommunityGroupDrawer({
         onOpenChange(true);
       }
     },
-    [onOpenChange, requestClose],
+    [onOpenChange, requestClose]
   );
 
   const handleSave = async () => {
@@ -596,13 +609,13 @@ export function CommunityGroupDrawer({
               focalPhotoDeleted && !focalPhotoFile && initialFocalPhotoExists,
             altPhotoDeleted:
               altPhotoDeleted && !altPhotoFile && initialAltPhotoExists,
-          },
+          }
         );
 
         // Convert to frontend format for local state update
         const infoData = convertFormToInfoData(
           formData,
-          [formData.notableInfo].filter(Boolean),
+          [formData.notableInfo].filter(Boolean)
         );
 
         // Pass the updated data
@@ -616,7 +629,7 @@ export function CommunityGroupDrawer({
         // Convert to frontend format for local state update
         const infoData = convertFormToInfoData(
           formData,
-          [formData.notableInfo].filter(Boolean),
+          [formData.notableInfo].filter(Boolean)
         );
 
         // Update the infoData with backend response
@@ -682,7 +695,7 @@ export function CommunityGroupDrawer({
     } catch (error) {
       console.error(
         `Error ${isEditing ? "updating" : "creating"} community group:`,
-        error,
+        error
       );
 
       // Parse specific backend validation errors
@@ -709,7 +722,7 @@ export function CommunityGroupDrawer({
           "Alternative email must be different from main email";
       } else if (
         errorMessage.includes(
-          "Alt contact must be different from contact number",
+          "Alt contact must be different from contact number"
         )
       ) {
         newErrors.altFocalPersonContact =
@@ -725,7 +738,7 @@ export function CommunityGroupDrawer({
       // If it's a general error, scroll to top to show the header error
       if (newErrors.general) {
         const sheetContent = document.querySelector(
-          "[data-radix-scroll-area-viewport]",
+          "[data-radix-scroll-area-viewport]"
         );
         if (sheetContent) {
           sheetContent.scrollTop = 0;
@@ -801,7 +814,7 @@ export function CommunityGroupDrawer({
             <div className="mt-4 bg-red-500/10 border border-red-500/20 rounded-[5px] p-3">
               <div className="flex items-start gap-2">
                 <svg
-                  className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5"
+                  className="w-5 h-5 text-red-400 shrink-0 mt-0.5"
                   fill="currentColor"
                   viewBox="0 0 20 20"
                 >
@@ -839,8 +852,8 @@ export function CommunityGroupDrawer({
                     loadingTerminals
                       ? "Loading terminals..."
                       : terminals.length === 0
-                        ? "No available terminals"
-                        : "Select a Terminal"
+                      ? "No available terminals"
+                      : "Select a Terminal"
                   }
                 />
               </SelectTrigger>
@@ -882,7 +895,7 @@ export function CommunityGroupDrawer({
               <button
                 type="button"
                 onClick={openAddressPicker}
-                className={`w-full text-left cursor-pointer bg-[#171717] border-[#404040] pr-10 rounded-[5px] focus:ring-1 focus:ring-gray-600 focus:border-gray-600 border px-3 py-2 min-h-[40px] ${
+                className={`w-full text-left cursor-pointer bg-[#171717] border-[#404040] pr-10 rounded-[5px] focus:ring-1 focus:ring-gray-600 focus:border-gray-600 border px-3 py-2 min-h-10 ${
                   formData.focalPersonAddress
                     ? "text-white"
                     : "text-gray-400 italic"
@@ -1049,7 +1062,7 @@ export function CommunityGroupDrawer({
                     } else {
                       updateFormData({
                         floodHazards: hazards.filter(
-                          (h) => h !== "strong-water-current",
+                          (h) => h !== "strong-water-current"
                         ),
                       });
                     }
@@ -1078,7 +1091,7 @@ export function CommunityGroupDrawer({
                     } else {
                       updateFormData({
                         floodHazards: hazards.filter(
-                          (h) => h !== "risk-landslide",
+                          (h) => h !== "risk-landslide"
                         ),
                       });
                     }
@@ -1105,7 +1118,7 @@ export function CommunityGroupDrawer({
                     } else {
                       updateFormData({
                         floodHazards: hazards.filter(
-                          (h) => h !== "drainage-overflow",
+                          (h) => h !== "drainage-overflow"
                         ),
                       });
                     }
@@ -1135,7 +1148,7 @@ export function CommunityGroupDrawer({
                     } else {
                       updateFormData({
                         floodHazards: hazards.filter(
-                          (h) => h !== "roads-impassable",
+                          (h) => h !== "roads-impassable"
                         ),
                       });
                     }
@@ -1164,7 +1177,7 @@ export function CommunityGroupDrawer({
                     } else {
                       updateFormData({
                         floodHazards: hazards.filter(
-                          (h) => h !== "electrical-wires",
+                          (h) => h !== "electrical-wires"
                         ),
                       });
                     }
@@ -1876,8 +1889,8 @@ export function CommunityGroupDrawer({
               {isSubmitting
                 ? "Saving..."
                 : isEditing
-                  ? "Update"
-                  : "Save Neighborhood Group"}
+                ? "Update"
+                : "Save Neighborhood Group"}
             </Button>
           </div>
         </div>

@@ -1,13 +1,19 @@
-import { LiveReportProvider, useLiveReport } from "@/components/Official/LiveReportContext"
-import { RescueFormProvider, useRescueForm } from "@/components/Official/RescueFormContext"
-import { useAuth } from "@/contexts/AuthContext"
-import type React from "react"
-import { Navigate, useLocation } from "react-router-dom"
-import { Header } from "./Header"
-import Sidebar from "./Sidebar"
+import {
+  LiveReportProvider,
+  useLiveReport,
+} from "@/components/Official/LiveReportContext";
+import {
+  RescueFormProvider,
+  useRescueForm,
+} from "@/components/Official/RescueFormContext";
+import { useAuth } from "@/contexts/AuthContext";
+import type React from "react";
+import { Navigate, useLocation } from "react-router-dom";
+import { Header } from "./header";
+import Sidebar from "./sidebar";
 
 interface officialLayoutProps {
-  children: React.ReactNode
+  children: React.ReactNode;
 }
 
 function OfficialLayoutContent({ children }: officialLayoutProps) {
@@ -24,8 +30,8 @@ function OfficialLayoutContent({ children }: officialLayoutProps) {
     user = auth.user;
   } catch {
     // Outside provider, check localStorage
-    const storedToken = localStorage.getItem('resqwave_token');
-    const storedUser = localStorage.getItem('resqwave_user');
+    const storedToken = localStorage.getItem("resqwave_token");
+    const storedUser = localStorage.getItem("resqwave_user");
     if (storedUser && storedToken) {
       try {
         user = JSON.parse(storedUser);
@@ -53,15 +59,17 @@ function OfficialLayoutContent({ children }: officialLayoutProps) {
   }
 
   // Visualization nav is open if path starts with /visualization or /tabular
-  const isVisualizationOpen = location.pathname.startsWith("/visualization") || location.pathname.startsWith("/tabular");
+  const isVisualizationOpen =
+    location.pathname.startsWith("/visualization") ||
+    location.pathname.startsWith("/tabular");
 
   // Calculate margin based on which sidebars are open (only for visualization pages)
   const getMarginRight = () => {
-    if (!isVisualizationOpen) return '0';
-    if (isRescuePreviewOpen) return '400px'; // Preview is wider
-    if (isRescueFormOpen) return '400px'; // Form width  
-    if (isLiveReportOpen) return '400px'; // Live report width
-    return '0';
+    if (!isVisualizationOpen) return "0";
+    if (isRescuePreviewOpen) return "400px"; // Preview is wider
+    if (isRescueFormOpen) return "400px"; // Form width
+    if (isLiveReportOpen) return "400px"; // Live report width
+    return "0";
   };
 
   return (
@@ -71,7 +79,7 @@ function OfficialLayoutContent({ children }: officialLayoutProps) {
         <div
           className="flex-1 flex flex-col transition-all duration-300 ease-in-out h-full overflow-hidden"
           style={{
-            marginRight: getMarginRight()
+            marginRight: getMarginRight(),
           }}
         >
           <Header isVisualizationOpen={isVisualizationOpen} />

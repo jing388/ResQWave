@@ -1,25 +1,17 @@
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs-focal";
+import { useAuth } from "@/contexts/AuthContext";
 import { useState } from "react";
-import { AlertTypeChart, ReportsTable } from "./components";
+import { ReportsTable } from "./components";
+import type { TransformedCompletedReport } from "./hooks/useReports";
 import { useReports } from "./hooks/useReports";
 
 export function Reports() {
+  const { isAdmin } = useAuth();
   const [activeTab, setActiveTab] = useState("completed");
-  const [timeRange, setTimeRange] = useState("last3months");
+  const [archivedReports, setArchivedReports] = useState<
+    TransformedCompletedReport[]
+  >([]);
   const {
     pendingReports,
     completedReports,
@@ -28,8 +20,37 @@ export function Reports() {
     refreshAllReports,
   } = useReports();
 
+  // Archive function (frontend-only for now)
+  const handleArchive = (reportId: string) => {
+    const reportToArchive = completedReports.find(
+      (report) => report.emergencyId === reportId
+    );
+    if (reportToArchive) {
+      setArchivedReports((prev) => [...prev, reportToArchive]);
+      // In a real implementation, this would call an API to archive the report
+      refreshAllReports(); // This would remove it from completed reports
+    }
+  };
+
+  // Restore function
+  const handleRestore = (reportId: string) => {
+    setArchivedReports((prev) =>
+      prev.filter((report) => report.emergencyId !== reportId)
+    );
+    // In a real implementation, this would call an API to restore the report
+    refreshAllReports();
+  };
+
+  // Delete function
+  const handleDelete = (reportId: string) => {
+    setArchivedReports((prev) =>
+      prev.filter((report) => report.emergencyId !== reportId)
+    );
+    // In a real implementation, this would call an API to permanently delete the report
+  };
+
   return (
-    <div className="p-4 flex flex-col bg-[#171717] gap-1 h-[calc(100vh-73px)] max-h-[calc(100vh-73px)] overflow-hidden">
+    <div className="p-2 flex flex-col bg-[#171717] gap-0 h-[calc(100vh-73px)] max-h-[calc(100vh-73px)] overflow-hidden">
       {loading && (
         <div className="flex items-center justify-center h-32">
           <div className="text-white">Loading reports...</div>
@@ -43,10 +64,9 @@ export function Reports() {
       )}
 
       {!loading && !error && (
-        <div className="flex-1 flex flex-col min-h-0 gap-1">
-          {/* Top section with chart - 40% of available height */}
-          <div className="h-[40%] min-h-[200px]">
-            {/* Alert Type Chart - Full width */}
+        <div className="flex-1 flex flex-col min-h-0 gap-0">
+          {/* Chart section commented out for now */}
+          {/* <div className="h-[40%] min-h-[200px]">
             <Card
               className="border-border flex flex-col h-full"
               style={{ backgroundColor: "#211f1f" }}
@@ -89,11 +109,11 @@ export function Reports() {
                 <AlertTypeChart timeRange={timeRange} />
               </CardContent>
             </Card>
-          </div>
+          </div> */}
 
-          {/* Reports Table - 60% of available height */}
-          <Card className="flex flex-col border-0 h-[60%] overflow-hidden min-h-0 max-h-[60%]">
-            <CardHeader className="flex-shrink-0 flex flex-row items-center gap-2">
+          {/* Reports Table - Full height now */}
+          <Card className="flex flex-col border-0 flex-1 overflow-hidden min-h-0">
+            <CardHeader className="shrink-0 flex flex-row items-center gap-2">
               <CardTitle className="text-foreground text-2xl">
                 Reports
               </CardTitle>
@@ -114,12 +134,14 @@ export function Reports() {
                       </span>
                     </TabsTrigger>
                     <TabsTrigger
-                      value="pending"
+                      value={isAdmin() ? "archive" : "pending"}
                       className="text-white text-base px-6 py-2 rounded transition-colors cursor-pointer hover:bg-[#333333]"
                     >
-                      Pending
+                      {isAdmin() ? "Archive" : "Pending"}
                       <span className="ml-2 px-2 py-0.5 bg-[#707070] rounded text-xs">
-                        {pendingReports.length}
+                        {isAdmin()
+                          ? archivedReports.length
+                          : pendingReports.length}
                       </span>
                     </TabsTrigger>
                   </TabsList>
@@ -132,6 +154,15 @@ export function Reports() {
                   type="completed"
                   data={completedReports}
                   onReportCreated={refreshAllReports}
+                  onArchive={handleArchive}
+                />
+              ) : activeTab === "archive" ? (
+                <ReportsTable
+                  type="archive"
+                  data={archivedReports}
+                  onReportCreated={refreshAllReports}
+                  onRestore={handleRestore}
+                  onDelete={handleDelete}
                 />
               ) : (
                 <ReportsTable

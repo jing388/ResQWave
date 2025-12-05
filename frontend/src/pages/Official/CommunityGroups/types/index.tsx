@@ -42,6 +42,7 @@ export type CloseCreateDialogProps = {
 
 // Detailed community group information used by drawer/info sheet
 export interface FocalPerson {
+  id?: string;
   name: string | null;
   photo?: string;
   contactNumber: string | null;
@@ -78,7 +79,7 @@ export interface CommunityGroupDrawerProps {
   onOpenChange: (open: boolean) => void;
   onSave?: (
     infoData: CommunityGroupDetails,
-    saveInfo?: { generatedPassword?: string; groupName: string },
+    saveInfo?: { generatedPassword?: string; groupName: string }
   ) => void;
   editData?: CommunityGroupDetails; // Data to pre-fill when editing
   isEditing?: boolean; // Flag to indicate edit mode

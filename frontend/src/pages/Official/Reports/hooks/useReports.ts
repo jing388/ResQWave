@@ -1,15 +1,15 @@
 import {
-  fetchCompletedReports as apiFetchCompletedReports,
-  fetchPendingReports as apiFetchPendingReports,
-  clearReportsCache,
-  type CompletedReport,
-  type PendingReport,
+    fetchCompletedReports as apiFetchCompletedReports,
+    fetchPendingReports as apiFetchPendingReports,
+    clearReportsCache,
+    type CompletedReport,
+    type PendingReport,
 } from "@/pages/Official/Reports/api/api";
 import { extractAddress } from "@/pages/Official/Visualization/api/mapAlerts";
 import { useCallback, useEffect, useState } from "react";
 
 // Types for transformed reports
-interface TransformedPendingReport {
+export interface TransformedPendingReport {
   emergencyId: string;
   communityName: string;
   alertType: string;
@@ -18,7 +18,7 @@ interface TransformedPendingReport {
   address: string;
 }
 
-interface TransformedCompletedReport extends TransformedPendingReport {
+export interface TransformedCompletedReport extends TransformedPendingReport {
   accomplishedOn: string;
 }
 
