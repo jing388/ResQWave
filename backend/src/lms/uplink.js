@@ -1,6 +1,8 @@
 const { decodePayloadFromLMS } = require("../utils/decoder");
 const { AppDataSource } = require("../config/dataSource");
 const Alert = require("../models/Alert");
+const Terminal = require("../models/Terminal");
+
 
 // Helper: generate incremental Alert ID like ALRT001
 async function generateAlertId() {
@@ -31,16 +33,22 @@ const handleUplink = async (req, res) => {
   try {
     const result = decodePayloadFromLMS(req.body);
 
-    // Convert terminal + alert type
     const mappedTerminalId = mapTerminal(result.decoded.terminalID);
     const mappedAlertType = mapAlertType(result.decoded.alertType);
 
-    // Generate sequential alert ID
+    // find the terminal object
+    const terminal = await AppDataSource.getRepository(Terminal)
+      .findOne({ where: { id: mappedTerminalId } });
+
+    if (!terminal) {
+      throw new Error(`Terminal not found: ${mappedTerminalId}`);
+    }
+
     const alertId = await generateAlertId();
 
     const newAlert = AppDataSource.getRepository(Alert).create({
       id: alertId,
-      terminalID: mappedTerminalId,
+      terminal: terminal,   // <-- relation, not terminalID
       alertType: mappedAlertType,
       sentThrough: "LMS",
       dateTimeSent: result.decoded.dateTimeSent,
@@ -52,11 +60,9 @@ const handleUplink = async (req, res) => {
     res.status(200).json({
       success: true,
       decoded: result.decoded,
-      mapped: {
-        terminalID: mappedTerminalId,
-        alertType: mappedAlertType,
-      },
       alertId,
+      mappedTerminalId,
+      mappedAlertType
     });
 
   } catch (err) {
