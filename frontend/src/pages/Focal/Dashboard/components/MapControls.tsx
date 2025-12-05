@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip-white';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover-focal';
-import { Layers, Locate, Minus, Plus, Trash2, Waves } from 'lucide-react';
+import { Layers, Locate, Minus, Plus, Trash2, Waves, MessageCircle } from 'lucide-react';
 import type { MapControlsProps } from '../types/controls';
 
-export default function MapControls({ mapRef, mapLoaded, addCustomLayers, editBoundaryOpen, handleDeleteBoundary }: MapControlsProps) {
+export default function MapControls({ mapRef, mapLoaded, addCustomLayers, editBoundaryOpen, handleDeleteBoundary, onChatbotToggle }: MapControlsProps) {
     const [layersOpen, setLayersOpen] = useState(false);
     const [selectedLayer, setSelectedLayer] = useState<'street' | 'terrain' | 'satellite'>('street');
     const [heatmapVisible, setHeatmapVisible] = useState(true);
@@ -307,6 +307,40 @@ export default function MapControls({ mapRef, mapLoaded, addCustomLayers, editBo
                     </TooltipContent>
                 </Tooltip>
             </div>
+
+            {/* Chatbot Button */}
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <div
+                        onClick={onChatbotToggle}
+                        style={{
+                            width: 50,
+                            height: 50,
+                            borderRadius: 7,
+                            background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer',
+                            boxShadow: '0 6px 16px rgba(59, 130, 246, 0.35)',
+                            transition: 'transform 0.2s, box-shadow 0.2s'
+                        }}
+                        onMouseEnter={e => {
+                            e.currentTarget.style.transform = 'scale(1.05)';
+                            e.currentTarget.style.boxShadow = '0 8px 20px rgba(59, 130, 246, 0.45)';
+                        }}
+                        onMouseLeave={e => {
+                            e.currentTarget.style.transform = 'scale(1)';
+                            e.currentTarget.style.boxShadow = '0 6px 16px rgba(59, 130, 246, 0.35)';
+                        }}
+                    >
+                        <MessageCircle size={21} style={{ color: '#fff', filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))' }} />
+                    </div>
+                </TooltipTrigger>
+                <TooltipContent side="left" sideOffset={8}>
+                    ResQWave Assistant
+                </TooltipContent>
+            </Tooltip>
         </div>
     );
 }

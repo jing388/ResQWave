@@ -8,6 +8,7 @@ const {
   viewOtherNeighborhoods,
   updateNeighborhood,
   archivedNeighborhood,
+  unarchivedNeighborhood,
   getArchivedNeighborhoods,
   deleteNeighborhood
 } = require("../controllers/neighborhoodController");
@@ -27,6 +28,7 @@ router.get("/", getNeighborhoods);
 router.get("/:id", getNeighborhood);
 router.put("/:id", uploadFocalPhotos, updateNeighborhood);
 router.delete("/:id", archivedNeighborhood);
+router.patch("/:id/restore", unarchivedNeighborhood);
 router.delete("/:id/permanent", deleteNeighborhood);
 
 // Upload alternative focal person photo

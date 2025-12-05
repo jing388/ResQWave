@@ -1,4 +1,4 @@
-export interface LoginDispatcher { 
-    ID: string;
-    password: string;
+export interface LoginDispatcher {
+  ID: string;
+  password: string;
 }

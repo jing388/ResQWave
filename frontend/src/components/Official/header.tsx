@@ -2,13 +2,16 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs-focal";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-export function Header({ isVisualizationOpen }: { isVisualizationOpen: boolean }) {
+export function Header({
+  isVisualizationOpen,
+}: {
+  isVisualizationOpen: boolean;
+}) {
   const [currentTime, setCurrentTime] = useState("");
   const [currentDate, setCurrentDate] = useState("");
 
   const [activeTab, setActiveTab] = useState<"map" | "table">("map");
   const navigate = useNavigate();
-
 
   useEffect(() => {
     const updateDateTime = () => {
@@ -52,7 +55,11 @@ export function Header({ isVisualizationOpen }: { isVisualizationOpen: boolean }
           BARANGAY 175
         </h1>
         {isVisualizationOpen && (
-          <Tabs value={activeTab} defaultValue="map" onValueChange={(v) => handleTabClick(v as "map" | "table")}>
+          <Tabs
+            value={activeTab}
+            defaultValue="map"
+            onValueChange={(v) => handleTabClick(v as "map" | "table")}
+          >
             <TabsList>
               <TabsTrigger
                 value="map"
@@ -62,11 +69,15 @@ export function Header({ isVisualizationOpen }: { isVisualizationOpen: boolean }
                   padding: "0.5rem 1.5rem",
                   borderRadius: 4,
                   transition: "background 0.2s",
-                  cursor: 'pointer'
+                  cursor: "pointer",
                 }}
                 className="tab-trigger"
-                onMouseEnter={e => (e.currentTarget.style.background = '#333333')}
-                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.background = "#333333")
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.background = "transparent")
+                }
               >
                 Map View
               </TabsTrigger>
@@ -78,11 +89,15 @@ export function Header({ isVisualizationOpen }: { isVisualizationOpen: boolean }
                   padding: "0.5rem 1.5rem",
                   borderRadius: 4,
                   transition: "background 0.2s",
-                  cursor: 'pointer'
+                  cursor: "pointer",
                 }}
                 className="tab-trigger"
-                onMouseEnter={e => (e.currentTarget.style.background = '#333333')}
-                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.background = "#333333")
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.background = "transparent")
+                }
               >
                 Table View
               </TabsTrigger>

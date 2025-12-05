@@ -3,11 +3,11 @@ const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const nodemailer = require("nodemailer");
 const { AppDataSource } = require("../config/dataSource");
-const SibApiV3Sdk = require('sib-api-v3-sdk');
+const SibApiV3Sdk = require("sib-api-v3-sdk");
 
 const client = SibApiV3Sdk.ApiClient.instance;
-const apiKey = client.authentications['api-key'];
-apiKey.apiKey = process.env.BREVO_API_KEY; 
+const apiKey = client.authentications["api-key"];
+apiKey.apiKey = process.env.BREVO_API_KEY;
 
 const tranEmailApi = new SibApiV3Sdk.TransactionalEmailsApi();
 
@@ -22,18 +22,19 @@ const register = async (req, res) => {
     const { name, email, password } = req.body;
 
     if (!name || !email || !password) {
-      return res.status(400).json({ message: "Name, email, and password are required" });
+      return res
+        .status(400)
+        .json({ message: "Name, email, and password are required" });
     }
 
     // check if already exists
     const existingAdmin = await adminRepo.findOne({
-      where: [
-        { name },
-        { email }
-      ]
+      where: [{ name }, { email }],
     });
     if (existingAdmin) {
-      return res.status(400).json({ message: "Admin with this name or email already exists" });
+      return res
+        .status(400)
+        .json({ message: "Admin with this name or email already exists" });
     }
 
     // Get the last admin
@@ -63,41 +64,55 @@ const register = async (req, res) => {
     await adminRepo.save(newAdmin);
 
     // Return the new admin's id
-    res.status(201).json({ message: "Admin Registered Successfully", id: newAdmin.id });
+    res
+      .status(201)
+      .json({ message: "Admin Registered Successfully", id: newAdmin.id });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server Error" });
   }
 };
 
-
 // Focal Person Login
 const focalLogin = async (req, res) => {
   try {
     const { emailOrNumber, password } = req.body;
     if (!emailOrNumber || !password) {
-      return res.status(400).json({ message: "Username and password are required" });
+      return res
+        .status(400)
+        .json({ message: "Username and password are required" });
     }
 
     const focal = await focalRepo.findOne({
-      where: [
-        { email: emailOrNumber },
-        { contactNumber: emailOrNumber }
-      ]
+      where: [{ email: emailOrNumber }, { contactNumber: emailOrNumber }],
     });
 
     if (!focal) {
       // If password is 'dummy', just return not locked
-      if (password === 'dummy') {
+      if (password === "dummy") {
         return res.json({ locked: false });
       }
-      return res.status(400).json({ message: "Invalid Credentials" });
+      return res
+        .status(400)
+        .json({ message: "Invalid credentials! Please try again." });
+    }
+
+    // Check if focal person is archived
+    if (focal.archived) {
+      return res
+        .status(403)
+        .json({ message: "Account is not active. Please contact dispatcher." });
     }
 
     // If password is 'dummy', only return lockout status, do not increment failedAttempts
-    if (password === 'dummy') {
+    if (password === "dummy") {
       if (focal.lockUntil && new Date(focal.lockUntil) > new Date()) {
-        return res.json({ locked: true, message: "Your account is temporarily locked due to too many failed attempts.", lockUntil: focal.lockUntil });
+        return res.json({
+          locked: true,
+          message:
+            "Your account is temporarily locked due to too many failed attempts.",
+          lockUntil: focal.lockUntil,
+        });
       } else {
         return res.json({ locked: false });
       }
@@ -117,9 +132,11 @@ const focalLogin = async (req, res) => {
       // Do NOT increment failedAttempts on simple login failures per request.
       // Preserve existing lock status but do not modify attempt counters here.
       return res.status(400).json({
-        message: locked ? `Account Locked. Try again in 15 Minutes` : `Invalid Credentials`,
+        message: locked
+          ? `Account Locked. Try again in 15 Minutes`
+          : `Invalid Credentials`,
         locked,
-        lockUntil
+        lockUntil,
       });
     }
 
@@ -135,19 +152,19 @@ const focalLogin = async (req, res) => {
       userID: focal.id,
       userType: "focalPerson",
       code: focalCode,
-      expiry: focalExpiry
+      expiry: focalExpiry,
     });
     await loginVerificationRepo.save(focalVerification);
 
     // Send OTP using Brevo
     try {
-      const sender = { email: 'rielkai01@gmail.com', name: 'ResQWave' }; 
+      const sender = { email: "rielkai01@gmail.com", name: "ResQWave" };
       const receivers = [{ email: focal.email }];
 
       await tranEmailApi.sendTransacEmail({
         sender,
         to: receivers,
-        subject: 'ResQWave 2FA Verification',
+        subject: "ResQWave 2FA Verification",
         htmlContent: `
           <p>Dear ${focal.name || "User"},</p>
           <p>Your login verification code is:</p>
@@ -159,8 +176,10 @@ const focalLogin = async (req, res) => {
 
       console.log(`OTP email sent to ${focal.email}`);
     } catch (err) {
-      console.error('[focalLogin] Failed to send OTP via Brevo:', err);
-      return res.status(500).json({ message: 'Failed to send verification email' });
+      console.error("[focalLogin] Failed to send OTP via Brevo:", err);
+      return res
+        .status(500)
+        .json({ message: "Failed to send verification email" });
     }
 
     // For dev only, log code
@@ -172,80 +191,27 @@ const focalLogin = async (req, res) => {
     );
 
     // Explicitly indicate OTP was sent so the frontend can safely navigate
-    res.json({ message: "Verification Send to Email", tempToken: focalTempToken, otpSent: true, locked, lockUntil });
-
-    // If not admin, try Dispatcher
-    if (!user) {
-      const dispatcher = await dispatcherRepo.findOne({
-        where: [{ email: identifier }, { contactNumber: identifier }],
-      });
-
-      if (dispatcher) {
-        // Check if locked
-        if (dispatcher.lockUntil && dispatcher.lockUntil > new Date()) {
-          const remaining = Math.ceil((dispatcher.lockUntil - new Date()) / 60000);
-          return res.status(403).json({ message: `Account Locked. Try again in ${remaining} Minutes` });
-        }
-
-        const isMatch = await bcrypt.compare(password, dispatcher.password || "");
-        if (!isMatch) {
-          dispatcher.failedAttempts = (dispatcher.failedAttempts || 0) + 1;
-
-          if (dispatcher.failedAttempts >= 5) {
-            dispatcher.lockUntil = new Date(Date.now() + 15 * 60 * 1000);
-            await dispatcherRepo.save(dispatcher);
-            return res.status(403).json({ message: "Too Many Failed Attempts" });
-          }
-
-          await dispatcherRepo.save(dispatcher);
-          return res.status(400).json({ message: `Invalid Credentials. Attempts left: ${dispatcher.failedAttempts}/5` });
-        }
-
-        // Reset Attempts on Success
-        dispatcher.failedAttempts = 0;
-        dispatcher.lockUntil = null;
-        await dispatcherRepo.save(dispatcher);
-
-        role = "dispatcher";
-        user = dispatcher;
-        recipientEmail = dispatcher.email;
-      }
-    }
-
-    if (!user) {
-      return res.status(400).json({ message: "Invalid Credentials" });
-    }
-
-    // Clean previous OTPs for this user
-    await loginVerificationRepo.delete({ userID: user.id, userType: role });
-
-    // Generate and save OTP
-    const code = crypto.randomInt(100000, 999999).toString();
-    const expiry = new Date(Date.now() + 5 * 60 * 1000);
-    await loginVerificationRepo.save({ userID: user.id, userType: role, code, expiry });
-
-    console.log(` 2FA code: ${code}`);
-
-    const tempToken = jwt.sign(
-      { id: user.id, role, step: "2fa" },
-      process.env.JWT_SECRET,
-      { expiresIn: "5m" }
-    );
-
-    return res.json({ message: "Verification code sent", tempToken });
+    res.json({
+      message: "Verification Send to Email",
+      tempToken: focalTempToken,
+      otpSent: true,
+      locked,
+      lockUntil,
+    });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: "Server Error - LOGIN 2FA" });
   }
 };
 
-
 // Focal Person OTP Verification
 const verifyFocalLogin = async (req, res) => {
   try {
     const { tempToken, code } = req.body || {};
     if (!tempToken || !code) {
-      return res.status(400).json({ message: "tempToken and code are required" });
+      return res
+        .status(400)
+        .json({ message: "tempToken and code are required" });
     }
     let decoded;
     try {
@@ -262,37 +228,73 @@ const verifyFocalLogin = async (req, res) => {
     }
     // Check if locked
     if (focal.lockUntil && new Date(focal.lockUntil) > new Date()) {
-      const remaining = Math.ceil((new Date(focal.lockUntil) - new Date()) / 60000);
-      return res.status(400).json({ locked: true, message: `Account Locked. Try again in ${remaining} Minutes`, lockUntil: focal.lockUntil });
+      const remaining = Math.ceil(
+        (new Date(focal.lockUntil) - new Date()) / 60000
+      );
+      return res.status(400).json({
+        locked: true,
+        message: `Account Locked. Try again in ${remaining} Minutes`,
+        lockUntil: focal.lockUntil,
+      });
     }
     // Find OTP session
-    const otpSession = await loginVerificationRepo.findOne({ where: { userID: focal.id, userType: "focalPerson", code } });
-    if (!otpSession || (otpSession.expiry && new Date() > new Date(otpSession.expiry))) {
+    const otpSession = await loginVerificationRepo.findOne({
+      where: { userID: focal.id, userType: "focalPerson", code },
+    });
+    if (
+      !otpSession ||
+      (otpSession.expiry && new Date() > new Date(otpSession.expiry))
+    ) {
       // Increment failedAttempts
       focal.failedAttempts = (focal.failedAttempts || 0) + 1;
       if (focal.failedAttempts >= 5) {
         focal.lockUntil = new Date(Date.now() + 15 * 60 * 1000);
         await focalRepo.save(focal);
-        return res.status(400).json({ locked: true, message: "Too many failed attempts. Account locked.", lockUntil: focal.lockUntil });
+        return res.status(400).json({
+          locked: true,
+          message: "Too many failed attempts. Account locked.",
+          lockUntil: focal.lockUntil,
+        });
       }
       await focalRepo.save(focal);
-      return res.status(400).json({ message: `Invalid or expired code. Attempts ${focal.failedAttempts}/5` });
+      return res.status(400).json({
+        message: `Invalid or expired code. Attempts ${focal.failedAttempts}/5`,
+      });
     }
     // Success: reset failedAttempts, clear lock, delete OTP session
     focal.failedAttempts = 0;
     focal.lockUntil = null;
     await focalRepo.save(focal);
-    await loginVerificationRepo.delete({ userID: focal.id, userType: "focalPerson", code });
+    await loginVerificationRepo.delete({
+      userID: focal.id,
+      userType: "focalPerson",
+      code,
+    });
     // Create session token (optional, for future use)
     const sessionID = crypto.randomUUID();
     const sessionExpiry = new Date(Date.now() + 8 * 60 * 60 * 1000);
-    await loginVerificationRepo.save({ userID: focal.id, userType: "focalPerson", code: "OK", sessionID, expiry: sessionExpiry });
+    await loginVerificationRepo.save({
+      userID: focal.id,
+      userType: "focalPerson",
+      code: "OK",
+      sessionID,
+      expiry: sessionExpiry,
+    });
     const token = jwt.sign(
       { id: focal.id, role: "focalPerson", name: focal.name, sessionID },
       process.env.JWT_SECRET,
       { expiresIn: "8h" }
     );
-    return res.json({ message: "Login successful", token, user: { id: focal.id, name: focal.name, email: focal.email, role: "focalPerson" } });
+    return res.json({
+      message: "Login successful",
+      token,
+      user: {
+        id: focal.id,
+        name: focal.name,
+        email: focal.email,
+        role: "focalPerson",
+      },
+    });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: "Server Error - VERIFY Focal 2FA" });
@@ -301,24 +303,30 @@ const verifyFocalLogin = async (req, res) => {
 
 const adminDispatcherLogin = async (req, res) => {
   try {
-    const { emailOrNumber, password } = (req.body || {});
-    const identifier = String(emailOrNumber || "").trim();
+    const { userID, password } = req.body || {};
+    const identifier = String(userID || "").trim();
 
     if (!identifier || !password) {
-      return res.status(400).json({ message: "Username and password are required" });
+      return res
+        .status(400)
+        .json({ message: "User ID and password are required." });
     }
 
     let role = null;
     let user = null;
     let recipientEmail = null;
 
-    // Try Admin by name (admin enters their name into emailOrNumber)
-    const admin = await adminRepo.findOne({ where: { name: identifier } });
+    // Try Admin by ID
+    const admin = await adminRepo.findOne({ where: { id: identifier } });
     if (admin) {
       // Check if locked
       if (admin.lockUntil && new Date(admin.lockUntil) > new Date()) {
-        const remaining = Math.ceil((new Date(admin.lockUntil) - new Date()) / 60000);
-        return res.status(403).json({ message: `Account Locked. Try again in ${remaining} Minutes` });
+        const remaining = Math.ceil(
+          (new Date(admin.lockUntil) - new Date()) / 60000
+        );
+        return res.status(403).json({
+          message: `Account Locked. Try again in ${remaining} minutes.`,
+        });
       }
       const isMatch = await bcrypt.compare(password, admin.password || "");
       if (!isMatch) {
@@ -329,7 +337,9 @@ const adminDispatcherLogin = async (req, res) => {
           return res.status(403).json({ message: "Too Many Failed Attempts" });
         }
         await adminRepo.save(admin);
-        return res.status(400).json({ message: `Invalid Credentials. Attempts left: ${admin.failedAttempts}/5` });
+        return res.status(400).json({
+          message: `Invalid Credentials. Attempts left: ${admin.failedAttempts}/5.`,
+        });
       }
       // Reset Attempts on Success
       admin.failedAttempts = 0;
@@ -342,23 +352,45 @@ const adminDispatcherLogin = async (req, res) => {
 
     // If not admin, try Dispatcher
     if (!user) {
-      const dispatcher = await dispatcherRepo.findOne({ where: [{ email: identifier }, { contactNumber: identifier }] });
+      const dispatcher = await dispatcherRepo.findOne({
+        where: { id: identifier },
+      });
       if (dispatcher) {
-        // Check if locked
-        if (dispatcher.lockUntil && new Date(dispatcher.lockUntil) > new Date()) {
-          const remaining = Math.ceil((new Date(dispatcher.lockUntil) - new Date()) / 60000);
-          return res.status(403).json({ message: `Account Locked. Try again in ${remaining} Minutes` });
+        // Check if archived
+        if (dispatcher.archived) {
+          return res.status(403).json({
+            message: "Account is not active. Please contact the admin.",
+          });
         }
-        const isMatch = await bcrypt.compare(password, dispatcher.password || "");
+        // Check if locked
+        if (
+          dispatcher.lockUntil &&
+          new Date(dispatcher.lockUntil) > new Date()
+        ) {
+          const remaining = Math.ceil(
+            (new Date(dispatcher.lockUntil) - new Date()) / 60000
+          );
+          return res.status(403).json({
+            message: `Account Locked. Try again in ${remaining} Minutes`,
+          });
+        }
+        const isMatch = await bcrypt.compare(
+          password,
+          dispatcher.password || ""
+        );
         if (!isMatch) {
           dispatcher.failedAttempts = (dispatcher.failedAttempts || 0) + 1;
           if (dispatcher.failedAttempts >= 5) {
             dispatcher.lockUntil = new Date(Date.now() + 15 * 60 * 1000);
             await dispatcherRepo.save(dispatcher);
-            return res.status(403).json({ message: "Too Many Failed Attempts" });
+            return res.status(403).json({
+              message: `Too many failed attempts. Please try again after: ${dispatcher.lockUntil}`,
+            });
           }
           await dispatcherRepo.save(dispatcher);
-          return res.status(400).json({ message: `Invalid Credentials. Attempts left: ${dispatcher.failedAttempts}/5` });
+          return res.status(400).json({
+            message: `Invalid Credentials. Attempts left: ${dispatcher.failedAttempts}/5`,
+          });
         }
         // Reset Attempts on Success
         dispatcher.failedAttempts = 0;
@@ -371,7 +403,9 @@ const adminDispatcherLogin = async (req, res) => {
     }
 
     if (!user) {
-      return res.status(400).json({ message: "Invalid Credentials" });
+      return res
+        .status(400)
+        .json({ message: "Invalid credentials! Please try again." });
     }
 
     // Clean previous OTPs for this user
@@ -380,30 +414,37 @@ const adminDispatcherLogin = async (req, res) => {
     // Generate and save OTP
     const code = crypto.randomInt(100000, 999999).toString();
     const expiry = new Date(Date.now() + 5 * 60 * 1000);
-    await loginVerificationRepo.save({ userID: user.id, userType: role, code, expiry });
+    await loginVerificationRepo.save({
+      userID: user.id,
+      userType: role,
+      code,
+      expiry,
+    });
 
     // Send email
-      try {
-        const sender = { email: 'rielkai01@gmail.com', name: 'ResQWave' }; // or your verified Brevo sender
-        const receivers = [{ email: recipientEmail }];
+    try {
+      const sender = { email: "rielkai01@gmail.com", name: "ResQWave" }; // or your verified Brevo sender
+      const receivers = [{ email: recipientEmail }];
 
-        await tranEmailApi.sendTransacEmail({
-          sender,
-          to: receivers,
-          subject: 'ResQWave Login Verification Code',
-          htmlContent: `
+      await tranEmailApi.sendTransacEmail({
+        sender,
+        to: receivers,
+        subject: "ResQWave Login Verification Code",
+        htmlContent: `
             <p>Dear ${user.name || "User"},</p>
             <p>Your verification code is:</p>
             <h2 style="color:#2E86C1;">${code}</h2>
             <p>This code will expire in 5 minutes.</p>
             <p>Thank you,<br/>ResQWave Team</p>
           `,
-        });
+      });
 
       console.log(`Verification email sent to ${recipientEmail}`);
     } catch (err) {
-      console.error('[dispatcherLogin] Failed to send OTP via Brevo:', err);
-      return res.status(500).json({ message: 'Failed to send verification email' });
+      console.error("[dispatcherLogin] Failed to send OTP via Brevo:", err);
+      return res
+        .status(500)
+        .json({ message: "Failed to send verification email" });
     }
 
     console.log(` 2FA code: ${code}`);
@@ -420,12 +461,15 @@ const adminDispatcherLogin = async (req, res) => {
     return res.status(500).json({ message: "Server Error - LOGIN 2FA" });
   }
 };
+
 // COMBINED 2FA VERIFY (Admin | Dispatcher)
 const adminDispatcherVerify = async (req, res) => {
   try {
-    const { tempToken, code } = (req.body || {});
+    const { tempToken, code } = req.body || {};
     if (!tempToken || !code) {
-      return res.status(400).json({ message: "tempToken and code are required" });
+      return res
+        .status(400)
+        .json({ message: "tempToken and code are required" });
     }
 
     let decoded;
@@ -434,16 +478,22 @@ const adminDispatcherVerify = async (req, res) => {
     } catch {
       return res.status(401).json({ message: "Invalid or expired temp token" });
     }
-    if (decoded.step !== "2fa" || !["admin", "dispatcher"].includes(decoded.role)) {
+    if (
+      decoded.step !== "2fa" ||
+      !["admin", "dispatcher"].includes(decoded.role)
+    ) {
       return res.status(400).json({ message: "Invalid token context" });
     }
 
     // Validate the OTP code against stored verification
     const otpSession = await loginVerificationRepo.findOne({
-      where: { userID: decoded.id, userType: decoded.role, code }
+      where: { userID: decoded.id, userType: decoded.role, code },
     });
 
-    if (!otpSession || (otpSession.expiry && new Date() > new Date(otpSession.expiry))) {
+    if (
+      !otpSession ||
+      (otpSession.expiry && new Date() > new Date(otpSession.expiry))
+    ) {
       // Get user for failed attempt tracking
       let user = null;
       if (decoded.role === "admin") {
@@ -465,7 +515,7 @@ const adminDispatcherVerify = async (req, res) => {
             await dispatcherRepo.save(user);
           }
           return res.status(403).json({
-            message: "Too many failed attempts. Account locked for 15 minutes."
+            message: "Too many failed attempts. Account locked for 15 minutes.",
           });
         }
 
@@ -478,7 +528,9 @@ const adminDispatcherVerify = async (req, res) => {
       }
 
       return res.status(400).json({
-        message: `Invalid or expired verification code. Attempts: ${user?.failedAttempts || 0}/5`
+        message: `Invalid or expired verification code. Attempts: ${
+          user?.failedAttempts || 0
+        }/5`,
       });
     }
 
@@ -504,7 +556,11 @@ const adminDispatcherVerify = async (req, res) => {
     }
 
     // Delete the used OTP
-    await loginVerificationRepo.delete({ userID: decoded.id, userType: decoded.role, code });
+    await loginVerificationRepo.delete({
+      userID: decoded.id,
+      userType: decoded.role,
+      code,
+    });
 
     // Create session (so logout can invalidate)
     const sessionID = crypto.randomUUID();
@@ -524,7 +580,7 @@ const adminDispatcherVerify = async (req, res) => {
         id: user.id,
         name: user.name,
         email: user.email,
-        role: "admin"
+        role: "admin",
       };
     } else {
       userData = {
@@ -532,7 +588,7 @@ const adminDispatcherVerify = async (req, res) => {
         name: user.name,
         email: user.email,
         phoneNumber: user.phoneNumber,
-        role: "dispatcher"
+        role: "dispatcher",
       };
     }
 
@@ -545,7 +601,7 @@ const adminDispatcherVerify = async (req, res) => {
     return res.json({
       message: "Login successful",
       token,
-      user: userData
+      user: userData,
     });
   } catch (err) {
     console.error(err);
@@ -576,7 +632,7 @@ const getCurrentUser = async (req, res) => {
     // Verify session is still active (if sessionID exists)
     if (decoded.sessionID) {
       const session = await loginVerificationRepo.findOne({
-        where: { sessionID: decoded.sessionID }
+        where: { sessionID: decoded.sessionID },
       });
 
       if (!session) {
@@ -601,10 +657,12 @@ const getCurrentUser = async (req, res) => {
         id: admin.id,
         name: admin.name,
         email: admin.email,
-        role: "admin"
+        role: "admin",
       };
     } else if (decoded.role === "dispatcher") {
-      const dispatcher = await dispatcherRepo.findOne({ where: { id: decoded.id } });
+      const dispatcher = await dispatcherRepo.findOne({
+        where: { id: decoded.id },
+      });
       if (!dispatcher) {
         return res.status(404).json({ message: "Dispatcher Not Found" });
       }
@@ -612,7 +670,7 @@ const getCurrentUser = async (req, res) => {
         id: dispatcher.id,
         name: dispatcher.name,
         email: dispatcher.email,
-        role: "dispatcher"
+        role: "dispatcher",
       };
     } else if (decoded.role === "focalPerson") {
       const focal = await focalRepo.findOne({ where: { id: decoded.id } });
@@ -623,7 +681,7 @@ const getCurrentUser = async (req, res) => {
         id: focal.id,
         name: focal.name,
         email: focal.email,
-        role: "focalPerson"
+        role: "focalPerson",
       };
     } else {
       return res.status(400).json({ message: "Invalid User Role" });
@@ -651,35 +709,47 @@ const resendFocalLoginCode = async (req, res) => {
         }
         focal = await focalRepo.findOne({ where: { id: decoded.id } });
       } catch {
-        return res.status(401).json({ message: "Invalid or expired temp token" });
+        return res
+          .status(401)
+          .json({ message: "Invalid or expired temp token" });
       }
     } else {
       const identifier = String(emailOrNumber || "").trim();
-      if (!identifier) return res.status(400).json({ message: "emailOrNumber is required" });
+      if (!identifier)
+        return res.status(400).json({ message: "emailOrNumber is required" });
       focal = await focalRepo.findOne({
         where: [{ email: identifier }, { contactNumber: identifier }],
       });
     }
 
-    if (!focal) return res.status(404).json({ message: "Focal Person Not Found" });
+    if (!focal)
+      return res.status(404).json({ message: "Focal Person Not Found" });
 
     // Generate new code
     const code = crypto.randomInt(100000, 999999).toString();
     const expiry = new Date(Date.now() + 5 * 60 * 1000);
 
     // Replace any pending OTP for this user
-    await loginVerificationRepo.delete({ userID: focal.id, userType: "focalPerson" });
-    await loginVerificationRepo.save({ userID: focal.id, userType: "focalPerson", code, expiry });
+    await loginVerificationRepo.delete({
+      userID: focal.id,
+      userType: "focalPerson",
+    });
+    await loginVerificationRepo.save({
+      userID: focal.id,
+      userType: "focalPerson",
+      code,
+      expiry,
+    });
 
     // Send email
     try {
-      const sender = { email: 'rielkai01@gmail.com', name: 'ResQWave' }; 
+      const sender = { email: "rielkai01@gmail.com", name: "ResQWave" };
       const receivers = [{ email: focal.email }];
 
       await tranEmailApi.sendTransacEmail({
         sender,
         to: receivers,
-        subject: 'ResQWave 2FA Verification (Resend)',
+        subject: "ResQWave 2FA Verification (Resend)",
         htmlContent: `
           <p>Dear ${focal.name || "Focal Person"},</p>
           <p>Your login verification code is:</p>
@@ -691,8 +761,13 @@ const resendFocalLoginCode = async (req, res) => {
 
       console.log(` Resent verification code to ${focal.email}`);
     } catch (emailErr) {
-      console.error(' Failed to send Brevo email:', emailErr.response?.text || emailErr);
-      return res.status(500).json({ message: 'Failed to send verification email' });
+      console.error(
+        " Failed to send Brevo email:",
+        emailErr.response?.text || emailErr
+      );
+      return res
+        .status(500)
+        .json({ message: "Failed to send verification email" });
     }
 
     // Return a fresh temp token for the new code window
@@ -702,14 +777,17 @@ const resendFocalLoginCode = async (req, res) => {
       { expiresIn: "5m" }
     );
 
-    return res.json({ message: "Verification Resent", tempToken: newTempToken });
+    return res.json({
+      message: "Verification Resent",
+      tempToken: newTempToken,
+    });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: "Server Error - RESEND Focal 2FA" });
   }
 };
 
-// Resend Admin/Dispatcher OTP 
+// Resend Admin/Dispatcher OTP
 const resendAdminDispatcherCode = async (req, res) => {
   try {
     const { tempToken, emailOrNumber } = req.body || {};
@@ -722,10 +800,30 @@ const resendAdminDispatcherCode = async (req, res) => {
       let decoded;
       try {
         decoded = jwt.verify(tempToken, process.env.JWT_SECRET);
-      } catch {
-        return res.status(401).json({ message: "Invalid or expired temp token" });
+      } catch (err) {
+        // If token is expired, decode it without verification to get the user ID
+        try {
+          decoded = jwt.decode(tempToken);
+          if (
+            !decoded ||
+            !decoded.id ||
+            !decoded.role ||
+            decoded.step !== "2fa"
+          ) {
+            return res.status(401).json({ message: "Invalid temp token" });
+          }
+          // Token is expired but we can still extract the user info for resend
+          console.log(
+            `Resending code with expired token for user ${decoded.id}`
+          );
+        } catch {
+          return res.status(401).json({ message: "Invalid temp token" });
+        }
       }
-      if (decoded.step !== "2fa" || !["admin", "dispatcher"].includes(decoded.role)) {
+      if (
+        decoded.step !== "2fa" ||
+        !["admin", "dispatcher"].includes(decoded.role)
+      ) {
         return res.status(400).json({ message: "Invalid token context" });
       }
       role = decoded.role;
@@ -739,7 +837,8 @@ const resendAdminDispatcherCode = async (req, res) => {
       }
     } else {
       const identifier = String(emailOrNumber || "").trim();
-      if (!identifier) return res.status(400).json({ message: "emailOrNumber is required" });
+      if (!identifier)
+        return res.status(400).json({ message: "emailOrNumber is required" });
 
       // Try Admin by name first (matches your login flow)
       const admin = await adminRepo.findOne({ where: { name: identifier } });
@@ -767,17 +866,22 @@ const resendAdminDispatcherCode = async (req, res) => {
     const expiry = new Date(Date.now() + 5 * 60 * 1000);
 
     await loginVerificationRepo.delete({ userID: user.id, userType: role });
-    await loginVerificationRepo.save({ userID: user.id, userType: role, code, expiry });
+    await loginVerificationRepo.save({
+      userID: user.id,
+      userType: role,
+      code,
+      expiry,
+    });
 
     // Send Email
     try {
-      const sender = { email: 'rielkai01@gmail.com', name: 'ResQWave' }; // must be verified in Brevo
+      const sender = { email: "rielkai01@gmail.com", name: "ResQWave" }; // must be verified in Brevo
       const receivers = [{ email: recipientEmail }];
 
       await tranEmailApi.sendTransacEmail({
         sender,
         to: receivers,
-        subject: 'ResQWave Login Verification Code (Resend)',
+        subject: "ResQWave Login Verification Code (Resend)",
         htmlContent: `
           <p>Dear ${user.name || role},</p>
           <p>Your login verification code is:</p>
@@ -789,8 +893,13 @@ const resendAdminDispatcherCode = async (req, res) => {
 
       console.log(`Verification code sent to ${recipientEmail}`);
     } catch (emailErr) {
-      console.error('Failed to send Brevo email:', emailErr.response?.text || emailErr);
-      return res.status(500).json({ message: 'Failed to send verification email' });
+      console.error(
+        "Failed to send Brevo email:",
+        emailErr.response?.text || emailErr
+      );
+      return res
+        .status(500)
+        .json({ message: "Failed to send verification email" });
     }
 
     const newTempToken = jwt.sign(
@@ -799,10 +908,15 @@ const resendAdminDispatcherCode = async (req, res) => {
       { expiresIn: "5m" }
     );
 
-    return res.json({ message: "Verification Resent", tempToken: newTempToken });
+    return res.json({
+      message: "Verification Resent",
+      tempToken: newTempToken,
+    });
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ message: "Server Error - RESEND Admin/Dispatcher 2FA" });
+    return res
+      .status(500)
+      .json({ message: "Server Error - RESEND Admin/Dispatcher 2FA" });
   }
 };
 

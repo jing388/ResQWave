@@ -7,8 +7,8 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
-import type { CloseCreateDialogProps } from "../types"
+} from "@/components/ui/alert-dialog";
+import type { CloseCreateDialogProps } from "../types";
 
 export function CloseCreateDialog({
   open,
@@ -21,14 +21,14 @@ export function CloseCreateDialog({
   discardLabel = "Discard",
 }: CloseCreateDialogProps) {
   const handleCancel = () => {
-    onCancel?.()
-    onOpenChange?.(false)
-  }
+    onCancel?.();
+    onOpenChange?.(false);
+  };
 
   const handleDiscard = () => {
-    onDiscard()
-    onOpenChange?.(false)
-  }
+    onDiscard();
+    onOpenChange?.(false);
+  };
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
@@ -55,5 +55,5 @@ export function CloseCreateDialog({
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
-  )
+  );
 }

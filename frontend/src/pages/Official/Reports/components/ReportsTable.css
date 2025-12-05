@@ -23,12 +23,30 @@
 }
 
 /* Column width classes for table alignment */
-.col-checkbox { width: 60px; }
-.col-emergency-id { width: 100px; }
-.col-community-name { width: 120px; }
-.col-alert-type { width: 120px; }
-.col-dispatcher { width: 110px; }
-.col-datetime { width: 150px; }
-.col-accomplished { width: 150px; }
-.col-address { width: 200px; }
-.col-actions { width: 100px; }
+.col-checkbox {
+  width: 60px;
+}
+.col-emergency-id {
+  width: 100px;
+}
+.col-community-name {
+  width: 120px;
+}
+.col-alert-type {
+  width: 120px;
+}
+.col-dispatcher {
+  width: 110px;
+}
+.col-datetime {
+  width: 150px;
+}
+.col-accomplished {
+  width: 150px;
+}
+.col-address {
+  width: 200px;
+}
+.col-actions {
+  width: 100px;
+}

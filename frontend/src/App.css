@@ -7,7 +7,12 @@ body,
 div,
 span,
 p,
-h1, h2, h3, h4, h5, h6,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
 header,
 nav,
 section,
@@ -21,8 +26,9 @@ footer {
   -ms-user-select: none !important;
 }
 
-body, html {
-  font-family: 'Geist', sans-serif;
+body,
+html {
+  font-family: "Geist", sans-serif;
   cursor: default !important;
   user-select: none !important;
 }
@@ -36,12 +42,19 @@ canvas,
 div,
 span,
 p,
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   cursor: default !important;
 }
 
 /* Only show text cursor on actual text inputs */
-input:not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="checkbox"]):not([type="radio"]),
+input:not([type="button"]):not([type="submit"]):not([type="reset"]):not(
+    [type="checkbox"]
+  ):not([type="radio"]),
 textarea,
 [contenteditable="true"] {
   cursor: text !important;
@@ -62,10 +75,10 @@ select {
 }
 
 .primary-background {
-	background-color: #171717;
+  background-color: #171717;
 }
 
-.header-navs{
+.header-navs {
   color: #707070;
   display: flex;
   gap: 2.75rem; /* gap-11 */
@@ -97,7 +110,7 @@ select {
 }
 
 .header-navs a:hover {
-  color: #4283F1;
+  color: #4283f1;
   font-weight: 400;
   text-decoration: underline;
 }
@@ -116,16 +129,20 @@ select {
 
 .loginfocal-radial-gradient {
   position: fixed;
-  bottom: -75%;
+  bottom: -120%;
   left: 50%;
   transform: translateX(-50%);
-  width: 1450px;
-  height: 1450px;
+  width: 1800px;
+  height: 1800px;
   z-index: 0;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(0, 65, 161, 0.1) 0%, rgba(0, 97, 255, 0.1) 40%, rgba(23, 23, 23, 0.1) 100%);
+  opacity: 0.5;
+  background: radial-gradient(
+    circle,
+    rgba(0, 97, 255, 0.5) 0%,
+    rgba(23, 23, 23, 0) 70%
+  );
   pointer-events: none;
-  filter: blur(50px);
 }
 
 .tab-trigger[data-state="active"] {
@@ -133,7 +150,6 @@ select {
   color: #fff !important;
   font-weight: 400 !important;
 }
-
 
 .distress-marker {
   width: 22px;
@@ -178,6 +194,36 @@ select {
 }
 
 .btn-hover-solid:hover {
-  background: #2C64C5 !important;
+  background: #2c64c5 !important;
 }
 
+/* Forgot Password Flow Slide Animations */
+@keyframes slideInLeft {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-in-left {
+  animation: slideInLeft 0.4s ease-out;
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 0.4s ease-out;
+}

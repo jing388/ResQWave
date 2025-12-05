@@ -1,24 +1,24 @@
 import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export type CloseCreateDialogProps = {
-  open: boolean
-  onOpenChange?: (open: boolean) => void
-  onCancel?: () => void
-  onDiscard: () => void
-  title?: string
-  description?: string
-  cancelLabel?: string
-  discardLabel?: string
-}
+  open: boolean;
+  onOpenChange?: (open: boolean) => void;
+  onCancel?: () => void;
+  onDiscard: () => void;
+  title?: string;
+  description?: string;
+  cancelLabel?: string;
+  discardLabel?: string;
+};
 
 export function CloseCreateDialog({
   open,
@@ -31,14 +31,14 @@ export function CloseCreateDialog({
   discardLabel = "Discard",
 }: CloseCreateDialogProps) {
   const handleCancel = () => {
-    onCancel?.()
-    onOpenChange?.(false)
-  }
+    onCancel?.();
+    onOpenChange?.(false);
+  };
 
   const handleDiscard = () => {
-    onDiscard()
-    onOpenChange?.(false)
-  }
+    onDiscard();
+    onOpenChange?.(false);
+  };
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
@@ -65,5 +65,5 @@ export function CloseCreateDialog({
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
-  )
+  );
 }

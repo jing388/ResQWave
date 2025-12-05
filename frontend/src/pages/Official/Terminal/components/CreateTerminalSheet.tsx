@@ -1,9 +1,14 @@
-import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { useCallback, useEffect, useState } from "react"
-import type { TerminalDrawerProps, TerminalFormData } from "../types"
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useCallback, useEffect, useState } from "react";
+import type { TerminalDrawerProps, TerminalFormData } from "../types";
 
 interface FormData {
   id: string;
@@ -19,36 +24,38 @@ export function CreateTerminalSheet({
   open,
   onOpenChange,
   onSave,
-  editData
+  editData,
 }: TerminalDrawerProps) {
-  const isEditing = !!editData
+  const isEditing = !!editData;
 
   const [formData, setFormData] = useState<FormData>({
     id: "",
     name: "",
-  })
+  });
 
-  const [errors, setErrors] = useState<FormErrors>({})
+  const [errors, setErrors] = useState<FormErrors>({});
   // Removed unused isDirty state
   // Validate terminal ID (for new terminals only)
   const validateId = (id: string): string | undefined => {
-    if (!id.trim()) return "Terminal ID is required"
-    if (!/^RSQW-\d{3}$/.test(id.trim())) return "ID must be in format RSQW-XXX (e.g., RSQW-002)"
-    return undefined
-  }
+    if (!id.trim()) return "Terminal ID is required";
+    if (!/^RSQW-\d{3}$/.test(id.trim()))
+      return "ID must be in format RSQW-XXX (e.g., RSQW-002)";
+    return undefined;
+  };
   // Validation functions
   const validateName = (name: string): string | undefined => {
-    if (!name.trim()) return "Terminal name is required"
-    if (name.trim().length < 2) return "Terminal name must be at least 2 characters long"
-    return undefined
-  }
+    if (!name.trim()) return "Terminal name is required";
+    if (name.trim().length < 2)
+      return "Terminal name must be at least 2 characters long";
+    return undefined;
+  };
 
   // Check if form is valid
   const isFormValid = (): boolean => {
-    const hasValidName = !validateName(formData.name)
-    const hasValidId = isEditing || !validateId(formData.id)
-    return hasValidName && hasValidId
-  }
+    const hasValidName = !validateName(formData.name);
+    const hasValidId = isEditing || !validateId(formData.id);
+    return hasValidName && hasValidId;
+  };
 
   // Reset form when opening/closing or when edit data changes
   useEffect(() => {
@@ -56,64 +63,69 @@ export function CreateTerminalSheet({
       setFormData({
         id: editData.id,
         name: editData.name,
-      })
-      setErrors({})
+      });
+      setErrors({});
       // setIsDirty removed
     } else if (open && !isEditing) {
       // Reset for new terminal
       setFormData({
         id: "",
         name: "",
-      })
-      setErrors({})
+      });
+      setErrors({});
       // setIsDirty removed
     }
-  }, [open, isEditing, editData])
+  }, [open, isEditing, editData]);
 
-  const handleInputChange = useCallback((field: keyof FormData, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }))
-
-    // Clear error for this field when user starts typing
-    if (errors[field as keyof FormErrors]) {
-      setErrors(prev => ({
+  const handleInputChange = useCallback(
+    (field: keyof FormData, value: string) => {
+      setFormData((prev) => ({
         ...prev,
-        [field]: undefined
-      }))
-    }
+        [field]: value,
+      }));
 
-    // Real-time validation
-    if (field === 'id' && !isEditing) {
-      const error = validateId(value)
-      setErrors(prev => ({ ...prev, id: error }))
-    } else if (field === 'name') {
-      const error = validateName(value)
-      setErrors(prev => ({ ...prev, name: error }))
-    }
+      // Clear error for this field when user starts typing
+      if (errors[field as keyof FormErrors]) {
+        setErrors((prev) => ({
+          ...prev,
+          [field]: undefined,
+        }));
+      }
 
-    // setIsDirty removed
-  }, [errors, isEditing])
+      // Real-time validation
+      if (field === "id" && !isEditing) {
+        const error = validateId(value);
+        setErrors((prev) => ({ ...prev, id: error }));
+      } else if (field === "name") {
+        const error = validateName(value);
+        setErrors((prev) => ({ ...prev, name: error }));
+      }
+
+      // setIsDirty removed
+    },
+    [errors, isEditing],
+  );
 
   const handleSave = useCallback(() => {
     // Validate all fields
-    const idError = isEditing ? undefined : validateId(formData.id)
-    const nameError = validateName(formData.name)
+    const idError = isEditing ? undefined : validateId(formData.id);
+    const nameError = validateName(formData.name);
 
     const newErrors: FormErrors = {
       id: idError,
       name: nameError,
-    }
+    };
 
-    setErrors(newErrors)
+    setErrors(newErrors);
 
     // Check if there are any errors
-    const hasErrors = Object.values(newErrors).some(error => error !== undefined)
+    const hasErrors = Object.values(newErrors).some(
+      (error) => error !== undefined,
+    );
 
     if (hasErrors) {
-      console.log("Validation errors:", newErrors)
-      return
+      console.log("Validation errors:", newErrors);
+      return;
     }
 
     // Prepare the data for saving (TerminalFormData)
@@ -121,12 +133,12 @@ export function CreateTerminalSheet({
       name: formData.name.trim(),
       status: "Offline", // Default status
       availability: "Available", // Default availability
-    }
+    };
 
     // Call the onSave callback (only pass TerminalFormData)
-    onSave?.(terminalFormData)
+    onSave?.(terminalFormData);
     // Don't close here - let the parent handle success/error and close
-  }, [formData, onSave, isEditing])
+  }, [formData, onSave, isEditing]);
 
   // Removed unused handleClose function
 
@@ -173,7 +185,6 @@ export function CreateTerminalSheet({
               value={formData.name}
               onChange={(e) => handleInputChange("name", e.target.value)}
               className="bg-[#262626] border-[#404040] text-white placeholder:text-[#a1a1a1] focus:border-[#4285f4]"
-
             />
             {errors.name && (
               <p className="text-red-400 text-xs">{errors.name}</p>
@@ -193,5 +204,5 @@ export function CreateTerminalSheet({
         </div>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

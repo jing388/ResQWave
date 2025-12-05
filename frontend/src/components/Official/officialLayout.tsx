@@ -3,8 +3,8 @@ import { RescueFormProvider, useRescueForm } from "@/components/Official/RescueF
 import { useAuth } from "@/contexts/AuthContext"
 import type React from "react"
 import { Navigate, useLocation } from "react-router-dom"
-import { Header } from "./header"
-import Sidebar from "./sidebar"
+import { Header } from "./Header"
+import Sidebar from "./Sidebar"
 
 interface officialLayoutProps {
   children: React.ReactNode

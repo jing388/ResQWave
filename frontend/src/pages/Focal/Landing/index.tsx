@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { LandingHeader } from "@/pages/Focal/Landing/components/Header";
 import { LandingHero } from "@/pages/Focal/Landing/components/Hero";
+import { ChatbotConvo } from "@/pages/Focal/Landing/components/ChatbotConvo";
 
 export function Landing() {
   const [navOpen, setNavOpen] = useState(false);
@@ -32,6 +33,8 @@ export function Landing() {
       <LandingHeader navOpen={navOpen} setNavOpen={setNavOpen} />
       {/* Hero Section */}
       <LandingHero showSearch={showSearch} setShowSearch={setShowSearch} />
+      {/* Floating Chatbot Widget */}
+      <ChatbotConvo />
     </div>
   );
 }

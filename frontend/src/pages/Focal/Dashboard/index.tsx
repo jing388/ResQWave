@@ -31,6 +31,7 @@ import {
 import "@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css";
 import "mapbox-gl/dist/mapbox-gl.css";
 import DashboardAlerts from './components/DashboardAlerts';
+import { ChatbotDrawer } from './components/ChatbotDrawer';
 // lucide icons removed (unused in this file)
 
 
@@ -845,6 +846,8 @@ export default function Dashboard() {
         setAboutOpen(true);
     };
 
+    const [chatbotOpen, setChatbotOpen] = useState(false);
+
     return (
         <div style={{ minHeight: "100vh", width: "100%", position: "relative", background: "#222", overflow: "hidden" }}>
             {/* Debug Panel: Shows signal data used in the map */}
@@ -967,7 +970,7 @@ export default function Dashboard() {
                 }}
             />
 
-            <MapControls mapRef={mapRef} mapLoaded={mapLoaded} makeTooltip={makeTooltip} addCustomLayers={(m) => addCustomLayers(m, otherSignals, OwnCommunitySignal)} editBoundaryOpen={editBoundaryOpen} handleDeleteBoundary={handleDeleteBoundary} />
+            <MapControls mapRef={mapRef} mapLoaded={mapLoaded} makeTooltip={makeTooltip} addCustomLayers={(m) => addCustomLayers(m, otherSignals, OwnCommunitySignal)} editBoundaryOpen={editBoundaryOpen} handleDeleteBoundary={handleDeleteBoundary} onChatbotToggle={() => setChatbotOpen(!chatbotOpen)} />
 
             <HazardLegend />
 
@@ -1066,6 +1069,9 @@ export default function Dashboard() {
             {/* Transient bottom-centered alert that slides up when editing community markers */}
             {/* centralized dashboard alerts (edit/valid/saved) */}
             <DashboardAlerts ref={alertsRef} editBoundaryOpen={editBoundaryOpen} canSave={canSave} savedTrigger={savedTrigger} savedMessage={savedMessage} onViewLogs={() => console.log('View Logs clicked')} showViewLogs={savedShowViewLogs} />
+
+            {/* Chatbot Drawer - Right Side */}
+            <ChatbotDrawer isOpen={chatbotOpen} onClose={() => setChatbotOpen(false)} />
 
         </div>
     );

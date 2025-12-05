@@ -12,11 +12,6 @@ const baseNavigationItems = [
     path: "/visualization",
   },
   {
-    icon: ClipboardCheck,
-    label: "Reports",
-    path: "/reports",
-  },
-  {
     icon: Users,
     label: "Neighborhood Groups",
     path: "/community-groups",
@@ -24,6 +19,11 @@ const baseNavigationItems = [
 ];
 
 const adminOnlyItems = [
+  {
+    icon: ClipboardCheck,
+    label: "Reports",
+    path: "/reports",
+  },
   {
     icon: UserCog,
     label: "Dispatchers",

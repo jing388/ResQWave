@@ -1,5 +1,10 @@
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { ExpandIcon, Plus, ZoomOut } from "lucide-react";
 import { useState } from "react";
 import type { CommunityGroupDetails } from "../types";
@@ -90,7 +95,9 @@ export function CommunityGroupApprovalSheet({
       >
         <SheetHeader className="px-6 py-4 border-b border-[#2a2a2a]">
           <div className="flex items-center justify-between">
-            <SheetTitle className="text-white text-lg font-medium">More Information</SheetTitle>
+            <SheetTitle className="text-white text-lg font-medium">
+              More Information
+            </SheetTitle>
           </div>
         </SheetHeader>
 
@@ -98,23 +105,26 @@ export function CommunityGroupApprovalSheet({
           {/* Request ID */}
           <div className="flex justify-between items-center">
             <span className="text-white text-sm">Request ID</span>
-            <span className="text-white text-sm">{communityData.communityId}</span>
+            <span className="text-white text-sm">
+              {communityData.communityId}
+            </span>
           </div>
 
           {/* Terminal Address */}
           <div className="flex justify-between items-center">
             <span className="text-white text-sm">Terminal Address</span>
-            <span className="text-white text-sm">{communityData.address || "N/A"}</span>
+            <span className="text-white text-sm">
+              {communityData.address || "N/A"}
+            </span>
           </div>
 
           {/* Coordinates */}
           <div className="flex justify-between items-center">
             <span className="text-white text-sm">Coordinates</span>
             <span className="text-white text-sm">
-              {communityData.coordinates ? 
-                `${communityData.coordinates[1]}, ${communityData.coordinates[0]}` : 
-                "N/A"
-              }
+              {communityData.coordinates
+                ? `${communityData.coordinates[1]}, ${communityData.coordinates[0]}`
+                : "N/A"}
             </span>
           </div>
 
@@ -126,25 +136,34 @@ export function CommunityGroupApprovalSheet({
           {/* No. of Households */}
           <div className="flex justify-between items-center">
             <span className="text-white text-sm">No. of Households</span>
-            <span className="text-white text-sm">{communityData.families || "0"}</span>
+            <span className="text-white text-sm">
+              {communityData.families || "0"}
+            </span>
           </div>
 
           {/* No. of Residents */}
           <div className="flex justify-between items-center">
             <span className="text-white text-sm">No. of Residents</span>
-            <span className="text-white text-sm">{communityData.individuals || "0"}</span>
+            <span className="text-white text-sm">
+              {communityData.individuals || "0"}
+            </span>
           </div>
 
           {/* Floodwater Subsidence Duration */}
           <div className="flex justify-between items-center">
-            <span className="text-white text-sm">Floodwater Subsidence Duration</span>
+            <span className="text-white text-sm">
+              Floodwater Subsidence Duration
+            </span>
             <span className="text-white text-sm">~1 hr</span>
           </div>
 
           {/* Flood-related hazards */}
           <div className="bg-[#262626] border border-[#404040] rounded p-4">
-            <h3 className="text-white text-sm font-medium mb-3">Flood-related hazards</h3>
-            {communityData.notableInfo && communityData.notableInfo.length > 0 ? (
+            <h3 className="text-white text-sm font-medium mb-3">
+              Flood-related hazards
+            </h3>
+            {communityData.notableInfo &&
+            communityData.notableInfo.length > 0 ? (
               <ul className="space-y-1 text-white text-sm">
                 {communityData.notableInfo.map((info, index) => (
                   <li key={index}>• {info}</li>
@@ -161,8 +180,12 @@ export function CommunityGroupApprovalSheet({
 
           {/* Other notable information */}
           <div className="bg-[#262626] border border-[#404040] rounded p-4">
-            <h3 className="text-white text-sm font-medium mb-3">Other notable information</h3>
-            <p className="text-white text-sm">3 roads (St. Jhude, St. Perez, St. Lilia) are blocked</p>
+            <h3 className="text-white text-sm font-medium mb-3">
+              Other notable information
+            </h3>
+            <p className="text-white text-sm">
+              3 roads (St. Jhude, St. Perez, St. Lilia) are blocked
+            </p>
           </div>
 
           {/* Focal Persons Section */}
@@ -202,7 +225,7 @@ export function CommunityGroupApprovalSheet({
                 <div className="relative w-full h-full flex items-center justify-center">
                   <div className="w-24 h-24 bg-[#3a3a3a] rounded-full flex items-center justify-center">
                     <span className="text-[#a1a1a1] text-2xl font-semibold">
-                      {communityData.focalPerson?.name?.charAt(0) || 'F'}
+                      {communityData.focalPerson?.name?.charAt(0) || "F"}
                     </span>
                   </div>
                 </div>
@@ -253,7 +276,9 @@ export function CommunityGroupApprovalSheet({
                   {/* Expand button */}
                   <button
                     type="button"
-                    onClick={() => openViewer(communityData.alternativeFocalPerson.altPhoto!)}
+                    onClick={() =>
+                      openViewer(communityData.alternativeFocalPerson.altPhoto!)
+                    }
                     aria-label="Expand alternative focal person image"
                     className="absolute right-3 bottom-3 w-9 h-9 rounded-[5px] bg-white text-black flex items-center justify-center shadow hover:bg-gray-100 active:scale-[0.98]"
                   >
@@ -264,7 +289,9 @@ export function CommunityGroupApprovalSheet({
                 <div className="relative w-full h-full flex items-center justify-center">
                   <div className="w-24 h-24 bg-[#3a3a3a] rounded-full flex items-center justify-center">
                     <span className="text-[#a1a1a1] text-2xl font-semibold">
-                      {communityData.alternativeFocalPerson?.altName?.charAt(0) || 'A'}
+                      {communityData.alternativeFocalPerson?.altName?.charAt(
+                        0,
+                      ) || "A"}
                     </span>
                   </div>
                 </div>
@@ -274,7 +301,9 @@ export function CommunityGroupApprovalSheet({
 
           {/* Alternative Focal Person Details */}
           <div className="flex justify-between items-center">
-            <span className="text-white text-sm font-medium">ALTERNATIVE FOCAL PERSON</span>
+            <span className="text-white text-sm font-medium">
+              ALTERNATIVE FOCAL PERSON
+            </span>
             <span className="text-white text-sm">
               {communityData.alternativeFocalPerson?.altName?.trim() || "N/A"}
             </span>
@@ -283,7 +312,8 @@ export function CommunityGroupApprovalSheet({
           <div className="flex justify-between items-center">
             <span className="text-white text-sm font-medium">CONTACT NO.</span>
             <span className="text-white text-sm">
-              {communityData.alternativeFocalPerson?.altContactNumber?.trim() || "N/A"}
+              {communityData.alternativeFocalPerson?.altContactNumber?.trim() ||
+                "N/A"}
             </span>
           </div>
 
@@ -319,7 +349,7 @@ export function CommunityGroupApprovalSheet({
           className="fixed inset-0 z-[9999] bg-black/90 flex items-center justify-center p-4"
           onClick={resetZoomAndClose}
         >
-          <div 
+          <div
             className="relative max-w-[90vw] max-h-[90vh] flex items-center justify-center"
             onClick={(e) => e.stopPropagation()}
           >
@@ -330,8 +360,18 @@ export function CommunityGroupApprovalSheet({
               className="absolute -top-12 right-0 text-white hover:text-gray-300 z-10"
               aria-label="Close viewer"
             >
-              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              <svg
+                className="w-8 h-8"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
               </svg>
             </button>
 
@@ -366,15 +406,23 @@ export function CommunityGroupApprovalSheet({
                 src={viewerUrl}
                 alt="Expanded view"
                 className={`max-w-full max-h-full object-contain transition-transform duration-200 ${
-                  viewerZoom === 0.5 ? 'scale-50' :
-                  viewerZoom === 0.75 ? 'scale-75' :
-                  viewerZoom === 1 ? 'scale-100' :
-                  viewerZoom === 1.25 ? 'scale-125' :
-                  viewerZoom === 1.5 ? 'scale-150' :
-                  viewerZoom === 1.75 ? 'scale-150' :
-                  viewerZoom === 2 ? 'scale-150' :
-                  viewerZoom === 2.5 ? 'scale-150' :
-                  'scale-150'
+                  viewerZoom === 0.5
+                    ? "scale-50"
+                    : viewerZoom === 0.75
+                      ? "scale-75"
+                      : viewerZoom === 1
+                        ? "scale-100"
+                        : viewerZoom === 1.25
+                          ? "scale-125"
+                          : viewerZoom === 1.5
+                            ? "scale-150"
+                            : viewerZoom === 1.75
+                              ? "scale-150"
+                              : viewerZoom === 2
+                                ? "scale-150"
+                                : viewerZoom === 2.5
+                                  ? "scale-150"
+                                  : "scale-150"
                 }`}
               />
             )}

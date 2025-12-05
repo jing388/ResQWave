@@ -11,7 +11,7 @@ components/
 ├── CommunityGroupApprovalSheet.tsx       # Approval workflow component
 ├── PhotoUploadArea.tsx                   # Photo upload component
 ├── CloseCreateDialog.tsx                 # Confirmation dialog
-├── DataTable.tsx                         # Data table component  
+├── DataTable.tsx                         # Data table component
 ├── Column.tsx                            # Table column definitions
 ├── SettingLocationPage.tsx               # Location setting page
 ├── SettingLocationControls.tsx           # Location controls
@@ -43,6 +43,7 @@ utils/
 For testing and development purposes, the following mock accounts are available:
 
 ### Dispatcher Account (Community Representative)
+
 - **Username**: `COMGROUP-01`
 - **Password**: `password123`
 - **Role**: Dispatcher
@@ -55,6 +56,7 @@ For testing and development purposes, the following mock accounts are available:
   - Access focal person dashboard
 
 ### Admin Account (Official/Administrator)
+
 - **Username**: `COMGROUP-02`
 - **Password**: `password123`
 - **Role**: Admin
@@ -72,6 +74,7 @@ For testing and development purposes, the following mock accounts are available:
 ### Test Data Available
 
 #### Active Community Groups (4)
+
 1. **RSQW-101 - PAMAKAI**
    - Focal Person: Marites Dela Cruz
    - Status: OFFLINE
@@ -97,6 +100,7 @@ For testing and development purposes, the following mock accounts are available:
    - Population: 320 individuals, 89 families
 
 #### Pending Approval Groups (3)
+
 1. **R-003 - Riverside Heights**
    - Focal Person: Juan Dela Cruz
    - Status: OFFLINE (Awaiting Approval)
@@ -113,6 +117,7 @@ For testing and development purposes, the following mock accounts are available:
    - Address: Block 7, Lot 22, Sto. Niño Rd, 1420
 
 ### Testing Workflows
+
 1. **Admin Workflow**: Login with `COMGROUP-02` to test approval processes
 2. **Dispatcher Workflow**: Login with `COMGROUP-01` to test registration submissions
 3. **Cross-Account Testing**: Test the complete approval cycle from submission to activation
@@ -120,13 +125,15 @@ For testing and development purposes, the following mock accounts are available:
 ## 🏗️ Architecture
 
 ### Global State Store Pattern
+
 - **`formStore.ts`**: Global JavaScript store that persists form data across navigation
 - **`useFormStore.ts`**: React hook that connects components to the global store
 - **No complex session management**: Data persists in memory during navigation
 
 ### Key Benefits
+
 - ✅ **Form data persists** when navigating to location picker
-- ✅ **Photos remain uploaded** across navigation  
+- ✅ **Photos remain uploaded** across navigation
 - ✅ **Simple state management** with global store
 - ✅ **No serialization issues** with File objects
 - ✅ **Clean separation of concerns**
@@ -145,8 +152,10 @@ The main component is now `CreateCommunityGroupSheet` which uses the global stor
 ## 🏗️ Core Components
 
 ### 1. CreateCommunityGroupSheet.tsx
+
 **Purpose**: Main form component for creating/editing community groups
 **Key Features**:
+
 - Global form state management
 - Photo upload with preview
 - Location picker integration
@@ -154,74 +163,86 @@ The main component is now `CreateCommunityGroupSheet` which uses the global stor
 - Edit mode support
 
 **Props**:
+
 ```typescript
 interface CommunityGroupDrawerProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onSave?: (infoData: CommunityGroupDetails) => void
-  editData?: CommunityGroupDetails
-  isEditing?: boolean
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSave?: (infoData: CommunityGroupDetails) => void;
+  editData?: CommunityGroupDetails;
+  isEditing?: boolean;
 }
 ```
 
 ### 2. CommunityGroupInfoSheet.tsx
+
 **Purpose**: Display detailed community group information
 **Key Features**:
+
 - Comprehensive community data display
 - Photo viewer with zoom functionality
 - Focal person information
 - Community statistics
 
 ### 3. CommunityGroupApprovalSheet.tsx
+
 **Purpose**: Handle approval workflow for pending community groups
 **Key Features**:
+
 - Review pending applications
 - Approve/reject functionality
 - Terminal assignment integration
 - Complete application details
 
 ### 4. PhotoUploadArea.tsx
+
 **Purpose**: Handle photo uploads for focal persons
 **Key Features**:
+
 - Drag & drop file upload
 - Image preview
 - File validation (type, size)
 - Replace/delete functionality
 
 **Props**:
+
 ```typescript
 interface PhotoUploadAreaProps {
-  inputId: string
-  photo: File | null
-  onDelete: () => void
-  onFileSelect: (file: File) => void
-  photoUrlKey: "focalPersonPhoto" | "altFocalPersonPhoto"
-  photoUrls: PhotoUrls
+  inputId: string;
+  photo: File | null;
+  onDelete: () => void;
+  onFileSelect: (file: File) => void;
+  photoUrlKey: "focalPersonPhoto" | "altFocalPersonPhoto";
+  photoUrls: PhotoUrls;
 }
 ```
 
 ## 🎯 Key Improvements
 
 ### 1. **Fixed Auto-Opening Issue**
+
 - **Problem**: Create neighborhood sheet was automatically opening on page load
-- **Solution**: 
+- **Solution**:
   - Properly clear sessionStorage flags after use
   - Remove window focus event listeners that caused unwanted reopening
   - Clear flags when drawer is intentionally closed
 
 ### 2. **Enhanced Form Validation**
+
 - Email validation for focal person contacts
 - Phone number validation (11-digit Philippine format)
 - Required field validation
 - Real-time error display
 
 ### 3. **Improved State Management**
+
 - Global form store prevents data loss during navigation
 - Proper cleanup of sessionStorage flags
 - Better edit mode handling
 - Form persistence for location picker workflow
 
 ### 4. **Better Data Structure**
+
 - Comprehensive community group details
 - Proper TypeScript typing
 - Structured focal person information
@@ -230,11 +251,13 @@ interface PhotoUploadAreaProps {
 ## 🔧 Location Setting Integration
 
 The system includes a sophisticated location picker:
+
 - **SettingLocationPage.tsx**: Full-screen map interface
 - **SettingLocationControls.tsx**: Map controls and tools
 - **SettingLocationAlerts.tsx**: User guidance and alerts
 
 Location workflow:
+
 1. User clicks "Set Location" in form
 2. Navigates to map page
 3. Selects coordinates
@@ -251,11 +274,13 @@ Location workflow:
 ## 🧪 Testing Guidelines
 
 ### Authentication Testing
+
 1. Test login with both mock accounts (`COMGROUP-01`, `COMGROUP-02`)
 2. Verify role-based permissions
 3. Test session persistence
 
 ### Community Groups Testing
+
 1. **Creation Flow**: Test complete form filling and submission
 2. **Location Setting**: Test navigation to/from location picker
 3. **Photo Upload**: Test image upload, preview, and replacement
@@ -263,6 +288,7 @@ Location workflow:
 5. **Approval Workflow**: Test admin approval of pending groups
 
 ### Data Validation Testing
+
 1. Test all form field validations
 2. Test email format validation
 3. Test phone number format validation
@@ -271,6 +297,7 @@ Location workflow:
 ## 📝 Console Logging
 
 All components include comprehensive logging with emoji indicators:
+
 - 🏗️ Component renders
 - 📸 Photo operations
 - 💾 Data persistence
@@ -280,25 +307,30 @@ All components include comprehensive logging with emoji indicators:
 - 🔍 Form data updates
 - 📍 Location operations
 
-##  Key Improvements
+## Key Improvements
 
 ### 1. **Code Organization**
+
 - **Before**: Single 1198-line component with everything mixed together
 - **After**: 5 focused components + 1 custom hook, each under 200 lines
 
 ### 2. **State Management**
+
 - **Before**: Multiple competing useEffects causing infinite loops
 - **After**: Single initialization effect with proper dependency management
 
 ### 3. **Data Persistence**
+
 - **Before**: Complex session management with race conditions
 - **After**: Dedicated hook with proper serialization/deserialization
 
 ### 4. **Image Handling**
+
 - **Before**: Base64 strings causing display issues
 - **After**: Proper blob URLs with memory cleanup
 
 ### 5. **Type Safety**
+
 - **Before**: Loose typing with potential runtime errors
 - **After**: Strong TypeScript interfaces throughout
 
@@ -319,6 +351,7 @@ All components include comprehensive logging with emoji indicators:
 ## 📝 Console Logging
 
 All components include comprehensive logging with emoji indicators:
+
 - 🏗️ Component renders
 - 📸 Photo operations
 - 💾 Data persistence

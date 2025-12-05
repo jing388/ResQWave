@@ -152,12 +152,12 @@ node scripts/simulateAlert.js
 
 ## 🎨 Pin Colors (Reminder)
 
-| Alert Type | Color | Hex |
-|-----------|-------|-----|
-| Critical | 🔴 Red | #ef4444 |
-| User-Initiated | 🟡 Yellow | #eab308 |
-| Online (no alert) | 🟢 Green | #22c55e |
-| Offline (no alert) | ⚪ Gray | #6b7280 |
+| Alert Type         | Color     | Hex     |
+| ------------------ | --------- | ------- |
+| Critical           | 🔴 Red    | #ef4444 |
+| User-Initiated     | 🟡 Yellow | #eab308 |
+| Online (no alert)  | 🟢 Green  | #22c55e |
+| Offline (no alert) | ⚪ Gray   | #6b7280 |
 
 **Logic**: `alertType` overrides `terminalStatus`
 
@@ -166,18 +166,21 @@ node scripts/simulateAlert.js
 ## 📊 Data Flow Comparison
 
 ### Before (REST Only)
+
 ```
 Database → API (10s cache) → Poll every 30s → Update map
 ⏱️ Up to 30 second delay
 ```
 
 ### After (REST + WebSocket)
+
 ```
 Database → Socket.IO → Instant push → Update map
 ⚡ ~100ms latency
 ```
 
 **REST API still used for**:
+
 - Initial page load
 - Fallback if WebSocket disconnects
 - 30-second polling as backup
@@ -190,11 +193,11 @@ WebSocket requires JWT token:
 
 ```typescript
 // Automatically reads from localStorage
-const token = localStorage.getItem('token');
+const token = localStorage.getItem("token");
 
 // Sent in auth handshake
-socket = io('http://localhost:5000', {
-  auth: { token }
+socket = io("http://localhost:5000", {
+  auth: { token },
 });
 ```
 
@@ -215,6 +218,7 @@ io.use((socket, next) => {
 ### WebSocket not connecting?
 
 Check browser console:
+
 ```
 [Socket] Connected: abc123  ✅ Good
 [Socket] Connection error   ❌ Check token
@@ -229,8 +233,9 @@ Check browser console:
 ### Duplicate signals?
 
 The code handles this:
+
 ```typescript
-const exists = prev.some(s => s.alertId === newSignal.alertId);
+const exists = prev.some((s) => s.alertId === newSignal.alertId);
 if (exists) return prev; // Skip duplicate
 ```
 
@@ -240,19 +245,19 @@ if (exists) return prev; // Skip duplicate
 
 ### Backend Emits
 
-| Event | Room | Data | Purpose |
-|-------|------|------|---------|
-| `liveReport:new` | `alerts:all` | Live report payload | Dashboard sidebar |
-| `mapReport:new` | `alerts:all` | Map alert payload | Map visualization |
-| `mapReport:new` | `terminal:{id}` | Map alert payload | Terminal-specific |
+| Event            | Room            | Data                | Purpose           |
+| ---------------- | --------------- | ------------------- | ----------------- |
+| `liveReport:new` | `alerts:all`    | Live report payload | Dashboard sidebar |
+| `mapReport:new`  | `alerts:all`    | Map alert payload   | Map visualization |
+| `mapReport:new`  | `terminal:{id}` | Map alert payload   | Terminal-specific |
 
 ### Frontend Listens
 
-| Event | Handler | Action |
-|-------|---------|--------|
-| `connect` | `handleConnect` | Set `isConnected: true` |
-| `disconnect` | `handleDisconnect` | Set `isConnected: false` |
-| `mapReport:new` | `handleMapReport` | Add/update map pin |
+| Event           | Handler            | Action                   |
+| --------------- | ------------------ | ------------------------ |
+| `connect`       | `handleConnect`    | Set `isConnected: true`  |
+| `disconnect`    | `handleDisconnect` | Set `isConnected: false` |
+| `mapReport:new` | `handleMapReport`  | Add/update map pin       |
 
 ---
 
@@ -261,10 +266,10 @@ if (exists) return prev; // Skip duplicate
 Auto-reconnect on disconnect:
 
 ```typescript
-socket = io('http://localhost:5000', {
+socket = io("http://localhost:5000", {
   reconnection: true,
-  reconnectionDelay: 1000,      // 1 second
-  reconnectionAttempts: 5        // Try 5 times
+  reconnectionDelay: 1000, // 1 second
+  reconnectionAttempts: 5, // Try 5 times
 });
 ```
 

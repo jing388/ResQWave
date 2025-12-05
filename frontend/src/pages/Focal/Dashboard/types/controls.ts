@@ -8,4 +8,5 @@ export type MapControlsProps = {
     addCustomLayers: (map: mapboxgl.Map) => void;
     editBoundaryOpen: boolean;
     handleDeleteBoundary: () => void;
+    onChatbotToggle?: () => void;
 };

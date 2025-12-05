@@ -18,7 +18,9 @@ const graphRoutes = require("./routes/graphRoutes");
 const documentRoutes = require("./routes/documentRoutes");
 const focalRegistrationRoutes = require("./routes/focalRegistrationRoutes");
 const logsRoute = require("./routes/logRoutes");
+const adminLogRoutes = require("./routes/adminLogRoutes");
 const sensorDataRoutes = require("./routes/sensorDataRoutes");
+const lmsRoutes = require("./routes/lmsRoutes");
 const { authMiddleware, requireRole } = require("./middleware/authMiddleware");
 const { getTerminalsForMap } = require("./controllers/terminalController");
 const { createCriticalAlert, createUserInitiatedAlert } = require("./controllers/alertController");
@@ -62,6 +64,7 @@ AppDataSource.initialize()
     app.use("/", verificationRoutes);
     app.use("/", focalRegistrationRoutes);
     app.use("/", sensorDataRoutes); // public route for sensor data
+    app.use("/lms", lmsRoutes); // public routes for the data
 
     // Public endpoint for map data (landing page)
     app.get("/terminals/map", getTerminalsForMap);
@@ -75,11 +78,13 @@ AppDataSource.initialize()
 
     // Protected Routes
     // Only Admin can access Dispatcher Management
+    // Only Admin can access Admin Logs
     app.use("/dispatcher", requireRole("admin"), dispatcherRoutes);
     app.use("/terminal", requireRole(["admin", "dispatcher"]), terminalRoutes);
     app.use("/focalperson", focalPersonRoutes);
     app.use("/neighborhood", neighborhoodRoutes);
     app.use("/logs", logsRoute);
+    app.use("/admin-logs", requireRole("admin"), adminLogRoutes);
     app.use("/alerts", alertRoutes);
     app.use("/forms", rescueFormRoutes);
     app.use("/post", postRescueRoutes);

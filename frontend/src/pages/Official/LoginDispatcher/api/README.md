@@ -15,12 +15,14 @@ api/
 ## Authentication Flow
 
 ### 1. Initial Login (`loginDispatcher`)
+
 - **Endpoint**: `POST /login`
 - **Purpose**: Validates credentials and sends verification code to email
 - **Request**: `{ ID: string, password: string }`
 - **Response**: `{ message: string, userId: string }`
 
 ### 2. Verification (`verifyLoginCode`)
+
 - **Endpoint**: `POST /verify-login`
 - **Purpose**: Verifies the email code and returns JWT token
 - **Request**: `{ userId: string, verificationCode: string }`
@@ -29,35 +31,38 @@ api/
 ## Usage
 
 ### In Components:
+
 ```tsx
-import { useAuth } from '@/contexts/AuthContext'
+import { useAuth } from "@/contexts/AuthContext";
 
 // Login (Step 1)
-const { login } = useAuth()
-await login(ID, password) // Sends verification code to email
+const { login } = useAuth();
+await login(ID, password); // Sends verification code to email
 
 // Verification (Step 2)
-const { verifyLogin } = useAuth()
-await verifyLogin(code) // Completes authentication
+const { verifyLogin } = useAuth();
+await verifyLogin(code); // Completes authentication
 ```
 
 ### Direct API Usage:
+
 ```tsx
-import { loginDispatcher, verifyLoginCode } from './api'
+import { loginDispatcher, verifyLoginCode } from "./api";
 
 // Step 1
-const response1 = await loginDispatcher({ ID, password })
+const response1 = await loginDispatcher({ ID, password });
 
-// Step 2  
+// Step 2
 const response2 = await verifyLoginCode({
   userId: response1.userId,
-  verificationCode: code
-})
+  verificationCode: code,
+});
 ```
 
 ## Error Handling
 
 All API functions throw `ApiException` objects that contain:
+
 - `message`: Error description
 - `status`: HTTP status code (if available)
 
@@ -70,6 +75,7 @@ All API functions throw `ApiException` objects that contain:
 ## Backend Requirements
 
 The backend should implement these endpoints:
+
 1. `POST /login` - Initial authentication
 2. `POST /verify-login` - Code verification
 3. `GET /me` (optional) - Get current user info

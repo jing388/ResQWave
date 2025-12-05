@@ -1,4 +1,9 @@
-import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "@/components/ui/chart";
 import { useEffect, useState } from "react";
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { fetchAlertTypeChartData, type AlertTypeChartData } from "../api/api";
@@ -12,7 +17,7 @@ const chartConfig = {
     label: "Critical",
     color: "#DC2626",
   },
-} satisfies ChartConfig
+} satisfies ChartConfig;
 
 interface AlertTypeChartProps {
   timeRange: string;
@@ -32,8 +37,10 @@ export function AlertTypeChart({ timeRange }: AlertTypeChartProps) {
         const data = await fetchAlertTypeChartData(timeRange);
         setChartData(data);
       } catch (err: unknown) {
-        console.error('Error fetching chart data:', err);
-        setError(err instanceof Error ? err.message : 'Failed to load chart data');
+        console.error("Error fetching chart data:", err);
+        setError(
+          err instanceof Error ? err.message : "Failed to load chart data",
+        );
       } finally {
         setLoading(false);
       }
@@ -44,26 +51,27 @@ export function AlertTypeChart({ timeRange }: AlertTypeChartProps) {
 
   return (
     <div className="h-full flex flex-col">
-      
       <div className="flex-1">
         {loading && (
           <div className="flex items-center justify-center h-full">
             <div className="text-muted-foreground">Loading chart data...</div>
           </div>
         )}
-        
+
         {error && (
           <div className="flex items-center justify-center h-full">
             <div className="text-red-400">Error: {error}</div>
           </div>
         )}
-        
+
         {!loading && !error && chartData.length === 0 && (
           <div className="flex items-center justify-center h-full">
-            <div className="text-muted-foreground">No data available for this time range</div>
+            <div className="text-muted-foreground">
+              No data available for this time range
+            </div>
           </div>
         )}
-        
+
         {!loading && !error && chartData.length > 0 && (
           <ChartContainer
             config={chartConfig}
@@ -71,7 +79,13 @@ export function AlertTypeChart({ timeRange }: AlertTypeChartProps) {
           >
             <AreaChart data={chartData}>
               <defs>
-                <linearGradient id="fillUserInitiated" x1="0" y1="0" x2="0" y2="1">
+                <linearGradient
+                  id="fillUserInitiated"
+                  x1="0"
+                  y1="0"
+                  x2="0"
+                  y2="1"
+                >
                   <stop
                     offset="5%"
                     stopColor="var(--color-userInitiated)"
@@ -104,11 +118,7 @@ export function AlertTypeChart({ timeRange }: AlertTypeChartProps) {
                 tickMargin={8}
                 minTickGap={32}
               />
-              <YAxis
-                tickLine={false}
-                axisLine={false}
-                tickMargin={8}
-              />
+              <YAxis tickLine={false} axisLine={false} tickMargin={8} />
               <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
               <Area
                 dataKey="critical"

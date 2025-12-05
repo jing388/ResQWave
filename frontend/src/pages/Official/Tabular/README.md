@@ -16,26 +16,30 @@ This feature provides a comprehensive table view for emergency alerts and live r
 ## Components
 
 ### Main Component
+
 - `Tabular` - Main component that renders the live report table
 
 ### Sub Components
+
 - `DataTable` - Reusable table component with sorting and pagination
 - `Columns` - Column definitions with action menus
 - `AlertInfoDialog` - Modal for displaying detailed alert information
 
 ### Utilities
+
 - `filters.ts` - Functions for filtering alerts by various criteria
 
 ### Types
+
 - Complete TypeScript type definitions for all data structures
 
 ## Usage
 
 ```tsx
-import { Tabular } from "./pages/Official/Tabular"
+import { Tabular } from "./pages/Official/Tabular";
 
 function App() {
-  return <Tabular />
+  return <Tabular />;
 }
 ```
 
@@ -45,19 +49,20 @@ The component expects data in the following format:
 
 ```typescript
 interface LiveReportAlert {
-  id: string              // Alert ID (e.g., "RSQW-002")
-  emergencyId: string     // Emergency ID (e.g., "EMG-002")
-  communityGroup: string  // Community name
-  alertType: "CRITICAL" | "USER-INITIATED" | "ONLINE" | "OFFLINE"
-  status: "WAITLISTED" | "UNASSIGNED" | "DISPATCHED"
-  lastSignalTime: string  // Formatted time string
-  address: string         // Full address
+  id: string; // Alert ID (e.g., "RSQW-002")
+  emergencyId: string; // Emergency ID (e.g., "EMG-002")
+  communityGroup: string; // Community name
+  alertType: "CRITICAL" | "USER-INITIATED" | "ONLINE" | "OFFLINE";
+  status: "WAITLISTED" | "UNASSIGNED" | "DISPATCHED";
+  lastSignalTime: string; // Formatted time string
+  address: string; // Full address
 }
 ```
 
 ## Styling
 
 The component uses a dark theme with:
+
 - Dark background (`#0f0f0f`)
 - Table with dark styling (`#191818`, `#262626`)
 - Blue accent color for actions (`#4285f4`)
@@ -66,6 +71,7 @@ The component uses a dark theme with:
 ## Customization
 
 You can customize:
+
 - Tab counts and filtering logic in `utils/filters.ts`
 - Column definitions in `components/Columns.tsx`
 - Alert data source in `data/mockData.ts`
@@ -74,6 +80,7 @@ You can customize:
 ## Integration
 
 This component is designed to work with:
+
 - The existing ResQWave design system
 - ShadCN UI components
 - Tanstack Table for data management

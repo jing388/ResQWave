@@ -1,23 +1,31 @@
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { AlertTriangle, Clock, Mail, MapPin, Phone } from "lucide-react"
-import type { LiveReportAlert } from "../types"
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { AlertTriangle, Clock, Mail, MapPin, Phone } from "lucide-react";
+import type { LiveReportAlert } from "../types";
 
 interface AlertInfoDialogProps {
-  alert: LiveReportAlert | null
-  open: boolean
-  onOpenChange: (open: boolean) => void
+  alert: LiveReportAlert | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
-export function AlertInfoDialog({ alert, open, onOpenChange }: AlertInfoDialogProps) {
-  if (!alert) return null
-
-
+export function AlertInfoDialog({
+  alert,
+  open,
+  onOpenChange,
+}: AlertInfoDialogProps) {
+  if (!alert) return null;
 
   const getStatusColor = () => {
-    return "!bg-transparent !text-white !border-[#414141]"
-  }
+    return "!bg-transparent !text-white !border-[#414141]";
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -30,7 +38,7 @@ export function AlertInfoDialog({ alert, open, onOpenChange }: AlertInfoDialogPr
             Detailed information about the emergency alert
           </DialogDescription>
         </DialogHeader>
-        
+
         <div className="space-y-4">
           {/* Alert IDs */}
           <div className="grid grid-cols-2 gap-4">
@@ -55,10 +63,7 @@ export function AlertInfoDialog({ alert, open, onOpenChange }: AlertInfoDialogPr
             <div>
               <label className="text-sm text-[#a1a1a1]">Alert Type</label>
               <div className="mt-1">
-                <Badge
-                  variant="outline"
-                  className={`${getStatusColor()} h-7`}
-                >
+                <Badge variant="outline" className={`${getStatusColor()} h-7`}>
                   <AlertTriangle className="w-3 h-3 mr-1" />
                   {alert.alertType}
                 </Badge>
@@ -67,10 +72,7 @@ export function AlertInfoDialog({ alert, open, onOpenChange }: AlertInfoDialogPr
             <div>
               <label className="text-sm text-[#a1a1a1]">Status</label>
               <div className="mt-1">
-                <Badge
-                  variant="outline"
-                  className={`${getStatusColor()} h-7`}
-                >
+                <Badge variant="outline" className={`${getStatusColor()} h-7`}>
                   {alert.status}
                 </Badge>
               </div>
@@ -104,14 +106,14 @@ export function AlertInfoDialog({ alert, open, onOpenChange }: AlertInfoDialogPr
             >
               Assign Responder
             </Button>
-            
+
             <Button
               size="sm"
               className="bg-[#4285f4] text-white hover:bg-[#3367d6] flex-1"
             >
               Dispatch Now
             </Button>
-            
+
             <Button
               variant="outline"
               size="sm"
@@ -119,7 +121,7 @@ export function AlertInfoDialog({ alert, open, onOpenChange }: AlertInfoDialogPr
             >
               <Phone className="w-4 h-4" />
             </Button>
-            
+
             <Button
               variant="outline"
               size="sm"
@@ -131,5 +133,5 @@ export function AlertInfoDialog({ alert, open, onOpenChange }: AlertInfoDialogPr
         </div>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

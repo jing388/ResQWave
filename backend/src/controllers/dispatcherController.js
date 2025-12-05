@@ -6,11 +6,13 @@ const {
     setCache,
     deleteCache
 } = require("../config/cache");
+const { generateTemporaryPassword, sendTemporaryPasswordEmail } = require("../utils/passwordUtils");
+const { addAdminLog } = require("../utils/adminLogs");
 
 // CREATE Dispatcher
 const createDispatcher = async (req, res) => {
     try {
-        const { name, email, contactNumber, password } = req.body;
+        const { name, email, contactNumber } = req.body;
         const photoFile = req.file || req.files?.photo?.[0];
 
         // Check if the email exists
@@ -39,8 +41,8 @@ const createDispatcher = async (req, res) => {
 
         const newID = "DSP" + String(newNumber).padStart(3, "0");
 
-        // Default password is Dispatcher ID when not provided
-        const plainPassword = password || newID;
+        // Generate Secure Temporary Password
+        const plainPassword = generateTemporaryPassword();
 
         // Hash Password
         const hashedPassword = await bcrypt.hash(plainPassword, 10);
@@ -57,17 +59,34 @@ const createDispatcher = async (req, res) => {
 
         await dispatcherRepo.save(dispatcher);
 
+        // Log dispatcher creation by admin/dispatcher
+        if (req.user?.role === "dispatcher" || req.user?.role === "admin") {
+            await addAdminLog({
+                action: "create",
+                entityType: "Dispatcher",
+                entityID: newID,
+                entityName: name,
+                dispatcherID: req.user.id,
+                dispatcherName: req.user.name
+            });
+        }
+
         // Invalidate Caches
         await deleteCache("dispatchers:active");
         await deleteCache("dispatcher:archived");
 
-        // Return temporary password only when defaulted to ID
-        const responseBody = { message: "Dispatcher Created" };
-        if (!password) {
-            responseBody.temporaryPassword = plainPassword;
-        }
+        // Send Email (Fire and Forget)
+        sendTemporaryPasswordEmail({
+            to: email,
+            name: name,
+            password: plainPassword,
+            role: "dispatcher",
+            id: newID
+        }).catch(err => {
+            console.error(`Failed to send password email to ${email}:`, err);
+        });
 
-        res.status(201).json(responseBody);
+        res.status(201).json({ message: "Dispatcher Created. Password sent to email." });
     } catch (err) {
         console.error(err);
         res.status(500).json({ message: "Server Error - CREATE Dispatcher" });
@@ -138,6 +157,9 @@ const updateDispatcher = async (req, res) => {
         const dispatcher = await dispatcherRepo.findOne({ where: { id } });
         if (!dispatcher) return res.status(404).json({ message: "Dispatcher Not Found" });
 
+        // Snapshot before changes for logging
+        const oldDispatcher = { ...dispatcher };
+
         // Uniqueness checks if changing email/contact
         if (email && email !== dispatcher.email) {
             const emailInUse = await dispatcherRepo.findOne({ where: { email } });
@@ -162,6 +184,41 @@ const updateDispatcher = async (req, res) => {
 
         await dispatcherRepo.save(dispatcher);
 
+        // Log changes made by dispatcher/admin
+        if (req.user?.role === "dispatcher" || req.user?.role === "admin") {
+            const changes = [];
+            if (name && name !== oldDispatcher.name) {
+                changes.push({ field: "name", oldValue: oldDispatcher.name, newValue: name });
+            }
+            if (email && email !== oldDispatcher.email) {
+                changes.push({ field: "email", oldValue: oldDispatcher.email, newValue: email });
+            }
+            if (contactNumber && contactNumber !== oldDispatcher.contactNumber) {
+                changes.push({ field: "contactNumber", oldValue: oldDispatcher.contactNumber, newValue: contactNumber });
+            }
+            if (password) {
+                changes.push({ field: "password", oldValue: "[hidden]", newValue: "[updated]" });
+            }
+            if (photoFile?.buffer) {
+                changes.push({ field: "photo", oldValue: "Previous photo", newValue: "Updated photo" });
+            }
+            if (String(removePhoto).toLowerCase() === "true") {
+                changes.push({ field: "photo", oldValue: "Previous photo", newValue: "Removed" });
+            }
+
+            if (changes.length > 0) {
+                await addAdminLog({
+                    action: "edit",
+                    entityType: "Dispatcher",
+                    entityID: id,
+                    entityName: dispatcher.name,
+                    changes,
+                    dispatcherID: req.user.id,
+                    dispatcherName: req.user.name
+                });
+            }
+        }
+
         // Invalidate
         await deleteCache("dispatchers:active");
         await deleteCache("dispatchers:archived");
@@ -185,6 +242,18 @@ const archiveDispatcher = async (req, res) => {
 
         dispatcher.archived = true
         await dispatcherRepo.save(dispatcher);
+
+        // Log archive action
+        if (req.user?.role === "dispatcher" || req.user?.role === "admin") {
+            await addAdminLog({
+                action: "archive",
+                entityType: "Dispatcher",
+                entityID: id,
+                entityName: dispatcher.name,
+                dispatcherID: req.user.id,
+                dispatcherName: req.user.name
+            });
+        }
 
         // Invalidate
         await deleteCache("dispatchers:active");
@@ -214,6 +283,18 @@ const unarchiveDispatcher = async (req, res) => {
 
         dispatcher.archived = false;
         await dispatcherRepo.save(dispatcher);
+
+        // Log unarchive action
+        if (req.user?.role === "dispatcher" || req.user?.role === "admin") {
+            await addAdminLog({
+                action: "unarchive",
+                entityType: "Dispatcher",
+                entityID: id,
+                entityName: dispatcher.name,
+                dispatcherID: req.user.id,
+                dispatcherName: req.user.name
+            });
+        }
 
         // Invalidate
         await deleteCache("dispatchers:active");
@@ -261,6 +342,18 @@ const deleteDispatcherPermanently = async (req, res) => {
         // Only allow permanent deletion of archived dispatchers for safety
         if (!dispatcher.archived) {
             return res.status(400).json({ message: "Only archived dispatchers can be permanently deleted" });
+        }
+
+        // Log delete action before removing
+        if (req.user?.role === "dispatcher" || req.user?.role === "admin") {
+            await addAdminLog({
+                action: "delete",
+                entityType: "Dispatcher",
+                entityID: id,
+                entityName: dispatcher.name,
+                dispatcherID: req.user.id,
+                dispatcherName: req.user.name
+            });
         }
 
         // Permanently delete from database

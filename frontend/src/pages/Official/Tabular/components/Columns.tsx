@@ -1,31 +1,49 @@
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import type { ColumnDef } from "@tanstack/react-table"
-import { Info, MoreHorizontal, Send, UserCheck } from "lucide-react"
-import type { LiveReportAlert, LiveReportColumnsOptions } from "../types"
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import type { ColumnDef } from "@tanstack/react-table";
+import { Info, MoreHorizontal, Send, UserCheck } from "lucide-react";
+import type { LiveReportAlert, LiveReportColumnsOptions } from "../types";
 
-export const createColumns = (opts: LiveReportColumnsOptions): ColumnDef<LiveReportAlert>[] => [
+export const createColumns = (
+  opts: LiveReportColumnsOptions,
+): ColumnDef<LiveReportAlert>[] => [
   {
     accessorKey: "id",
     header: "ID",
-    cell: ({ row }) => <div className="text-[#a1a1a1] font-medium">{row.getValue("id")}</div>,
+    cell: ({ row }) => (
+      <div className="text-[#a1a1a1] font-medium">{row.getValue("id")}</div>
+    ),
   },
   {
     accessorKey: "emergencyId",
     header: "Emergency ID",
-    cell: ({ row }) => <div className="text-[#a1a1a1] font-medium">{row.getValue("emergencyId")}</div>,
+    cell: ({ row }) => (
+      <div className="text-[#a1a1a1] font-medium">
+        {row.getValue("emergencyId")}
+      </div>
+    ),
   },
   {
     accessorKey: "communityGroup",
     header: "Community Group",
-    cell: ({ row }) => <div className="text-white font-medium">{row.getValue("communityGroup")}</div>,
+    cell: ({ row }) => (
+      <div className="text-white font-medium">
+        {row.getValue("communityGroup")}
+      </div>
+    ),
   },
   {
     accessorKey: "alertType",
     header: "Alert Type",
     cell: ({ row }) => {
-      const alertType = row.getValue("alertType") as string
+      const alertType = row.getValue("alertType") as string;
       return (
         <Badge
           variant="outline"
@@ -39,14 +57,14 @@ export const createColumns = (opts: LiveReportColumnsOptions): ColumnDef<LiveRep
         >
           {alertType}
         </Badge>
-      )
+      );
     },
   },
   {
     accessorKey: "status",
     header: "Status",
     cell: ({ row }) => {
-      const status = row.getValue("status") as string
+      const status = row.getValue("status") as string;
       return (
         <Badge
           variant="outline"
@@ -54,18 +72,24 @@ export const createColumns = (opts: LiveReportColumnsOptions): ColumnDef<LiveRep
         >
           {status}
         </Badge>
-      )
+      );
     },
   },
   {
     accessorKey: "lastSignalTime",
     header: "Last Signal Time",
-    cell: ({ row }) => <div className="text-white">{row.getValue("lastSignalTime")}</div>,
+    cell: ({ row }) => (
+      <div className="text-white">{row.getValue("lastSignalTime")}</div>
+    ),
   },
   {
     accessorKey: "address",
     header: "Address",
-    cell: ({ row }) => <div className="text-white max-w-[200px] truncate">{row.getValue("address")}</div>,
+    cell: ({ row }) => (
+      <div className="text-white max-w-[200px] truncate">
+        {row.getValue("address")}
+      </div>
+    ),
   },
   {
     id: "actions",
@@ -73,7 +97,10 @@ export const createColumns = (opts: LiveReportColumnsOptions): ColumnDef<LiveRep
     cell: ({ row }) => (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" className="h-8 w-8 p-0 text-[#a1a1a1] hover:text-white hover:bg-[#262626]">
+          <Button
+            variant="ghost"
+            className="h-8 w-8 p-0 text-[#a1a1a1] hover:text-white hover:bg-[#262626]"
+          >
             <span className="sr-only">Open menu</span>
             <MoreHorizontal className="h-4 w-4" />
           </Button>
@@ -85,7 +112,10 @@ export const createColumns = (opts: LiveReportColumnsOptions): ColumnDef<LiveRep
           className="bg-[#171717] border border-[#2a2a2a] text-white hover:text-white w-50 h-35 p-3 rounded-[5px] shadow-lg flex flex-col space-y-1"
         >
           <DropdownMenuItem
-            onClick={(e) => { e.stopPropagation(); opts.onMoreInfo(row.original) }}
+            onClick={(e) => {
+              e.stopPropagation();
+              opts.onMoreInfo(row.original);
+            }}
             className="hover:bg-[#404040] focus:bg-[#404040] rounded-[5px] cursor-pointer hover:text-white focus:text-white"
           >
             <Info className="mr-2 h-4 w-4 text-white" />
@@ -94,7 +124,10 @@ export const createColumns = (opts: LiveReportColumnsOptions): ColumnDef<LiveRep
 
           {opts.onAssign && (
             <DropdownMenuItem
-              onClick={(e) => { e.stopPropagation(); opts.onAssign?.(row.original); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                opts.onAssign?.(row.original);
+              }}
               className="hover:bg-[#404040] focus:bg-[#404040] rounded-[5px] cursor-pointer hover:text-white focus:text-white"
             >
               <UserCheck className="mr-2 h-4 w-4 text-white" />
@@ -106,7 +139,10 @@ export const createColumns = (opts: LiveReportColumnsOptions): ColumnDef<LiveRep
             <>
               <DropdownMenuSeparator className="bg-[#404040]" />
               <DropdownMenuItem
-                onClick={(e) => { e.stopPropagation(); opts.onDispatch?.(row.original); }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  opts.onDispatch?.(row.original);
+                }}
                 className="hover:bg-[#404040] focus:bg-[#404040] rounded-[5px] cursor-pointer hover:text-white focus:text-white"
               >
                 <Send className="mr-2 h-4 w-4 text-white" />
@@ -118,7 +154,6 @@ export const createColumns = (opts: LiveReportColumnsOptions): ColumnDef<LiveRep
       </DropdownMenu>
     ),
   },
-]
+];
 
-export type { LiveReportAlert } from "../types"
-
+export type { LiveReportAlert } from "../types";

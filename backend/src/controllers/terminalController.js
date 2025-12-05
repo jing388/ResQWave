@@ -7,6 +7,7 @@ const {
     setCache,
     deleteCache
 } = require("../config/cache");
+const { addAdminLog } = require("../utils/adminLogs");
 
 // Get next terminal ID (for frontend preview)
 const getNextTerminalId = async (req, res) => {
@@ -63,6 +64,18 @@ const createTerminal = async (req, res) => {
         });
 
         await terminalRepo.save(terminal);
+
+        // Log terminal creation by dispatcher/admin
+        if (req.user?.role === "dispatcher" || req.user?.role === "admin") {
+            await addAdminLog({
+                action: "create",
+                entityType: "Terminal",
+                entityID: newID,
+                entityName: name,
+                dispatcherID: req.user.id,
+                dispatcherName: req.user.name
+            });
+        }
 
         // Invalidate
         await deleteCache("terminals:active");
@@ -280,10 +293,37 @@ const updateTerminal = async (req, res) => {
             return res.status(404).json({ message: "Terminal Not Found" });
         }
 
-        if (status) terminal.status = status;
-        if (name) terminal.name = name;
+        // Snapshot before changes for logging
+        const oldTerminal = { ...terminal };
+        const changes = [];
+
+        if (status) {
+            terminal.status = status;
+            if (status !== oldTerminal.status) {
+                changes.push({ field: "status", oldValue: oldTerminal.status, newValue: status });
+            }
+        }
+        if (name) {
+            terminal.name = name;
+            if (name !== oldTerminal.name) {
+                changes.push({ field: "name", oldValue: oldTerminal.name, newValue: name });
+            }
+        }
 
         await terminalRepo.save(terminal);
+
+        // Log changes by dispatcher/admin
+        if ((req.user?.role === "dispatcher" || req.user?.role === "admin") && changes.length > 0) {
+            await addAdminLog({
+                action: "edit",
+                entityType: "Terminal",
+                entityID: id,
+                entityName: terminal.name,
+                changes,
+                dispatcherID: req.user.id,
+                dispatcherName: req.user.name
+            });
+        }
 
         // Invalidate
         await deleteCache(`terminal:${id}`);
@@ -325,6 +365,18 @@ const archivedTerminal = async (req, res) => {
         terminal.archived = true;
         terminal.availability = "Available"; // Make it available again
         await terminalRepo.save(terminal);
+
+        // Log terminal archive by dispatcher/admin
+        if (req.user?.role === "dispatcher" || req.user?.role === "admin") {
+            await addAdminLog({
+                action: "archive",
+                entityType: "Terminal",
+                entityID: id,
+                entityName: terminal.name,
+                dispatcherID: req.user.id,
+                dispatcherName: req.user.name
+            });
+        }
 
         // If terminal is linked to an archived neighborhood, detach it
         const archivedNeighborhood = await neighborhoodRepo.findOne({
@@ -368,6 +420,18 @@ const unarchiveTerminal = async (req, res) => {
         terminal.status = terminal.status;
 
         await terminalRepo.save(terminal);
+
+        // Log terminal unarchive by dispatcher/admin
+        if (req.user?.role === "dispatcher" || req.user?.role === "admin") {
+            await addAdminLog({
+                action: "unarchive",
+                entityType: "Terminal",
+                entityID: id,
+                entityName: terminal.name,
+                dispatcherID: req.user.id,
+                dispatcherName: req.user.name
+            });
+        }
 
         //Cache
         await deleteCache("terminals:active");
@@ -447,6 +511,18 @@ const permanentDeleteTerminal = async (req, res) => {
         if (archivedNeighborhood) {
             archivedNeighborhood.terminalID = null; // Detach terminal
             await neighborhoodRepo.save(archivedNeighborhood);
+        }
+
+        // Log terminal deletion by dispatcher/admin before removing
+        if (req.user?.role === "dispatcher" || req.user?.role === "admin") {
+            await addAdminLog({
+                action: "delete",
+                entityType: "Terminal",
+                entityID: id,
+                entityName: terminal.name,
+                dispatcherID: req.user.id,
+                dispatcherName: req.user.name
+            });
         }
 
         // Permanently delete the terminal from database

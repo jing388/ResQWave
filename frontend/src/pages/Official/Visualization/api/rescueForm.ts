@@ -1,4 +1,4 @@
-import { apiFetch } from '@/pages/Official/Reports/api/api';
+import { apiFetch } from "@/pages/Official/Reports/api/api";
 
 export interface CreateRescueFormRequest {
   focalUnreachable: boolean;
@@ -13,7 +13,7 @@ export interface CreateRescueFormRequest {
   resourceNeeds?: string;
   resourceDetails?: string;
   otherInformation?: string;
-  status: 'Waitlisted' | 'Dispatched';
+  status: "Waitlisted" | "Dispatched";
 }
 
 export interface RescueFormResponse {
@@ -28,7 +28,7 @@ export interface RescueFormResponse {
   accessibility: string | null;
   resourceNeeds: string | null;
   otherInformation: string | null;
-  status: 'Waitlisted' | 'Dispatched';
+  status: "Waitlisted" | "Dispatched";
   createdAt: string;
   updatedAt: string;
 }
@@ -38,23 +38,20 @@ export interface RescueFormResponse {
  */
 export async function createRescueForm(
   alertID: string,
-  formData: CreateRescueFormRequest
+  formData: CreateRescueFormRequest,
 ): Promise<RescueFormResponse> {
   try {
-    const response = await apiFetch<RescueFormResponse>(
-      `/forms/${alertID}`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      }
-    );
+    const response = await apiFetch<RescueFormResponse>(`/forms/${alertID}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(formData),
+    });
 
     return response;
   } catch (error) {
-    console.error('[RescueForm API] Error creating rescue form:', error);
+    console.error("[RescueForm API] Error creating rescue form:", error);
     throw error;
   }
 }
@@ -62,12 +59,14 @@ export async function createRescueForm(
 /**
  * Get a specific rescue form
  */
-export async function getRescueForm(formID: string): Promise<RescueFormResponse> {
+export async function getRescueForm(
+  formID: string,
+): Promise<RescueFormResponse> {
   try {
     const response = await apiFetch<RescueFormResponse>(`/forms/${formID}`);
     return response;
   } catch (error) {
-    console.error('[RescueForm API] Error fetching rescue form:', error);
+    console.error("[RescueForm API] Error fetching rescue form:", error);
     throw error;
   }
 }
@@ -77,10 +76,10 @@ export async function getRescueForm(formID: string): Promise<RescueFormResponse>
  */
 export async function getAllRescueForms(): Promise<RescueFormResponse[]> {
   try {
-    const response = await apiFetch<RescueFormResponse[]>('/forms');
+    const response = await apiFetch<RescueFormResponse[]>("/forms");
     return response;
   } catch (error) {
-    console.error('[RescueForm API] Error fetching all rescue forms:', error);
+    console.error("[RescueForm API] Error fetching all rescue forms:", error);
     throw error;
   }
 }
@@ -90,23 +89,23 @@ export async function getAllRescueForms(): Promise<RescueFormResponse[]> {
  */
 export async function updateRescueFormStatus(
   alertID: string,
-  status: 'Waitlisted' | 'Dispatched'
+  status: "Waitlisted" | "Dispatched",
 ): Promise<RescueFormResponse> {
   try {
     const response = await apiFetch<RescueFormResponse>(
       `/forms/${alertID}/status`,
       {
-        method: 'PATCH',
+        method: "PATCH",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({ status }),
-      }
+      },
     );
 
     return response;
   } catch (error) {
-    console.error('[RescueForm API] Error updating rescue form status:', error);
+    console.error("[RescueForm API] Error updating rescue form status:", error);
     throw error;
   }
 }

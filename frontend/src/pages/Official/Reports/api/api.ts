@@ -17,16 +17,18 @@ export function setGlobalLogoutCallback(callback: () => void) {
 
 export async function apiFetch<T = unknown>(
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
 ): Promise<T> {
   // Prefer focalToken if present, else fallback to resqwave_token
-  const token = localStorage.getItem('focalToken') || localStorage.getItem('resqwave_token');
+  const token =
+    localStorage.getItem("focalToken") ||
+    localStorage.getItem("resqwave_token");
 
   const res = await fetch(`${API_BASE_URL}${endpoint}`, {
-    credentials: 'include', // send cookies if needed
+    credentials: "include", // send cookies if needed
     ...options,
     headers: {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
       ...(token && { Authorization: `Bearer ${token}` }),
       ...(options.headers || {}),
     },
@@ -37,43 +39,46 @@ export async function apiFetch<T = unknown>(
     // First, try to get the error response to check if it's an admin restriction
     let errorData: { message?: string; code?: string } | null = null;
     let isAdminRestriction = false;
-    
+
     try {
       const responseText = await res.text();
       errorData = JSON.parse(responseText);
-      
+
       // Check if this is an admin restriction error rather than authentication error
-      if (errorData?.code === 'ADMIN_CANNOT_CREATE_RESCUE_FORM' || 
-          errorData?.message?.includes('You are currently in the admin interface')) {
+      if (
+        errorData?.code === "ADMIN_CANNOT_CREATE_RESCUE_FORM" ||
+        errorData?.message?.includes("You are currently in the admin interface")
+      ) {
         isAdminRestriction = true;
       }
     } catch {
       // If we can't parse the response, treat as authentication error
     }
-    
+
     // If it's an admin restriction, don't trigger logout - just throw the error
     if (isAdminRestriction && errorData) {
-      throw new Error(errorData.message || 'Access denied');
+      throw new Error(errorData.message || "Access denied");
     }
-    
+
     // Check if this is a focal route - don't trigger official logout for focal auth errors
-    const isFocalRoute = window.location.pathname.startsWith('/focal') || 
-                        window.location.pathname.startsWith('/login-focal') || 
-                        window.location.pathname.startsWith('/verification-signin-focal') ||
-                        window.location.pathname.startsWith('/forgot-password-focal') ||
-                        window.location.pathname.startsWith('/register')
-    
+    const isFocalRoute =
+      window.location.pathname.startsWith("/focal") ||
+      window.location.pathname.startsWith("/login-focal") ||
+      window.location.pathname.startsWith("/verification-signin-focal") ||
+      window.location.pathname.startsWith("/forgot-password-focal") ||
+      window.location.pathname.startsWith("/register");
+
     if (isFocalRoute) {
       // For focal routes, only clear focal tokens
-      localStorage.removeItem('focalToken');
-      localStorage.removeItem('focalId');
-      sessionStorage.removeItem('focalTempToken');
+      localStorage.removeItem("focalToken");
+      localStorage.removeItem("focalId");
+      sessionStorage.removeItem("focalTempToken");
     } else {
       // For official routes, clear official tokens and trigger logout
-      localStorage.removeItem('resqwave_token');
-      localStorage.removeItem('resqwave_user');
-      sessionStorage.removeItem('tempToken');
-      sessionStorage.removeItem('userType');
+      localStorage.removeItem("resqwave_token");
+      localStorage.removeItem("resqwave_user");
+      sessionStorage.removeItem("tempToken");
+      sessionStorage.removeItem("userType");
 
       // Call global logout callback if set (triggers navigation in AuthContext)
       if (logoutCallback) {
@@ -81,14 +86,14 @@ export async function apiFetch<T = unknown>(
       }
     }
 
-    const error = errorData?.message || 'Session expired. Please login again.';
+    const error = errorData?.message || "Session expired. Please login again.";
     throw new Error(error);
   }
 
   if (!res.ok) {
     let errorMessage = res.statusText;
     let errorResponse;
-    
+
     try {
       const responseText = await res.text();
       try {
@@ -103,7 +108,7 @@ export async function apiFetch<T = unknown>(
     } catch {
       errorMessage = res.statusText;
     }
-    
+
     const error = new Error(errorMessage);
     // Add the full error response as a property for more detailed error handling
     if (errorResponse) {
@@ -137,48 +142,59 @@ export interface CompletedReport {
   address: string;
 }
 
-export async function fetchPendingReports(refresh = false): Promise<PendingReport[]> {
-  let url = refresh ? '/post/pending?refresh=true' : '/post/pending';
+export async function fetchPendingReports(
+  refresh = false,
+): Promise<PendingReport[]> {
+  let url = refresh ? "/post/pending?refresh=true" : "/post/pending";
   if (refresh) {
     url += `&t=${Date.now()}`; // Add timestamp to prevent browser caching
   }
-  const options = refresh ? {
-    headers: {
-      'Cache-Control': 'no-cache',
-      'Pragma': 'no-cache'
-    }
-  } : {};
+  const options = refresh
+    ? {
+        headers: {
+          "Cache-Control": "no-cache",
+          Pragma: "no-cache",
+        },
+      }
+    : {};
   return apiFetch<PendingReport[]>(url, options);
 }
 
-export async function fetchCompletedReports(refresh = false): Promise<CompletedReport[]> {
-  let url = refresh ? '/post/completed?refresh=true' : '/post/completed';
+export async function fetchCompletedReports(
+  refresh = false,
+): Promise<CompletedReport[]> {
+  let url = refresh ? "/post/completed?refresh=true" : "/post/completed";
   if (refresh) {
     url += `&t=${Date.now()}`; // Add timestamp to prevent browser caching
   }
-  const options = refresh ? {
-    headers: {
-      'Cache-Control': 'no-cache',
-      'Pragma': 'no-cache'
-    }
-  } : {};
+  const options = refresh
+    ? {
+        headers: {
+          "Cache-Control": "no-cache",
+          Pragma: "no-cache",
+        },
+      }
+    : {};
   return apiFetch<CompletedReport[]>(url, options);
 }
 
 export async function clearReportsCache(): Promise<unknown> {
-  return apiFetch('/post/cache', {
-    method: 'DELETE'
+  return apiFetch("/post/cache", {
+    method: "DELETE",
   });
 }
 
-export async function createPostRescueForm(alertId: string, data: {
-  noOfPersonnelDeployed: number;
-  resourcesUsed: string;
-  actionTaken: string;
-}): Promise<unknown> {
+export async function createPostRescueForm(
+  alertId: string,
+  data: {
+    noOfPersonnelDeployed: number;
+    resourcesUsed: string;
+    actionTaken: string;
+  },
+): Promise<unknown> {
   return apiFetch(`/post/${alertId}`, {
-    method: 'POST',
-    body: JSON.stringify(data)
+    method: "POST",
+    body: JSON.stringify(data),
   });
 }
 
@@ -189,8 +205,12 @@ export interface AlertTypeChartData {
   critical: number;
 }
 
-export async function fetchAlertTypeChartData(timeRange: string = 'last3months'): Promise<AlertTypeChartData[]> {
-  return apiFetch<AlertTypeChartData[]>(`/post/chart/alert-types?timeRange=${timeRange}`);
+export async function fetchAlertTypeChartData(
+  timeRange: string = "last3months",
+): Promise<AlertTypeChartData[]> {
+  return apiFetch<AlertTypeChartData[]>(
+    `/post/chart/alert-types?timeRange=${timeRange}`,
+  );
 }
 
 // Detailed report data interface and function for PDF generation
@@ -220,6 +240,8 @@ export interface DetailedReportData {
   rescueCompletionTime: string;
 }
 
-export async function fetchDetailedReportData(alertId: string): Promise<DetailedReportData> {
+export async function fetchDetailedReportData(
+  alertId: string,
+): Promise<DetailedReportData> {
   return apiFetch<DetailedReportData>(`/post/report/${alertId}`);
 }

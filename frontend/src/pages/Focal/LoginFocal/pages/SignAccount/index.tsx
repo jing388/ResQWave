@@ -1,10 +1,10 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useNavigate } from "react-router-dom";
-import { useState } from "react";
 import { apiFetch } from '@/lib/api';
 import { FocalHeader } from '@/pages/Focal/LoginFocal/components/FocalHeader';
-import { Eye, EyeOff, CircleAlert } from 'lucide-react';
+import { CircleAlert, Eye, EyeOff } from 'lucide-react';
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 export function LoginFocal() {
   const navigate = useNavigate();
@@ -223,7 +223,7 @@ export function LoginFocal() {
           <button
             className="text-[#A3A3A3] hover:text-[#929090] mt-2 text-md bg-transparent border-none cursor-pointer"
             style={window.innerWidth <= 480 ? { fontSize: '0.97rem' } : {}}
-            onClick={() => navigate('forgot-password-focal')}
+            onClick={() => navigate('/forgot-password-focal')}
           >
             Forgot Password?
           </button>

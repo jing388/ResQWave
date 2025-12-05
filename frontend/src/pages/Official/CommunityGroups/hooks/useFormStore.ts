@@ -1,15 +1,15 @@
-import { useEffect, useState } from 'react'
-import { formStore } from '../store/formStore'
+import { useEffect, useState } from "react";
+import { formStore } from "../store/formStore";
 
 export function useFormStore() {
-  const [state, setState] = useState(() => formStore.getState())
+  const [state, setState] = useState(() => formStore.getState());
 
   useEffect(() => {
     const unsubscribe = formStore.subscribe(() => {
-      setState(formStore.getState())
-    })
-    return unsubscribe
-  }, [])
+      setState(formStore.getState());
+    });
+    return unsubscribe;
+  }, []);
 
   return {
     ...state,
@@ -25,5 +25,5 @@ export function useFormStore() {
     handleFileUpload: formStore.handleFileUpload,
     cleanupPhotoUrls: formStore.cleanupPhotoUrls,
     resetForm: formStore.resetForm,
-  }
+  };
 }

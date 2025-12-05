@@ -7,13 +7,13 @@ export async function loginDispatcherApi(payload: LoginDispatcher) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      id: payload.ID, 
+      id: payload.ID,
       password: payload.password,
     }),
-  })
-  const data = await res.json()
+  });
+  const data = await res.json();
   if (!res.ok) {
-    throw new Error(data.message || "Login failed")
+    throw new Error(data.message || "Login failed");
   }
-  return data
+  return data;
 }
