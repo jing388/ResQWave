@@ -70,13 +70,13 @@ export function LoginOfficial() {
           }}
         >
           <h1
-            className="text-[43px] font-semibold text-white mb-1"
+            className="text-[45px] font-semibold text-white"
             style={window.innerWidth <= 480 ? { fontSize: "1.45rem" } : {}}
           >
             Sign in
           </h1>
           <p
-            className="text-[#BABABA] text-center text-base mb-2 leading-relaxed"
+            className="text-[#BABABA] text-center text-base leading-relaxed"
             style={window.innerWidth <= 480 ? { fontSize: "0.82rem" } : {}}
           >
             Log in using your account credentials.

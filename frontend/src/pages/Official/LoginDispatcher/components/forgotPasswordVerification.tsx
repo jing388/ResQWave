@@ -163,8 +163,8 @@ export function ForgotPasswordVerification({
       <HeaderOfficial />
       <div className="loginfocal-radial-gradient" />
       <main
-        className="flex flex-1 flex-col items-center justify-center w-full"
-        style={{ marginTop: "0px", zIndex: 20, position: "relative" }}
+        className="flex flex-col items-center w-full"
+        style={{ marginTop: "120px", zIndex: 20, position: "relative" }}
       >
         <div className="flex flex-col items-center gap-4 mb-8">
           <div className="mb-2">
@@ -179,9 +179,6 @@ export function ForgotPasswordVerification({
             Enter verification code
           </h1>
           <p className="text-[#BABABA] text-center mb-2 text-base max-w-lg">
-            <span className="block mb-1">
-              We want to make sure your information stays safe and secure.
-            </span>
             <span className="block mb-1">
               Please enter the verification code we sent to your registered
             </span>
@@ -205,11 +202,15 @@ export function ForgotPasswordVerification({
               <InputOTPGroup>
                 <InputOTPSlot
                   index={0}
-                  className={`bg-[#171717] h-[65px] w-[65px] text-2xl text-white border ${error ? "border-red-500" : "border-[#404040]"}`}
+                  className={`bg-[#171717] h-[65px] w-[65px] text-2xl text-white border ${
+                    error ? "border-red-500" : "border-[#404040]"
+                  }`}
                 />
                 <InputOTPSlot
                   index={1}
-                  className={`bg-[#171717] h-[65px] w-[65px] text-2xl text-white border ${error ? "border-red-500" : "border-[#404040]"}`}
+                  className={`bg-[#171717] h-[65px] w-[65px] text-2xl text-white border ${
+                    error ? "border-red-500" : "border-[#404040]"
+                  }`}
                 />
               </InputOTPGroup>
               <InputOTPSeparator>
@@ -218,11 +219,15 @@ export function ForgotPasswordVerification({
               <InputOTPGroup>
                 <InputOTPSlot
                   index={2}
-                  className={`bg-[#171717] h-[65px] w-[65px] text-2xl text-white border ${error ? "border-red-500" : "border-[#404040]"}`}
+                  className={`bg-[#171717] h-[65px] w-[65px] text-2xl text-white border ${
+                    error ? "border-red-500" : "border-[#404040]"
+                  }`}
                 />
                 <InputOTPSlot
                   index={3}
-                  className={`bg-[#171717] h-[65px] w-[65px] text-2xl text-white border ${error ? "border-red-500" : "border-[#404040]"}`}
+                  className={`bg-[#171717] h-[65px] w-[65px] text-2xl text-white border ${
+                    error ? "border-red-500" : "border-[#404040]"
+                  }`}
                 />
               </InputOTPGroup>
               <InputOTPSeparator>
@@ -231,11 +236,15 @@ export function ForgotPasswordVerification({
               <InputOTPGroup>
                 <InputOTPSlot
                   index={4}
-                  className={`bg-[#171717] h-[65px] w-[65px] text-2xl text-white border ${error ? "border-red-500" : "border-[#404040]"}`}
+                  className={`bg-[#171717] h-[65px] w-[65px] text-2xl text-white border ${
+                    error ? "border-red-500" : "border-[#404040]"
+                  }`}
                 />
                 <InputOTPSlot
                   index={5}
-                  className={`bg-[#171717] h-[65px] w-[65px] text-2xl text-white border ${error ? "border-red-500" : "border-[#404040]"}`}
+                  className={`bg-[#171717] h-[65px] w-[65px] text-2xl text-white border ${
+                    error ? "border-red-500" : "border-[#404040]"
+                  }`}
                 />
               </InputOTPGroup>
             </InputOTP>
@@ -243,15 +252,19 @@ export function ForgotPasswordVerification({
               Didn't receive any code?{" "}
               <button
                 type="button"
-                className={`text-blue-400 disabled:opacity-60 ${resendLoading || expiresIn > 0 ? "cursor-default" : "hover:underline cursor-pointer"}`}
+                className={`text-blue-400 disabled:opacity-60 ${
+                  resendLoading || expiresIn > 0
+                    ? "cursor-default"
+                    : "hover:underline cursor-pointer"
+                }`}
                 onClick={handleResend}
                 disabled={resendLoading || expiresIn > 0}
               >
                 {resendLoading
                   ? "Resending..."
                   : expiresIn > 0
-                    ? `Resend`
-                    : "Resend"}
+                  ? `Resend`
+                  : "Resend"}
               </button>
               {resendMsg && (
                 <div className="mt-2 text-red-400">{resendMsg}</div>
@@ -260,14 +273,13 @@ export function ForgotPasswordVerification({
             <Button
               type="submit"
               disabled={isVerifying || code.length < 6}
-              className={`w-[535px] py-6 rounded-md font-medium text-base mt-2 transition-all duration-200 flex items-center justify-center gap-2 ${code.length < 6 ? "bg-[#232323] text-[#929090] cursor-not-allowed" : "text-white hover:brightness-90"} `}
+              className={`w-[535px] py-6 rounded-md font-medium text-base mt-2 transition duration-300 ease-in flex items-center justify-center gap-2 ${
+                code.length < 6
+                  ? "bg-[#232323] text-[#929090] cursor-not-allowed"
+                  : "text-white bg-linear-to-t from-[#3B82F6] to-[#70A6FF] hover:from-[#1052BE] hover:to-[#70A6FF] cursor-pointer"
+              }`}
               style={{
-                background:
-                  code.length < 6
-                    ? "#232323"
-                    : "linear-gradient(0deg, #3B82F6 0%, #70A6FF 100%)",
-                color: code.length < 6 ? "#929090" : undefined,
-                opacity: code.length < 6 ? 1 : isVerifying ? 0.6 : 1,
+                opacity: code.length < 6 ? 1 : isVerifying ? 0.7 : 1,
               }}
             >
               {isVerifying && (
