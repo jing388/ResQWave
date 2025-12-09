@@ -1,12 +1,14 @@
 import {
   Sheet,
+  SheetClose,
   SheetContent,
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { ExpandIcon, Plus, ZoomOut } from "lucide-react";
+import { ExpandIcon, Plus, X, ZoomOut } from "lucide-react";
 
 import { useEffect, useState } from "react";
+import { getTerminal } from "../../Terminal/api/terminalApi";
 import type { CommunityGroupInfoSheetProps } from "../types";
 
 export function CommunityGroupInfoSheet({
@@ -17,7 +19,6 @@ export function CommunityGroupInfoSheet({
   // Image viewer state
   useEffect(() => {
     if (open && communityData) {
-      console.debug("[InfoSheet] communityData:", communityData);
     }
   }, [open, communityData]);
   const [viewerOpen, setViewerOpen] = useState(false);
@@ -30,10 +31,34 @@ export function CommunityGroupInfoSheet({
   }>({});
   const [photosLoading, setPhotosLoading] = useState(false);
 
+  // Terminal name state
+  const [terminalName, setTerminalName] = useState<string>("N/A");
+  const [terminalLoading, setTerminalLoading] = useState(false);
+
   // Discrete zoom steps and class mappings (no inline styles)
   const zoomSteps = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.5, 3] as const;
   type Zoom = (typeof zoomSteps)[number];
   const [viewerZoom, setViewerZoom] = useState<Zoom>(1);
+
+  // Fetch terminal name
+  useEffect(() => {
+    if (!communityData?.terminalId || !open) return;
+    
+    const fetchTerminalName = async () => {
+      setTerminalLoading(true);
+      try {
+        const terminalData = await getTerminal(communityData.terminalId);
+        setTerminalName(terminalData.name || "N/A");
+      } catch (error) {
+        console.error("Error fetching terminal name:", error);
+        setTerminalName("N/A");
+      } finally {
+        setTerminalLoading(false);
+      }
+    };
+
+    fetchTerminalName();
+  }, [communityData?.terminalId, open]);
 
   // Load photos only if URLs are present and need auth (otherwise just use the URLs directly)
   useEffect(() => {
@@ -136,81 +161,80 @@ export function CommunityGroupInfoSheet({
         side="right"
         className="w-full sm:w-[500px] bg-[#171717] border-[#2a2a2a] text-white p-0 overflow-y-auto rounded-[5px] z-[160]"
       >
-        <SheetHeader className="px-6 py-5 border-b border-[#2a2a2a]">
-          <div className="flex items-center justify-between">
-            <SheetTitle className="text-white text-lg font-medium">
-              More Information
+        <SheetHeader className="sticky top-0 z-10 bg-[#171717] px-4 py-3 border-b border-[#2a2a2a]">
+          <div className="flex items-center justify-between h-12">
+            <SheetTitle className="text-white text-xl font-normal">
+              Neighborhood Information
             </SheetTitle>
+            <SheetClose className="rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-secondary">
+              <X className="h-5 w-5 text-white" />
+              <span className="sr-only">Close</span>
+            </SheetClose>
           </div>
         </SheetHeader>
 
-        <div className="px-6 py-6 space-y-6">
+        <div className="px-5 pt-4 pb-2 space-y-2">
           {/* Neighborhood ID */}
-          <div className="flex justify-between items-center">
-            <span className="text-white text-sm">Neighborhood ID</span>
+          <div className="flex justify-between items-center bg-[#1d1d1d] px-4 py-4 rounded-[5px]">
+            <span className="text-white/80 text-sm">Neighborhood ID</span>
             <span className="text-white text-sm">
               {communityData.communityId}
             </span>
           </div>
 
-          {/* Terminal ID */}
-          <div className="flex justify-between items-center">
-            <span className="text-white text-sm">Terminal ID</span>
+          {/* Terminal Name */}
+          <div className="flex justify-between items-center bg-[#171717] px-4 py-4 rounded-[5px]">
+            <span className="text-white/80 text-sm">Terminal Name</span>
             <span className="text-white text-sm">
-              {communityData.terminalId}
+              {terminalLoading ? "Loading..." : terminalName}
             </span>
           </div>
 
           {/* Terminal Address */}
-          <div className="flex justify-between items-center">
-            <span className="text-white text-sm">Terminal Address</span>
-            <span className="text-white text-sm">{terminalAddress}</span>
+          <div className="flex justify-between items-center bg-[#1d1d1d] px-4 py-4 rounded-[5px]">
+            <span className="text-white/80 text-sm">Terminal Address</span>
+            <span className="text-white text-sm text-right">{terminalAddress}</span>
           </div>
 
-          {/* Coordinates */}
-          <div className="flex justify-between items-center">
-            <span className="text-white text-sm">Coordinates</span>
+          {/* Terminal Coordinates */}
+          <div className="flex justify-between items-center bg-[#171717] px-4 py-4 rounded-[5px]">
+            <span className="text-white/80 text-sm">Terminal Coordinates</span>
             <span className="text-white text-sm">
               {terminalCoordinates !== "N/A" ? terminalCoordinates : "N/A"}
             </span>
           </div>
 
-          {/* Neighborhood Information Section */}
-          <div className="bg-white text-black px-4 py-2 rounded font-medium text-sm">
-            Neighborhood Information
-          </div>
-
           {/* No. of Households */}
-          <div className="flex justify-between items-center">
-            <span className="text-white text-sm">No. of Households</span>
+          <div className="flex justify-between items-center bg-[#1d1d1d] px-4 py-4 rounded-[5px]">
+            <span className="text-white/80 text-sm">No. of Households</span>
             <span className="text-white text-sm">
-              {communityData.families || "0"}
+              ~ {communityData.families || "0"}
             </span>
           </div>
 
           {/* No. of Residents */}
-          <div className="flex justify-between items-center">
-            <span className="text-white text-sm">No. of Residents</span>
+          <div className="flex justify-between items-center bg-[#171717] px-4 py-4 rounded-[5px]">
+            <span className="text-white/80 text-sm">No. of Residents</span>
             <span className="text-white text-sm">
-              {communityData.individuals || "0"}
+              ~ {communityData.individuals || "0"}
             </span>
           </div>
 
           {/* Floodwater Subsidence Duration */}
-          <div className="flex justify-between items-center">
-            <span className="text-white text-sm">
+          <div className="flex justify-between items-center bg-[#1d1d1d] px-4 py-4 rounded-[5px]">
+            <span className="text-white/80 text-sm">
               Floodwater Subsidence Duration
             </span>
             <span className="text-white text-sm">
               {communityData.floodSubsideHours
-                ? `${communityData.floodSubsideHours} hours`
+                ? `~ ${communityData.floodSubsideHours} hr`
                 : "N/A"}
             </span>
           </div>
 
           {/* Flood-related hazards */}
-          <div className="bg-[#262626] border border-[#404040] rounded p-4">
-            <h3 className="text-white text-sm font-medium mb-3">
+          <div className="bg-[#1d1d1d] px-4 py-4 rounded-[5px]">
+            <h3 className="text-white/80 text-sm font-normal mb-2">
               Flood-related hazards
             </h3>
             {communityData.hazards && communityData.hazards.length > 0 ? (
@@ -225,8 +249,8 @@ export function CommunityGroupInfoSheet({
           </div>
 
           {/* Other notable information */}
-          <div className="bg-[#262626] border border-[#404040] rounded p-4">
-            <h3 className="text-white text-sm font-medium mb-3">
+          <div className="bg-[#1d1d1d] px-4 py-4 rounded-[5px] mb-8">
+            <h3 className="text-white/80 text-sm font-normal mb-2">
               Other notable information
             </h3>
             {communityData.notableInfo &&
@@ -242,13 +266,13 @@ export function CommunityGroupInfoSheet({
           </div>
 
           {/* Focal Persons Section */}
-          <div className="bg-white text-black px-4 py-2 rounded font-medium text-sm">
+          <div className="bg-white text-black px-4 py-3 font-medium text-sm rounded-[5px]">
             Focal Persons
           </div>
 
           {/* Main Focal Person Photo */}
-          <div className="bg-[#0b0b0b] rounded-[6px] flex justify-center mt-1">
-            <div className="relative w-full max-w-full h-60 rounded-[8px] overflow-hidden bg-[#111]">
+          <div className="bg-[#171717] flex justify-center py-2 px-2 rounded-[5px]">
+            <div className="relative w-full max-w-full h-60 rounded-[5px] overflow-hidden bg-[#111]">
               {photos.mainPhoto ? (
                 <>
                   {/* Blurred backdrop */}
@@ -333,30 +357,30 @@ export function CommunityGroupInfoSheet({
           </div>
 
           {/* Main Focal Person Details */}
-          <div className="flex justify-between items-center">
-            <span className="text-white text-sm font-medium">FOCAL PERSON</span>
+          <div className="flex justify-between items-center bg-[#171717] px-4 py-4 rounded-[5px]">
+            <span className="text-white/80 text-sm">Name</span>
             <span className="text-white text-sm">
               {communityData.focalPerson?.name?.trim() || "N/A"}
             </span>
           </div>
 
-          <div className="flex justify-between items-center">
-            <span className="text-white text-sm font-medium">CONTACT NO.</span>
+          <div className="flex justify-between items-center bg-[#1d1d1d] px-4 py-4 rounded-[5px]">
+            <span className="text-white/80 text-sm">Contact No.</span>
             <span className="text-white text-sm">
               {communityData.focalPerson?.contactNumber?.trim() || "N/A"}
             </span>
           </div>
 
-          <div className="flex justify-between items-center">
-            <span className="text-white text-sm font-medium">EMAIL</span>
+          <div className="flex justify-between items-center bg-[#171717] px-4 py-4 rounded-[5px]">
+            <span className="text-white/80 text-sm">Email</span>
             <span className="text-white text-sm">
               {communityData.focalPerson?.email?.trim() || "N/A"}
             </span>
           </div>
 
           {/* Alternative Focal Person Photo */}
-          <div className="bg-[#0b0b0b] rounded-[6px] flex justify-center mt-1">
-            <div className="relative w-full max-w-full h-60 rounded-[8px] overflow-hidden bg-[#111]">
+          <div className="bg-[#171717] flex justify-center py-2 px-2 rounded-[5px]">
+            <div className="relative w-full max-w-full h-60 rounded-[5px] overflow-hidden bg-[#111]">
               {photos.altPhoto ? (
                 <>
                   {/* Blurred backdrop */}
@@ -449,25 +473,25 @@ export function CommunityGroupInfoSheet({
           </div>
 
           {/* Alternative Focal Person Details */}
-          <div className="flex justify-between items-center">
-            <span className="text-white text-sm font-medium">
-              ALTERNATIVE FOCAL PERSON
+          <div className="flex justify-between items-center bg-[#171717] px-4 py-4 rounded-[5px]">
+            <span className="text-white/80 text-sm">
+              Name
             </span>
             <span className="text-white text-sm">
               {communityData.alternativeFocalPerson?.altName?.trim() || "N/A"}
             </span>
           </div>
 
-          <div className="flex justify-between items-center">
-            <span className="text-white text-sm font-medium">CONTACT NO.</span>
+          <div className="flex justify-between items-center bg-[#1d1d1d] px-4 py-4 rounded-[5px]">
+            <span className="text-white/80 text-sm">Contact No.</span>
             <span className="text-white text-sm">
               {communityData.alternativeFocalPerson?.altContactNumber?.trim() ||
                 "N/A"}
             </span>
           </div>
 
-          <div className="flex justify-between items-center">
-            <span className="text-white text-sm font-medium">EMAIL</span>
+          <div className="flex justify-between items-center bg-[#171717] px-4 py-4 rounded-[5px]">
+            <span className="text-white/80 text-sm">Email</span>
             <span className="text-white text-sm">
               {communityData.alternativeFocalPerson?.altEmail?.trim() || "N/A"}
             </span>

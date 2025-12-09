@@ -50,7 +50,7 @@ export function Reports() {
   };
 
   return (
-    <div className="p-2 flex flex-col bg-[#171717] gap-0 h-[calc(100vh-73px)] max-h-[calc(100vh-73px)] overflow-hidden">
+    <div className="p-2 px-6 flex flex-col bg-[#171717] gap-0 h-[calc(100vh-73px)] max-h-[calc(100vh-73px)] overflow-hidden">
       {loading && (
         <div className="flex items-center justify-center h-32">
           <div className="text-white">Loading reports...</div>
@@ -112,8 +112,8 @@ export function Reports() {
           </div> */}
 
           {/* Reports Table - Full height now */}
-          <Card className="flex flex-col border-0 flex-1 overflow-hidden min-h-0">
-            <CardHeader className="shrink-0 flex flex-row items-center gap-2">
+          <Card className="!flex !flex-col !border-0 !flex-1 !min-h-0 !overflow-hidden !gap-0 !py-0 !px-0 !bg-[#171717] !shadow-none !rounded-none">
+            <CardHeader className="!shrink-0 !flex !flex-row !items-center !gap-2 !py-3 !px-0 !grid-cols-1 !auto-rows-auto">
               <CardTitle className="text-foreground text-2xl">
                 Reports
               </CardTitle>
@@ -148,7 +148,7 @@ export function Reports() {
                 </Tabs>
               </div>
             </CardHeader>
-            <CardContent className="flex-1 flex flex-col overflow-hidden min-h-0 max-h-full">
+            <CardContent className="!flex-1 !flex !flex-col !min-h-0 !overflow-hidden !p-0 !m-0">
               {activeTab === "completed" ? (
                 <ReportsTable
                   type="completed"

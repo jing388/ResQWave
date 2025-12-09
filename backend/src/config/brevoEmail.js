@@ -8,7 +8,7 @@ const tranEmailApi = new SibApiV3Sdk.TransactionalEmailsApi();
 
 async function sendVerificationEmail(to, name, link) {
   try {
-    const sender = { email: 'rielkai01@gmail.com', name: 'ResQWave Team' };
+    const sender = { email: 'resqwaveinfo@gmail.com', name: 'ResQWave Team' };
     const receivers = [{ email: to }];
 
     await tranEmailApi.sendTransacEmail({

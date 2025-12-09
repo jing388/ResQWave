@@ -19,8 +19,7 @@ module.exports = new EntitySchema ({
             nullable: false
         },
         resourcesUsed: {
-            type: "varchar",
-            length: 255,
+            type: "json",
             nullable: false,
         },
         actionTaken: {
@@ -36,6 +35,10 @@ module.exports = new EntitySchema ({
         completedAt: {
             type: "timestamp",
             updateDate: true,
+        },
+        archived: {
+            type: "boolean",
+            default: false,
         }
     },
     relations: {

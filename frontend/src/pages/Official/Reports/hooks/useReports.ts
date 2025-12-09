@@ -22,6 +22,27 @@ export interface TransformedCompletedReport extends TransformedPendingReport {
   accomplishedOn: string;
 }
 
+// Helper function to format date and time in shorter version
+const formatDateTime = (dateString: string): string => {
+  const date = new Date(dateString);
+  
+  // Format time (e.g., "02:30 PM")
+  const timeString = date.toLocaleTimeString("en-US", {
+    hour12: true,
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  
+  // Format date in shorter version (e.g., "12/08/2025")
+  const dateFormatted = date.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  
+  return `${dateFormatted} | ${timeString}`;
+};
+
 // Transform backend data to frontend format
 const transformPendingReport = (
   report: PendingReport,
@@ -31,7 +52,7 @@ const transformPendingReport = (
     communityName: report.terminalName,
     alertType: report.alertType,
     dispatcher: report.dispatcherName,
-    dateTimeOccurred: new Date(report.createdAt).toLocaleString(),
+    dateTimeOccurred: formatDateTime(report.createdAt),
     address: extractAddress(report.address),
   };
 };
@@ -44,8 +65,8 @@ const transformCompletedReport = (
     communityName: report.terminalName,
     alertType: report.alertType,
     dispatcher: report.dispatcherName,
-    dateTimeOccurred: new Date(report.createdAt).toLocaleString(),
-    accomplishedOn: new Date(report.completedAt).toLocaleString(),
+    dateTimeOccurred: formatDateTime(report.createdAt),
+    accomplishedOn: formatDateTime(report.completedAt),
     address: extractAddress(report.address),
   };
 };

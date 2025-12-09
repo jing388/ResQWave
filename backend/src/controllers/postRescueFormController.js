@@ -3,7 +3,6 @@ const alertRepo = AppDataSource.getRepository("Alert");
 const postRescueRepo = AppDataSource.getRepository("PostRescueForm");
 const rescueFormRepo = AppDataSource.getRepository("RescueForm");
 const dispatcherRepo = AppDataSource.getRepository("Dispatcher");
-const communityGroupRepo = AppDataSource.getRepository("CommunityGroup");
 const {
   getCache,
   setCache,
@@ -217,6 +216,15 @@ const getAggregatedRescueReports = async (req, res) => {
       const completedAt = r.prfCompletedAt || null;
       const rescueCompleted = !!completedAt;
 
+      let resourcesUsed = r.resourcesUsed;
+      if (typeof resourcesUsed === 'string') {
+          try {
+              resourcesUsed = JSON.parse(resourcesUsed);
+          } catch (e) {
+              // keep as string if parse fails
+          }
+      }
+
       let rescueCompletionTime = null;
       if (timeOfRescue && completedAt) {
         const start = new Date(timeOfRescue).getTime();
@@ -252,7 +260,7 @@ const getAggregatedRescueReports = async (req, res) => {
         rescueCompleted,
         rescueCompletionTime, // human (e.g., "1h 12m")
         noOfPersonnel: r.noOfPersonnel || null,
-        resourcesUsed: r.resourcesUsed || null,
+        resourcesUsed: resourcesUsed || null,
         actionsTaken: r.actionsTaken || null,
       };
     });
@@ -279,10 +287,11 @@ const getAggregatedPostRescueForm = async (req, res) => {
             .leftJoin("prf.alerts", "alert")
             .leftJoin("rescueforms", "rf", "rf.emergencyID = alert.id")
             .leftJoin("focalpersons", "fp", "fp.id = rf.focalPersonID")
-            .leftJoin("dispatchers", "dispatcher", "dispatcher.id = rf.dispatcherID");
+            .leftJoin("dispatchers", "dispatcher", "dispatcher.id = rf.dispatcherID")
+            .where("prf.archived = :archived", { archived: false });
 
         if (alertID) {
-            qb = qb.where("prf.alertID = :alertID", { alertID });
+            qb = qb.andWhere("prf.alertID = :alertID", { alertID });
         }
 
         const rows = await qb
@@ -709,6 +718,15 @@ const getDetailedReportData = async (req, res) => {
             return res.status(404).json({ message: "Report data not found for the given Alert ID" });
         }
 
+        let resourcesUsed = reportData.resourcesUsed;
+        if (typeof resourcesUsed === 'string') {
+            try {
+                resourcesUsed = JSON.parse(resourcesUsed);
+            } catch (e) {
+                // keep as string
+            }
+        }
+
         // Format the response data
         const formattedData = {
             alertId: reportData.alertId,
@@ -751,7 +769,7 @@ const getDetailedReportData = async (req, res) => {
             rescueFormId: reportData.rescueFormId || 'N/A',
             postRescueFormId: reportData.postRescueFormId || 'N/A',
             noOfPersonnelDeployed: reportData.noOfPersonnelDeployed || 'N/A',
-            resourcesUsed: reportData.resourcesUsed || 'N/A',
+            resourcesUsed: resourcesUsed || 'N/A',
             actionTaken: reportData.actionTaken || 'N/A',
             completedAt: reportData.completedAt ? new Date(reportData.completedAt).toLocaleString() : 'N/A',
             rescueCompletionTime: reportData.completedAt ? new Date(reportData.completedAt).toLocaleTimeString() : 'N/A'
@@ -766,6 +784,84 @@ const getDetailedReportData = async (req, res) => {
     }
 };
 
+// ARCHIVE POST RESCUE FORM
+const archivePostRescueForm = async (req, res) => {
+    try {
+        const { alertID } = req.params;
+
+        const form = await postRescueRepo.findOne({ where: { alertID } });
+        if (!form) {
+            return res.status(404).json({ message: "Post Rescue Form Not Found" });
+        }
+
+        form.archived = true;
+        await postRescueRepo.save(form);
+
+        // Cache invalidation
+        await deleteCache("completedReports");
+        await deleteCache("pendingReports");
+        await deleteCache("rescueForms:all");
+        await deleteCache(`rescueForm:${form.id}`);
+        await deleteCache(`alert:${alertID}`);
+        await deleteCache("aggregatedReports:all");
+        await deleteCache("aggregatedPRF:all");
+        await deleteCache(`rescueAggregatesBasic:all`);
+        await deleteCache(`rescueAggregatesBasic:${alertID}`);
+        await deleteCache(`aggregatedReports:${alertID}`);
+        await deleteCache(`aggregatedPRF:${alertID}`);
+        await deleteCache("archivedPRF:all");
+        await deleteCache(`archivedPRF:${alertID}`);
+
+        return res.json({ message: "Post Rescue Form Archived Successfully" });
+    } catch (err) {
+        console.error(err);
+        return res.status(500).json({ message: "Server Error" });
+    }
+};
+
+// GET Archived Post Rescue Forms
+const getArchivedPostRescueForm = async (req, res) => {
+    try {
+        const { alertID } = req.query || {};
+        const cacheKey = alertID ? `archivedPRF:${alertID}` : `archivedPRF:all`;
+        const cached = await getCache(cacheKey);
+        if (cached) return res.json(cached);
+
+        let qb = postRescueRepo
+            .createQueryBuilder("prf")
+            .leftJoin("prf.alerts", "alert")
+            .leftJoin("rescueforms", "rf", "rf.emergencyID = alert.id")
+            .leftJoin("focalpersons", "fp", "fp.id = rf.focalPersonID")
+            .leftJoin("dispatchers", "dispatcher", "dispatcher.id = rf.dispatcherID")
+            .where("prf.archived = :archived", { archived: true });
+
+        if (alertID) {
+            qb = qb.andWhere("prf.alertID = :alertID", { alertID });
+        }
+
+        const rows = await qb
+            .select([
+                "rf.emergencyID AS emergencyId",
+                "alert.terminalID AS terminalId",
+                "fp.firstName AS focalFirstName",
+                "fp.lastName AS focalLastName",
+                "alert.dateTimeSent AS dateTimeOccurred",
+                "rf.originalAlertType AS alertType",
+                "fp.address AS houseAddress",
+                "dispatcher.name AS dispatchedName",
+                "prf.completedAt AS completionDate",
+            ])
+            .orderBy("prf.completedAt", "DESC")
+            .getRawMany();
+
+        await setCache(cacheKey, rows, 300);
+        return res.json(rows);
+    } catch (err) {
+        console.error(err);
+        return res.status(500).json({ message: "Server Error" });
+    }
+};
+
 module.exports = {
   createPostRescueForm,
   getCompletedReports,
@@ -777,4 +873,6 @@ module.exports = {
   fixRescueFormStatus,
   getAlertTypeChartData,
   getDetailedReportData,
+  archivePostRescueForm,
+  getArchivedPostRescueForm,
 };

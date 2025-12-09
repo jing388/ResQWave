@@ -153,10 +153,6 @@ export async function fetchNeighborhoodDetailsTransformed(
 ): Promise<CommunityGroupDetails> {
   const raw = (await getNeighborhoodDetails(id)) as Record<string, unknown>;
 
-  // Debug logging
-  console.log("Raw neighborhood data:", raw);
-  console.log("Focal person data:", raw.focalPerson);
-
   const focal = (raw.focalPerson as Record<string, unknown>) || null;
 
   // Do not parse address here; just pass as string

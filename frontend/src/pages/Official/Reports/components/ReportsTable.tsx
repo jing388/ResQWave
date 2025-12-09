@@ -31,6 +31,9 @@ import {
 } from "@tanstack/react-table";
 import { Archive, ArchiveRestore, FileText, Info, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
+import { fetchNeighborhoodDetailsTransformed } from "../../CommunityGroups/api/communityGroupApi";
+import { CommunityGroupInfoSheet } from "../../CommunityGroups/components/CommunityGroupInfoSheet";
+import type { CommunityGroupDetails } from "../../CommunityGroups/types";
 import { fetchDetailedReportData, type DetailedReportData } from "../api/api";
 import {
   exportOfficialReportToPdf,
@@ -38,6 +41,7 @@ import {
 } from "../utils/reportExportUtils";
 import "./ReportsTable.css";
 import { RescueCompletionForm } from "./RescueCompletionForm";
+import { RescueFormInfoSheet } from "./RescueFormInfoSheet";
 
 interface CompletedReport {
   emergencyId: string;
@@ -87,6 +91,17 @@ export function ReportsTable({
     useState<DetailedReportData | null>(null);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
+
+  // Community info sheet state
+  const [communityInfoOpen, setCommunityInfoOpen] = useState(false);
+  const [communityData, setCommunityData] = useState<
+    CommunityGroupDetails | undefined
+  >(undefined);
+  const [loadingCommunityData, setLoadingCommunityData] = useState(false);
+
+  // Rescue form info sheet state
+  const [rescueFormInfoOpen, setRescueFormInfoOpen] = useState(false);
+  const [selectedEmergencyId, setSelectedEmergencyId] = useState<string | null>(null);
 
   const handleCreateReport = async (reportData: ReportData) => {
     setIsLoadingDetails(true);
@@ -170,6 +185,46 @@ export function ReportsTable({
       );
     } finally {
       setIsGeneratingPdf(false);
+    }
+  };
+
+  const handleViewRescueForm = (reportData: ReportData) => {
+    setSelectedEmergencyId(reportData.emergencyId);
+    setRescueFormInfoOpen(true);
+  };
+
+  const handleViewNeighborhoodInfo = async (reportData: ReportData) => {
+    setLoadingCommunityData(true);
+    try {
+      // First, fetch detailed report data to get neighborhoodId
+      const detailedData = await fetchDetailedReportData(
+        reportData.emergencyId,
+      );
+      
+      if (!detailedData?.neighborhoodId) {
+        console.error("[ReportsTable] No neighborhood ID available for neighborhood info");
+        alert("Unable to fetch neighborhood info: No neighborhood ID available");
+        return;
+      }
+
+      // Use neighborhoodId to fetch neighborhood data
+      const data = await fetchNeighborhoodDetailsTransformed(detailedData.neighborhoodId);
+      
+      if (data) {
+        setCommunityData(data);
+        setCommunityInfoOpen(true);
+      } else {
+        console.warn(
+          "[ReportsTable] No community data found for neighborhood ID:",
+          detailedData.neighborhoodId,
+        );
+        alert(`No neighborhood information found for ID: ${detailedData.neighborhoodId}`);
+      }
+    } catch (error) {
+      console.error("[ReportsTable] Error fetching community data:", error);
+      alert("Error fetching neighborhood information. Please try again.");
+    } finally {
+      setLoadingCommunityData(false);
     }
   };
 
@@ -278,11 +333,21 @@ export function ReportsTable({
             {isArchive ? (
               // Archive tab - Only available for admin
               <>
-                <DropdownMenuItem className="hover:bg-[#404040] focus:bg-[#404040] rounded-[5px] cursor-pointer hover:text-white focus:text-white">
+                <DropdownMenuItem 
+                  className="hover:bg-[#404040] focus:bg-[#404040] rounded-[5px] cursor-pointer hover:text-white focus:text-white"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleViewNeighborhoodInfo(row.original);
+                  }}
+                  disabled={loadingCommunityData}
+                >
                   <Info className="mr-2 h-4 w-4 text-white" />
-                  <span className="text-xs">View Neighborhood Info</span>
+                  <span className="text-xs">{loadingCommunityData ? "Loading..." : "View Neighborhood Info"}</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem className="hover:bg-[#404040] focus:bg-[#404040] rounded-[5px] cursor-pointer hover:text-white focus:text-white">
+                <DropdownMenuItem 
+                  className="hover:bg-[#404040] focus:bg-[#404040] rounded-[5px] cursor-pointer hover:text-white focus:text-white"
+                  onClick={() => handleViewRescueForm(row.original)}
+                >
                   <Info className="mr-2 h-4 w-4 text-white" />
                   <span className="text-xs">View Rescue Form</span>
                 </DropdownMenuItem>
@@ -316,11 +381,21 @@ export function ReportsTable({
                       <FileText className="mr-2 h-4 w-4 text-white" />
                       <span className="text-xs">{isGeneratingPdf ? "Generating..." : "Generate Report"}</span>
                     </DropdownMenuItem>
-                    <DropdownMenuItem className="hover:bg-[#404040] focus:bg-[#404040] rounded-[5px] cursor-pointer hover:text-white focus:text-white">
+                    <DropdownMenuItem 
+                      className="hover:bg-[#404040] focus:bg-[#404040] rounded-[5px] cursor-pointer hover:text-white focus:text-white"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        handleViewNeighborhoodInfo(row.original);
+                      }}
+                      disabled={loadingCommunityData}
+                    >
                       <Info className="mr-2 h-4 w-4 text-white" />
-                      <span className="text-xs">View Neighborhood Info</span>
+                      <span className="text-xs">{loadingCommunityData ? "Loading..." : "View Neighborhood Info"}</span>
                     </DropdownMenuItem>
-                    <DropdownMenuItem className="hover:bg-[#404040] focus:bg-[#404040] rounded-[5px] cursor-pointer hover:text-white focus:text-white">
+                    <DropdownMenuItem 
+                      className="hover:bg-[#404040] focus:bg-[#404040] rounded-[5px] cursor-pointer hover:text-white focus:text-white"
+                      onClick={() => handleViewRescueForm(row.original)}
+                    >
                       <Info className="mr-2 h-4 w-4 text-white" />
                       <span className="text-xs">View Rescue Form</span>
                     </DropdownMenuItem>
@@ -340,11 +415,21 @@ export function ReportsTable({
                 ) : (
                   // Dispatcher options for completed tab
                   <>
-                    <DropdownMenuItem className="hover:bg-[#404040] focus:bg-[#404040] rounded-[5px] cursor-pointer hover:text-white focus:text-white">
+                    <DropdownMenuItem 
+                      className="hover:bg-[#404040] focus:bg-[#404040] rounded-[5px] cursor-pointer hover:text-white focus:text-white"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        handleViewNeighborhoodInfo(row.original);
+                      }}
+                      disabled={loadingCommunityData}
+                    >
                       <Info className="mr-2 h-4 w-4 text-white" />
-                      <span className="text-xs">View Neighborhood Info</span>
+                      <span className="text-xs">{loadingCommunityData ? "Loading..." : "View Neighborhood Info"}</span>
                     </DropdownMenuItem>
-                    <DropdownMenuItem className="hover:bg-[#404040] focus:bg-[#404040] rounded-[5px] cursor-pointer hover:text-white focus:text-white">
+                    <DropdownMenuItem 
+                      className="hover:bg-[#404040] focus:bg-[#404040] rounded-[5px] cursor-pointer hover:text-white focus:text-white"
+                      onClick={() => handleViewRescueForm(row.original)}
+                    >
                       <Info className="mr-2 h-4 w-4 text-white" />
                       <span className="text-xs">View Rescue Form</span>
                     </DropdownMenuItem>
@@ -369,11 +454,21 @@ export function ReportsTable({
                       <FileText className="h-4 w-4 mr-2" />
                       {isGeneratingPdf ? "Generating..." : "Generate Report"}
                     </DropdownMenuItem>
-                    <DropdownMenuItem className="hover:bg-[#404040] focus:bg-[#404040] rounded-[5px] cursor-pointer hover:text-white focus:text-white">
+                    <DropdownMenuItem 
+                      className="hover:bg-[#404040] focus:bg-[#404040] rounded-[5px] cursor-pointer hover:text-white focus:text-white"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        handleViewNeighborhoodInfo(row.original);
+                      }}
+                      disabled={loadingCommunityData}
+                    >
                       <Info className="h-4 w-4 mr-2" />
-                      View Neighborhood Info
+                      {loadingCommunityData ? "Loading..." : "View Neighborhood Info"}
                     </DropdownMenuItem>
-                    <DropdownMenuItem className="hover:bg-[#404040] focus:bg-[#404040] rounded-[5px] cursor-pointer hover:text-white focus:text-white">
+                    <DropdownMenuItem 
+                      className="hover:bg-[#404040] focus:bg-[#404040] rounded-[5px] cursor-pointer hover:text-white focus:text-white"
+                      onClick={() => handleViewRescueForm(row.original)}
+                    >
                       <Info className="h-4 w-4 mr-2" />
                       View Rescue Form
                     </DropdownMenuItem>
@@ -400,11 +495,21 @@ export function ReportsTable({
                       <Pencil className="mr-2 h-4 w-4 text-white" />
                       <span className="text-xs">Create Post Rescue Form</span>
                     </DropdownMenuItem>
-                    <DropdownMenuItem className="hover:bg-[#404040] focus:bg-[#404040] rounded-[5px] cursor-pointer hover:text-white focus:text-white">
+                    <DropdownMenuItem 
+                      className="hover:bg-[#404040] focus:bg-[#404040] rounded-[5px] cursor-pointer hover:text-white focus:text-white"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        handleViewNeighborhoodInfo(row.original);
+                      }}
+                      disabled={loadingCommunityData}
+                    >
                       <Info className="mr-2 h-4 w-4 text-white" />
-                      <span className="text-xs">View Neighborhood Info</span>
+                      <span className="text-xs">{loadingCommunityData ? "Loading..." : "View Neighborhood Info"}</span>
                     </DropdownMenuItem>
-                    <DropdownMenuItem className="hover:bg-[#404040] focus:bg-[#404040] rounded-[5px] cursor-pointer hover:text-white focus:text-white">
+                    <DropdownMenuItem 
+                      className="hover:bg-[#404040] focus:bg-[#404040] rounded-[5px] cursor-pointer hover:text-white focus:text-white"
+                      onClick={() => handleViewRescueForm(row.original)}
+                    >
                       <Info className="mr-2 h-4 w-4 text-white" />
                       <span className="text-xs">View Rescue Form</span>
                     </DropdownMenuItem>
@@ -434,61 +539,57 @@ export function ReportsTable({
   });
 
   return (
-    <div
-      className={`w-full h-full flex flex-col overflow-hidden min-h-0 ${isCompleted ? "max-h-full overflow-hidden" : ""}`}
-    >
-      <div className="bg-[#191818] rounded-[5px] border border-[#262626] flex-1 min-h-0 flex flex-col overflow-hidden">
+    <div className="flex flex-col w-full h-full overflow-hidden">
+      <div className="bg-[#191818] rounded-[5px] border border-[#262626] flex flex-col h-full overflow-hidden">
         {/* Fixed Header */}
-        <div className="flex-shrink-0">
-          <div className="w-full overflow-x-hidden">
-            <table className="w-full caption-bottom text-sm overflow-hidden table-fixed min-w-[1100px]">
-              <colgroup>
-                <col className="col-emergency-id" />
-                <col className="col-community-name" />
-                <col className="col-alert-type" />
-                <col className="col-dispatcher" />
-                <col className="col-datetime" />
-                {isCompleted && <col className="col-accomplished" />}
-                <col className="col-address" />
-                <col className="col-actions" />
-              </colgroup>
-              <TableHeader>
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <TableRow
-                    key={headerGroup.id}
-                    className="bg-white border-b border-[#404040] hover:bg-white"
-                  >
-                    {headerGroup.headers.map((header, index) => {
-                      const isFirst = index === 0;
-                      const isLast = index === headerGroup.headers.length - 1;
+        <div className="shrink-0">
+          <table className="w-full caption-bottom text-sm table-fixed min-w-[1100px]">
+            <colgroup>
+              <col className="col-emergency-id" />
+              <col className="col-community-name" />
+              <col className="col-alert-type" />
+              <col className="col-dispatcher" />
+              <col className="col-datetime" />
+              {isCompleted && <col className="col-accomplished" />}
+              <col className="col-address" />
+              <col className="col-actions" />
+            </colgroup>
+            <TableHeader>
+              {table.getHeaderGroups().map((headerGroup) => (
+                <TableRow
+                  key={headerGroup.id}
+                  className="bg-white border-b border-[#404040] hover:bg-white"
+                >
+                  {headerGroup.headers.map((header, index) => {
+                    const isFirst = index === 0;
+                    const isLast = index === headerGroup.headers.length - 1;
 
-                      return (
-                        <TableHead
-                          key={header.id}
-                          className={`text-black font-medium px-2 py-2 ${
-                            isFirst ? "rounded-tl-[5px]" : ""
-                          } ${isLast ? "rounded-tr-[5px]" : ""}`}
-                        >
-                          {header.isPlaceholder
-                            ? null
-                            : typeof header.column.columnDef.header ===
-                                "function"
-                              ? header.column.columnDef.header(
-                                  header.getContext(),
-                                )
-                              : header.column.columnDef.header}
-                        </TableHead>
-                      );
-                    })}
-                  </TableRow>
-                ))}
-              </TableHeader>
-            </table>
-          </div>
+                    return (
+                      <TableHead
+                        key={header.id}
+                        className={`text-black font-medium px-2 py-2 ${
+                          isFirst ? "rounded-tl-[5px]" : ""
+                        } ${isLast ? "rounded-tr-[5px]" : ""}`}
+                      >
+                        {header.isPlaceholder
+                          ? null
+                          : typeof header.column.columnDef.header ===
+                              "function"
+                            ? header.column.columnDef.header(
+                                header.getContext(),
+                              )
+                            : header.column.columnDef.header}
+                      </TableHead>
+                    );
+                  })}
+                </TableRow>
+              ))}
+            </TableHeader>
+          </table>
         </div>
 
         {/* Scrollable Body */}
-        <div className="flex-1 overflow-y-auto overflow-x-auto min-h-0 reports-table-scrollable">
+        <div className="flex-1 min-h-0 reports-table-scrollable">
           <table className="w-full caption-bottom text-sm table-fixed min-w-[1100px]">
             <colgroup>
               <col className="col-emergency-id" />
@@ -529,12 +630,9 @@ export function ReportsTable({
             </TableBody>
           </table>
         </div>
-      </div>
 
-      {/* Pagination */}
-      <div
-        className={`flex-shrink-0 flex items-center justify-between space-x-2 py-2 px-1 ${isCompleted ? "py-1" : "py-2"}`}
-      >
+        {/* Pagination */}
+        <div className="shrink-0 flex items-center justify-between px-3 py-2 border-t border-[#262626] bg-[#191818]">
         <div className="text-sm text-[#a1a1a1]">
           Showing {table.getFilteredRowModel().rows.length} report(s).
         </div>
@@ -644,6 +742,7 @@ export function ReportsTable({
           </div>
         </div>
       </div>
+      </div>
 
       {/* Rescue Completion Form */}
       <RescueCompletionForm
@@ -670,6 +769,20 @@ export function ReportsTable({
               }
             : undefined
         }
+      />
+
+      {/* Community Group Info Sheet */}
+      <CommunityGroupInfoSheet
+        open={communityInfoOpen}
+        onOpenChange={setCommunityInfoOpen}
+        communityData={communityData}
+      />
+
+      {/* Rescue Form Info Sheet */}
+      <RescueFormInfoSheet
+        open={rescueFormInfoOpen}
+        onOpenChange={setRescueFormInfoOpen}
+        emergencyId={selectedEmergencyId}
       />
     </div>
   );

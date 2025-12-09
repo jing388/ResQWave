@@ -1,25 +1,36 @@
 .reports-table-scrollable {
+  overflow: auto;
   scrollbar-width: thin;
-  scrollbar-color: #707070 #171717;
+  scrollbar-color: #707070 #262626;
 }
 
 .reports-table-scrollable::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
 }
 
 .reports-table-scrollable::-webkit-scrollbar-track {
-  background: #262626;
-  border-radius: 4px;
+  background: #1a1a1a;
+  border-radius: 5px;
 }
 
 .reports-table-scrollable::-webkit-scrollbar-thumb {
-  background: #262626;
-  border-radius: 4px;
+  background: #707070;
+  border-radius: 5px;
+  border: 2px solid #1a1a1a;
 }
 
 .reports-table-scrollable::-webkit-scrollbar-thumb:hover {
-  background: #262626;
+  background: #8a8a8a;
+}
+
+.reports-table-scrollable::-webkit-scrollbar-corner {
+  background: #1a1a1a;
+}
+
+/* Fix for table overflow - prevents content from breaking layout */
+.reports-table-scrollable table {
+  word-break: break-word;
 }
 
 /* Column width classes for table alignment */
