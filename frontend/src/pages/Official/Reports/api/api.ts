@@ -129,6 +129,9 @@ export interface PendingReport {
   rescueStatus: string;
   createdAt: string;
   address: string;
+  coordinates?: string;
+  neighborhoodId?: string;
+  focalPersonName?: string;
 }
 
 export interface CompletedReport {
@@ -140,6 +143,18 @@ export interface CompletedReport {
   createdAt: string;
   completedAt: string;
   address: string;
+}
+
+export interface ArchivedReport {
+  emergencyId: string;
+  terminalName: string;
+  focalFirstName: string;
+  focalLastName: string;
+  dateTimeOccurred: string;
+  alertType: string;
+  houseAddress: string;
+  dispatchedName: string;
+  completionDate: string;
 }
 
 export async function fetchPendingReports(
@@ -178,6 +193,24 @@ export async function fetchCompletedReports(
   return apiFetch<CompletedReport[]>(url, options);
 }
 
+export async function fetchArchivedReports(
+  refresh = false,
+): Promise<ArchivedReport[]> {
+  let url = refresh ? "/post/archived?refresh=true" : "/post/archived";
+  if (refresh) {
+    url += `&t=${Date.now()}`; // Add timestamp to prevent browser caching
+  }
+  const options = refresh
+    ? {
+        headers: {
+          "Cache-Control": "no-cache",
+          Pragma: "no-cache",
+        },
+      }
+    : {};
+  return apiFetch<ArchivedReport[]>(url, options);
+}
+
 export async function clearReportsCache(): Promise<unknown> {
   return apiFetch("/post/cache", {
     method: "DELETE",
@@ -188,13 +221,37 @@ export async function createPostRescueForm(
   alertId: string,
   data: {
     noOfPersonnelDeployed: number;
-    resourcesUsed: string;
+    resourcesUsed: { name: string; quantity: number }[];
     actionTaken: string;
   },
 ): Promise<unknown> {
   return apiFetch(`/post/${alertId}`, {
     method: "POST",
     body: JSON.stringify(data),
+  });
+}
+
+export async function archivePostRescueForm(
+  alertId: string,
+): Promise<unknown> {
+  return apiFetch(`/post/archive/${alertId}`, {
+    method: "DELETE",
+  });
+}
+
+export async function restorePostRescueForm(
+  alertId: string,
+): Promise<unknown> {
+  return apiFetch(`/post/restore/${alertId}`, {
+    method: "POST",
+  });
+}
+
+export async function deletePostRescueForm(
+  alertId: string,
+): Promise<unknown> {
+  return apiFetch(`/post/delete/${alertId}`, {
+    method: "DELETE",
   });
 }
 
@@ -235,7 +292,7 @@ export interface DetailedReportData {
   rescueFormId: string;
   postRescueFormId: string;
   noOfPersonnelDeployed: string;
-  resourcesUsed: string;
+  resourcesUsed: { name: string; quantity: number }[] | string;
   actionTaken: string;
   rescueCompletionTime: string;
 }

@@ -1,52 +1,71 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs-focal";
 import { useAuth } from "@/contexts/AuthContext";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ReportsTable } from "./components";
-import type { TransformedCompletedReport } from "./hooks/useReports";
+import ReportAlerts, { type ReportAlertsHandle } from "./components/ReportAlerts";
 import { useReports } from "./hooks/useReports";
 
 export function Reports() {
   const { isAdmin } = useAuth();
   const [activeTab, setActiveTab] = useState("completed");
-  const [archivedReports, setArchivedReports] = useState<
-    TransformedCompletedReport[]
-  >([]);
+  const alertsRef = useRef<ReportAlertsHandle>(null);
   const {
     pendingReports,
     completedReports,
+    archivedReports,
     loading,
     error,
+    archiveReport,
+    restoreReport,
+    deleteReport,
     refreshAllReports,
   } = useReports();
 
-  // Archive function (frontend-only for now)
-  const handleArchive = (reportId: string) => {
-    const reportToArchive = completedReports.find(
-      (report) => report.emergencyId === reportId
-    );
-    if (reportToArchive) {
-      setArchivedReports((prev) => [...prev, reportToArchive]);
-      // In a real implementation, this would call an API to archive the report
-      refreshAllReports(); // This would remove it from completed reports
+  // Archive function - now calls backend
+  const handleArchive = async (reportId: string) => {
+    try {
+      await archiveReport(reportId);
+      alertsRef.current?.showArchiveSuccess(reportId);
+      // Switch to archive tab to show the archived report
+      setActiveTab("archive");
+      // refreshAllReports is called automatically in archiveReport
+    } catch (err) {
+      console.error("Failed to archive report:", err);
+      alertsRef.current?.showError(
+        err instanceof Error ? err.message : "Failed to archive report"
+      );
     }
   };
 
   // Restore function
-  const handleRestore = (reportId: string) => {
-    setArchivedReports((prev) =>
-      prev.filter((report) => report.emergencyId !== reportId)
-    );
-    // In a real implementation, this would call an API to restore the report
-    refreshAllReports();
+  const handleRestore = async (reportId: string) => {
+    try {
+      await restoreReport(reportId);
+      alertsRef.current?.showRestoreSuccess(reportId);
+      // Switch to completed tab to show the restored report
+      setActiveTab("completed");
+    } catch (err) {
+      console.error("Failed to restore report:", err);
+      alertsRef.current?.showError(
+        err instanceof Error ? err.message : "Failed to restore report"
+      );
+    }
   };
 
-  // Delete function
-  const handleDelete = (reportId: string) => {
-    setArchivedReports((prev) =>
-      prev.filter((report) => report.emergencyId !== reportId)
-    );
-    // In a real implementation, this would call an API to permanently delete the report
+  // Delete function with confirmation
+  const handleDelete = async (reportId: string) => {
+    alertsRef.current?.showDeleteConfirmation(reportId, async () => {
+      try {
+        await deleteReport(reportId);
+        alertsRef.current?.showDeleteSuccess(reportId);
+      } catch (err) {
+        console.error("Failed to delete report:", err);
+        alertsRef.current?.showError(
+          err instanceof Error ? err.message : "Failed to delete report"
+        );
+      }
+    });
   };
 
   return (
@@ -175,6 +194,7 @@ export function Reports() {
           </Card>
         </div>
       )}
+      <ReportAlerts ref={alertsRef} />
     </div>
   );
 }

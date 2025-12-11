@@ -16,7 +16,14 @@ interface RescueCompletionFormProps {
     dispatcher: string;
     dateTimeOccurred: string;
     address: string;
+    terminalName?: string;
+    coordinates?: string;
   };
+}
+
+interface Resource {
+  name: string;
+  quantity: number;
 }
 
 export function RescueCompletionForm({
@@ -26,7 +33,7 @@ export function RescueCompletionForm({
   emergencyData,
 }: RescueCompletionFormProps) {
   const [personnelDeployed, setPersonnelDeployed] = useState<number>(0);
-  const [resources, setResources] = useState<string[]>([]);
+  const [resources, setResources] = useState<Resource[]>([]);
   const [actions, setActions] = useState<string[]>([]);
   const [showResourceInput, setShowResourceInput] = useState(false);
   const [showActionInput, setShowActionInput] = useState(false);
@@ -37,7 +44,7 @@ export function RescueCompletionForm({
 
   const addResource = () => {
     if (showResourceInput && newResource.trim()) {
-      setResources([...resources, newResource.trim()]);
+      setResources([...resources, { name: newResource.trim(), quantity: 1 }]);
       setNewResource("");
       // Keep the input field open for adding more resources
     } else {
@@ -47,6 +54,13 @@ export function RescueCompletionForm({
 
   const removeResource = (index: number) => {
     setResources(resources.filter((_, i) => i !== index));
+  };
+
+  const updateResourceQuantity = (index: number, quantity: number) => {
+    if (quantity < 1) return; // Prevent quantity from going below 1
+    const updatedResources = [...resources];
+    updatedResources[index].quantity = quantity;
+    setResources(updatedResources);
   };
 
   const addAction = () => {
@@ -90,7 +104,7 @@ export function RescueCompletionForm({
     try {
       await createPostRescueForm(emergencyData.emergencyId, {
         noOfPersonnelDeployed: personnelDeployed,
-        resourcesUsed: resources.join(", "),
+        resourcesUsed: resources,
         actionTaken: actions.join(", "),
       });
 
@@ -156,46 +170,73 @@ export function RescueCompletionForm({
           )}
 
           {/* Emergency Information Section */}
-          <div className="mb-6 pt-6">
+          <div className="mb-6 pt-4">
             {/* Title with white background */}
             <div className="bg-white rounded-[5px] p-4 mb-4">
-              <h3 className="text-black font-medium">Emergency Information</h3>
+              <h3 className="text-black font-medium text-sm">Emergency Information</h3>
             </div>
 
-            {/* Content with sheet background */}
-            <div className="space-y-0">
-              <div className="flex justify-between items-center py-3 border-b border-[#2a2a2a] last:border-b-0">
-                <span className="text-gray-400 font-medium text-sm">
-                  EMERGENCY ID
+            {/* Content with alternating backgrounds */}
+            <div className="space-y-2">
+              <div className="flex justify-between items-center bg-[#1d1d1d] px-4 py-4 rounded-[5px]">
+                <span className="text-white/80 text-sm">
+                  Emergency ID
                 </span>
-                <span className="text-white font-medium">
+                <span className="text-white text-sm">
                   {emergencyData?.emergencyId || "N/A"}
                 </span>
               </div>
 
-              <div className="flex justify-between items-center py-3 border-b border-[#2a2a2a] last:border-b-0">
-                <span className="text-gray-400 font-medium text-sm">
-                  NEIGHBORHOOD ID
+              <div className="flex justify-between items-center bg-[#171717] px-4 py-4 rounded-[5px]">
+                <span className="text-white/80 text-sm">
+                  Neighborhood ID
                 </span>
-                <span className="text-white font-medium">
+                <span className="text-white text-sm">
                   {emergencyData?.neighborhoodId ||
                     emergencyData?.communityName ||
                     "N/A"}
                 </span>
               </div>
 
-              <div className="flex justify-between items-center py-3 border-b border-[#2a2a2a] last:border-b-0">
-                <span className="text-gray-400 font-medium text-sm">
-                  FOCAL PERSON
+              <div className="flex justify-between items-center bg-[#1d1d1d] px-4 py-4 rounded-[5px]">
+                <span className="text-white/80 text-sm">
+                  Focal Person
                 </span>
-                <span className="text-white font-medium">
+                <span className="text-white text-sm">
                   {emergencyData?.focalPersonName || "N/A"}
                 </span>
               </div>
 
-              <div className="flex justify-between items-center py-3 border-b border-[#2a2a2a] last:border-b-0">
-                <span className="text-gray-400 font-medium text-sm">
-                  ALERT TYPE
+              <div className="flex justify-between items-center bg-[#171717] px-4 py-4 rounded-[5px]">
+                <span className="text-white/80 text-sm">
+                  Terminal Name
+                </span>
+                <span className="text-white text-sm">
+                  {emergencyData?.terminalName || "N/A"}
+                </span>
+              </div>
+
+              <div className="flex justify-between items-center bg-[#1d1d1d] px-4 py-4 rounded-[5px]">
+                <span className="text-white/80 text-sm">
+                  Terminal Address
+                </span>
+                <span className="text-white text-sm text-right">
+                  {emergencyData?.address || "N/A"}
+                </span>
+              </div>
+
+              <div className="flex justify-between items-center bg-[#171717] px-4 py-4 rounded-[5px]">
+                <span className="text-white/80 text-sm">
+                  Terminal Coordinates
+                </span>
+                <span className="text-white text-sm">
+                  {emergencyData?.coordinates || "N/A"}
+                </span>
+              </div>
+
+              <div className="flex justify-between items-center bg-[#1d1d1d] px-4 py-4 rounded-[5px]">
+                <span className="text-white/80 text-sm">
+                  Alert Type
                 </span>
                 <div
                   className={`px-2 py-1 border rounded text-xs font-medium ${
@@ -211,21 +252,13 @@ export function RescueCompletionForm({
                 </div>
               </div>
 
-              <div className="flex justify-between items-center py-3">
-                <span className="text-gray-400 font-medium text-sm">
-                  HOUSE ADDRESS
-                </span>
-                <span className="text-white font-medium">
-                  {emergencyData?.address || "N/A"}
-                </span>
-              </div>
             </div>
           </div>
 
           {/* Post Rescue Operation Report Section */}
           <div className="mb-6">
             {/* Title with white background */}
-            <div className="bg-white rounded-[5px] p-4 mb-4">
+            <div className="bg-white rounded-[5px] p-3 mb-4">
               <h3 className="text-black font-medium">
                 Post Rescue Operation Report
               </h3>
@@ -240,12 +273,12 @@ export function RescueCompletionForm({
                 </label>
                 <div className="relative">
                   <input
+                    type="text"
                     value={personnelDeployed}
                     onChange={(e) =>
                       setPersonnelDeployed(parseInt(e.target.value) || 0)
                     }
-                    className="w-full bg-[#2a2a2a] border border-[#3a3a3a] text-white px-3 py-3 rounded text-sm focus:border-blue-500 focus:outline-none pr-8"
-                    min="0"
+                    className="w-full bg-[#171717] border border-[#3a3a3a] text-white px-3 py-3 rounded text-sm focus:border-blue-500 focus:outline-none pr-8"
                     title="Number of personnel deployed"
                   />
                   <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
@@ -282,15 +315,63 @@ export function RescueCompletionForm({
                   {resources.map((resource, index) => (
                     <div
                       key={index}
-                      className="flex items-center justify-between bg-[#2a2a2a] rounded-[5px] p-3 border border-[#3a3a3a]"
+                      className="flex items-center gap-2"
                     >
-                      <span className="text-white">{resource}</span>
+                      <input
+                        type="text"
+                        value={resource.name}
+                        readOnly
+                        title="Resource name"
+                        className="flex-1 bg-[#171717] border border-[#3a3a3a] text-white px-3 py-3 rounded text-sm focus:border-blue-500 focus:outline-none"
+                      />
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={resource.quantity}
+                          onChange={(e) =>
+                            updateResourceQuantity(
+                              index,
+                              parseInt(e.target.value) || 1
+                            )
+                          }
+                          title="Resource quantity"
+                          className="w-24 bg-[#171717] border border-[#3a3a3a] text-white px-3 py-3 rounded text-sm text-center focus:border-blue-500 focus:outline-none pr-8"
+                        />
+                        <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
+                          <div className="flex flex-col gap-0.5">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updateResourceQuantity(
+                                  index,
+                                  resource.quantity + 1
+                                )
+                              }
+                              className="text-gray-400 hover:text-gray-300 text-xs leading-none"
+                            >
+                              ▲
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updateResourceQuantity(
+                                  index,
+                                  resource.quantity - 1
+                                )
+                              }
+                              className="text-gray-400 hover:text-gray-300 text-xs leading-none"
+                            >
+                              ▼
+                            </button>
+                          </div>
+                        </div>
+                      </div>
                       <button
                         onClick={() => removeResource(index)}
-                        className="text-red-400 hover:text-red-300 hover:bg-red-500/10 h-6 w-6 rounded flex items-center justify-center"
+                        className="bg-[#171717] border border-[#3a3a3a] text-gray-400 hover:text-red-400 hover:border-red-400 transition-colors rounded p-3"
                         title="Remove resource"
                       >
-                        <X className="h-3 w-3" />
+                        <X className="h-4 w-4" />
                       </button>
                     </div>
                   ))}
@@ -298,16 +379,16 @@ export function RescueCompletionForm({
 
                 {/* Resource Input Field */}
                 {showResourceInput && (
-                  <div className="space-y-2 mb-4">
-                    <textarea
+                  <div className="flex items-center gap-2 mb-4">
+                    <input
+                      type="text"
                       value={newResource}
                       onChange={(e) => setNewResource(e.target.value)}
                       placeholder="Enter resource name..."
-                      className="w-full bg-[#2a2a2a] text-white px-3 py-3 rounded text-sm border border-[#3a3a3a] resize-none focus:border-blue-500 focus:outline-none"
-                      rows={3}
+                      className="flex-1 bg-[#171717] border border-[#3a3a3a] text-white px-3 py-3 rounded text-sm focus:border-blue-500 focus:outline-none"
                       autoFocus
                       onKeyPress={(e) => {
-                        if (e.key === "Enter" && !e.shiftKey) {
+                        if (e.key === "Enter") {
                           e.preventDefault();
                           addResource();
                         }
@@ -319,19 +400,46 @@ export function RescueCompletionForm({
                         }
                       }}
                       onBlur={() => {
-                        // Only close if clicking outside and input is empty
-                        if (!newResource.trim()) {
+                        // Auto-add resource when user clicks away if there's input
+                        if (newResource.trim()) {
+                          addResource();
+                        } else {
                           setShowResourceInput(false);
                         }
                       }}
                     />
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={1}
+                        readOnly
+                        title="Default quantity"
+                        className="w-24 bg-[#171717] border border-[#3a3a3a] text-white px-3 py-3 rounded text-sm text-center focus:border-blue-500 focus:outline-none pr-8"
+                      />
+                      <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-gray-400 text-xs leading-none">▲</span>
+                          <span className="text-gray-400 text-xs leading-none">▼</span>
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setShowResourceInput(false);
+                        setNewResource("");
+                      }}
+                      className="bg-[#171717] border border-[#3a3a3a] text-gray-400 hover:text-red-400 hover:border-red-400 transition-colors rounded p-3"
+                      title="Cancel adding resource"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
                   </div>
                 )}
 
                 {/* Add Resource Button */}
                 <button
                   onClick={addResource}
-                  className="w-full bg-[#2a2a2a] border border-[#3a3a3a] text-gray-300 hover:bg-[#333333] hover:text-white flex items-center justify-center gap-2 py-6 rounded text-sm transition-colors"
+                  className="w-full bg-[#2a2a2a] border border-[#3a3a3a] text-gray-300 hover:bg-[#333333] hover:text-white flex items-center justify-center gap-2 py-3 rounded text-sm transition-colors"
                 >
                   + Add resource
                 </button>
@@ -348,12 +456,12 @@ export function RescueCompletionForm({
                   {actions.map((action, index) => (
                     <div
                       key={index}
-                      className="flex items-center justify-between bg-[#2a2a2a] rounded-[5px] p-3 border border-[#3a3a3a]"
+                      className="flex items-center justify-between bg-[#171717] rounded-[5px] p-3 border border-[#3a3a3a]"
                     >
                       <span className="text-white">{action}</span>
                       <button
                         onClick={() => removeAction(index)}
-                        className="text-red-400 hover:text-red-300 hover:bg-red-500/10 h-6 w-6 rounded flex items-center justify-center"
+                        className="text-[#3a3a3a] hover:text-red-400 h-6 w-6 rounded flex items-center justify-center transition-colors"
                         title="Remove action"
                       >
                         <X className="h-3 w-3" />
@@ -369,7 +477,7 @@ export function RescueCompletionForm({
                       value={newAction}
                       onChange={(e) => setNewAction(e.target.value)}
                       placeholder="Enter action description..."
-                      className="w-full bg-[#2a2a2a] text-white px-3 py-3 rounded text-sm border border-[#3a3a3a] resize-none focus:border-blue-500 focus:outline-none"
+                      className="w-full bg-[#171717] text-white px-3 py-3 rounded text-sm border border-[#3a3a3a] resize-none focus:border-blue-500 focus:outline-none"
                       rows={3}
                       autoFocus
                       onKeyPress={(e) => {
@@ -385,8 +493,10 @@ export function RescueCompletionForm({
                         }
                       }}
                       onBlur={() => {
-                        // Only close if clicking outside and input is empty
-                        if (!newAction.trim()) {
+                        // Auto-add action when user clicks away if there's input
+                        if (newAction.trim()) {
+                          addAction();
+                        } else {
                           setShowActionInput(false);
                         }
                       }}
@@ -397,7 +507,7 @@ export function RescueCompletionForm({
                 {/* Add Action Button */}
                 <button
                   onClick={addAction}
-                  className="w-full bg-[#2a2a2a] border border-[#3a3a3a] text-gray-300 hover:bg-[#333333] hover:text-white flex items-center justify-center gap-2 py-6 rounded text-sm transition-colors"
+                  className="w-full bg-[#2a2a2a] border border-[#3a3a3a] text-gray-300 hover:bg-[#333333] hover:text-white flex items-center justify-center gap-2 py-3 rounded text-sm transition-colors"
                 >
                   + Add action
                 </button>

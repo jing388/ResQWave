@@ -34,6 +34,7 @@ const createPostRescueForm = async (req, res) => {
         if (existing) return res.status(400).json({message: "Post Rescue Form Already Exists"});
 
         // Create the Post Rescue Form
+        // TypeORM with JSON type will automatically handle serialization
         const newForm = postRescueRepo.create({
             alertID,
             noOfPersonnelDeployed,
@@ -92,6 +93,7 @@ const getCompletedReports = async (req, res) => {
       .leftJoin("Dispatcher", "dispatcher", "dispatcher.id = rescueForm.dispatcherID")
       .leftJoin("PostRescueForm", "prf", "prf.alertID = alert.id")
       .where("rescueForm.status = :status", { status: "Completed" })
+      .andWhere("(prf.archived IS NULL OR prf.archived = :archived)", { archived: false })
       .select([
         "alert.id AS alertId",
         "terminal.name AS terminalName",
@@ -148,14 +150,45 @@ const getPendingReports = async (req, res) => {
         "rescueForm.status AS rescueStatus",
         "alert.dateTimeSent AS createdAt",
         "fp.address AS address",
+        "n.id AS neighborhoodId",
+        "fp.firstName AS focalFirstName",
+        "fp.lastName AS focalLastName",
       ])
       .orderBy("alert.dateTimeSent", "ASC")
       .getRawMany();
 
+    // Parse address and extract coordinates from each report
+    const reportsWithCoordinates = pending.map(report => {
+      let coordinates = "N/A";
+      let houseAddress = "N/A";
+      
+      if (report.address) {
+        try {
+          const parsedAddress = JSON.parse(report.address);
+          if (parsedAddress.coordinates) {
+            coordinates = parsedAddress.coordinates;
+          }
+          if (parsedAddress.address) {
+            houseAddress = parsedAddress.address;
+          }
+        } catch (e) {
+          // If parsing fails, use the raw address
+          houseAddress = report.address;
+        }
+      }
+      
+      return {
+        ...report,
+        address: houseAddress,
+        coordinates: coordinates,
+        focalPersonName: [report.focalFirstName, report.focalLastName].filter(Boolean).join(" ") || "N/A",
+      };
+    });
+
     // Update cache with fresh data (balanced TTL for responsiveness)
-    await setCache(cacheKey, pending, 1); // 1 minute cache like terminals
+    await setCache(cacheKey, reportsWithCoordinates, 1); // 1 minute cache like terminals
     res.set('Cache-Control', 'public, max-age=1');
-    res.json(pending);
+    res.json(reportsWithCoordinates);
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server Error" });
@@ -819,6 +852,41 @@ const archivePostRescueForm = async (req, res) => {
     }
 };
 
+// RESTORE POST RESCUE FORM
+const restorePostRescueForm = async (req, res) => {
+    try {
+        const { alertID } = req.params;
+
+        const form = await postRescueRepo.findOne({ where: { alertID } });
+        if (!form) {
+            return res.status(404).json({ message: "Post Rescue Form Not Found" });
+        }
+
+        form.archived = false;
+        await postRescueRepo.save(form);
+
+        // Cache invalidation
+        await deleteCache("completedReports");
+        await deleteCache("pendingReports");
+        await deleteCache("rescueForms:all");
+        await deleteCache(`rescueForm:${form.id}`);
+        await deleteCache(`alert:${alertID}`);
+        await deleteCache("aggregatedReports:all");
+        await deleteCache("aggregatedPRF:all");
+        await deleteCache(`rescueAggregatesBasic:all`);
+        await deleteCache(`rescueAggregatesBasic:${alertID}`);
+        await deleteCache(`aggregatedReports:${alertID}`);
+        await deleteCache(`aggregatedPRF:${alertID}`);
+        await deleteCache("archivedPRF:all");
+        await deleteCache(`archivedPRF:${alertID}`);
+
+        return res.json({ message: "Post Rescue Form Restored Successfully" });
+    } catch (err) {
+        console.error(err);
+        return res.status(500).json({ message: "Server Error" });
+    }
+};
+
 // GET Archived Post Rescue Forms
 const getArchivedPostRescueForm = async (req, res) => {
     try {
@@ -830,6 +898,7 @@ const getArchivedPostRescueForm = async (req, res) => {
         let qb = postRescueRepo
             .createQueryBuilder("prf")
             .leftJoin("prf.alerts", "alert")
+            .leftJoin("alert.terminal", "terminal")
             .leftJoin("rescueforms", "rf", "rf.emergencyID = alert.id")
             .leftJoin("focalpersons", "fp", "fp.id = rf.focalPersonID")
             .leftJoin("dispatchers", "dispatcher", "dispatcher.id = rf.dispatcherID")
@@ -842,6 +911,7 @@ const getArchivedPostRescueForm = async (req, res) => {
         const rows = await qb
             .select([
                 "rf.emergencyID AS emergencyId",
+                "terminal.name AS terminalName",
                 "alert.terminalID AS terminalId",
                 "fp.firstName AS focalFirstName",
                 "fp.lastName AS focalLastName",
@@ -862,6 +932,41 @@ const getArchivedPostRescueForm = async (req, res) => {
     }
 };
 
+// DELETE Post Rescue Form Permanently
+const deletePostRescueForm = async (req, res) => {
+    try {
+        const { alertID } = req.params;
+
+        const form = await postRescueRepo.findOne({ where: { alertID } });
+        if (!form) {
+            return res.status(404).json({ message: "Post Rescue Form Not Found" });
+        }
+
+        // Permanently delete the post rescue form
+        await postRescueRepo.remove(form);
+
+        // Cache invalidation
+        await deleteCache("completedReports");
+        await deleteCache("pendingReports");
+        await deleteCache("rescueForms:all");
+        await deleteCache(`rescueForm:${form.id}`);
+        await deleteCache(`alert:${alertID}`);
+        await deleteCache("aggregatedReports:all");
+        await deleteCache("aggregatedPRF:all");
+        await deleteCache(`rescueAggregatesBasic:all`);
+        await deleteCache(`rescueAggregatesBasic:${alertID}`);
+        await deleteCache(`aggregatedReports:${alertID}`);
+        await deleteCache(`aggregatedPRF:${alertID}`);
+        await deleteCache("archivedPRF:all");
+        await deleteCache(`archivedPRF:${alertID}`);
+
+        return res.json({ message: "Post Rescue Form Deleted Permanently" });
+    } catch (err) {
+        console.error(err);
+        return res.status(500).json({ message: "Server Error" });
+    }
+};
+
 module.exports = {
   createPostRescueForm,
   getCompletedReports,
@@ -874,5 +979,7 @@ module.exports = {
   getAlertTypeChartData,
   getDetailedReportData,
   archivePostRescueForm,
+  restorePostRescueForm,
   getArchivedPostRescueForm,
+  deletePostRescueForm,
 };

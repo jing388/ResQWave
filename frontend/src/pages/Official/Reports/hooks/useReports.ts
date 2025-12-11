@@ -1,7 +1,12 @@
 import {
+    archivePostRescueForm as apiArchivePostRescueForm,
+    deletePostRescueForm as apiDeletePostRescueForm,
+    fetchArchivedReports as apiFetchArchivedReports,
     fetchCompletedReports as apiFetchCompletedReports,
     fetchPendingReports as apiFetchPendingReports,
+    restorePostRescueForm as apiRestorePostRescueForm,
     clearReportsCache,
+    type ArchivedReport,
     type CompletedReport,
     type PendingReport,
 } from "@/pages/Official/Reports/api/api";
@@ -16,10 +21,18 @@ export interface TransformedPendingReport {
   dispatcher: string;
   dateTimeOccurred: string;
   address: string;
+  terminalName?: string;
+  coordinates?: string;
+  neighborhoodId?: string;
+  focalPersonName?: string;
 }
 
 export interface TransformedCompletedReport extends TransformedPendingReport {
   accomplishedOn: string;
+}
+
+export interface TransformedArchivedReport extends TransformedCompletedReport {
+  // Same structure as completed report since archived reports have the same columns
 }
 
 // Helper function to format date and time in shorter version
@@ -54,6 +67,10 @@ const transformPendingReport = (
     dispatcher: report.dispatcherName,
     dateTimeOccurred: formatDateTime(report.createdAt),
     address: extractAddress(report.address),
+    terminalName: report.terminalName,
+    coordinates: report.coordinates,
+    neighborhoodId: report.neighborhoodId,
+    focalPersonName: report.focalPersonName,
   };
 };
 
@@ -71,12 +88,29 @@ const transformCompletedReport = (
   };
 };
 
+const transformArchivedReport = (
+  report: ArchivedReport,
+): TransformedArchivedReport => {
+  return {
+    emergencyId: report.emergencyId,
+    communityName: report.terminalName,
+    alertType: report.alertType,
+    dispatcher: report.dispatchedName,
+    dateTimeOccurred: formatDateTime(report.dateTimeOccurred),
+    accomplishedOn: formatDateTime(report.completionDate),
+    address: extractAddress(report.houseAddress),
+  };
+};
+
 export function useReports() {
   const [pendingReports, setPendingReports] = useState<
     TransformedPendingReport[]
   >([]);
   const [completedReports, setCompletedReports] = useState<
     TransformedCompletedReport[]
+  >([]);
+  const [archivedReports, setArchivedReports] = useState<
+    TransformedArchivedReport[]
   >([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -109,19 +143,38 @@ export function useReports() {
     }
   }, []);
 
-  // Initial data fetch - loads both pending and completed
+  // Fetch archived reports only
+  const fetchArchivedReports = useCallback(async (forceRefresh = false) => {
+    try {
+      setError(null);
+      const archivedData = await apiFetchArchivedReports(forceRefresh);
+      setArchivedReports(archivedData.map(transformArchivedReport));
+    } catch (err: unknown) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Failed to fetch archived reports",
+      );
+    }
+  }, []);
+
+  // Initial data fetch - loads pending, completed, and archived
   const fetchReportsData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-      await Promise.all([fetchPendingReports(), fetchCompletedReports()]);
+      await Promise.all([
+        fetchPendingReports(),
+        fetchCompletedReports(),
+        fetchArchivedReports(),
+      ]);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to fetch reports");
     } finally {
       setLoading(false);
     }
-  }, [fetchPendingReports, fetchCompletedReports]);
+  }, [fetchPendingReports, fetchCompletedReports, fetchArchivedReports]);
 
   // Create a new post rescue form (moves report from pending to completed)
   const createPostRescueForm = useCallback(
@@ -129,7 +182,7 @@ export function useReports() {
       alertId: string,
       formData: {
         noOfPersonnelDeployed: number;
-        resourcesUsed: string;
+        resourcesUsed: { name: string; quantity: number }[];
         actionTaken: string;
       },
     ) => {
@@ -185,6 +238,75 @@ export function useReports() {
     [pendingReports, fetchPendingReports, fetchCompletedReports],
   );
 
+  // Archive a report
+  const archiveReport = useCallback(
+    async (alertId: string) => {
+      try {
+        setError(null);
+
+        // Call the API to archive the report
+        await apiArchivePostRescueForm(alertId);
+
+        // Refresh both completed and archived reports
+        await Promise.all([
+          fetchCompletedReports(true),
+          fetchArchivedReports(true),
+        ]);
+      } catch (err: unknown) {
+        setError(
+          err instanceof Error ? err.message : "Failed to archive report",
+        );
+        throw err;
+      }
+    },
+    [fetchCompletedReports, fetchArchivedReports],
+  );
+
+  // Restore a report
+  const restoreReport = useCallback(
+    async (alertId: string) => {
+      try {
+        setError(null);
+
+        // Call the API to restore the report
+        await apiRestorePostRescueForm(alertId);
+
+        // Refresh both completed and archived reports
+        await Promise.all([
+          fetchCompletedReports(true),
+          fetchArchivedReports(true),
+        ]);
+      } catch (err: unknown) {
+        setError(
+          err instanceof Error ? err.message : "Failed to restore report",
+        );
+        throw err;
+      }
+    },
+    [fetchCompletedReports, fetchArchivedReports],
+  );
+
+  // Delete a report permanently
+  const deleteReport = useCallback(
+    async (alertId: string) => {
+      try {
+        setError(null);
+
+        // Call the API to delete the report
+        await apiDeletePostRescueForm(alertId);
+
+        // Refresh archived reports
+        await fetchArchivedReports(true);
+      } catch (err: unknown) {
+        setError(
+          err instanceof Error ? err.message : "Failed to delete report",
+        );
+        throw err;
+      }
+    },
+    [fetchArchivedReports],
+  );
+
   // Refresh all data
   const refreshAllReports = useCallback(async () => {
     setLoading(true);
@@ -192,11 +314,12 @@ export function useReports() {
       await Promise.all([
         fetchPendingReports(true), // Force refresh to bypass cache
         fetchCompletedReports(true), // Force refresh to bypass cache
+        fetchArchivedReports(true), // Force refresh to bypass cache
       ]);
     } finally {
       setLoading(false);
     }
-  }, [fetchPendingReports, fetchCompletedReports]);
+  }, [fetchPendingReports, fetchCompletedReports, fetchArchivedReports]);
 
   // Clear cache and refresh (for manual cache clearing)
   const clearCacheAndRefresh = useCallback(async () => {
@@ -217,6 +340,7 @@ export function useReports() {
     // Data
     pendingReports,
     completedReports,
+    archivedReports,
 
     // State
     loading,
@@ -224,6 +348,9 @@ export function useReports() {
 
     // Actions
     createPostRescueForm,
+    archiveReport,
+    restoreReport,
+    deleteReport,
     refreshAllReports,
     clearCacheAndRefresh,
   };

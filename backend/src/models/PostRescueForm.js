@@ -39,6 +39,7 @@ module.exports = new EntitySchema ({
         archived: {
             type: "boolean",
             default: false,
+            nullable: false
         }
     },
     relations: {

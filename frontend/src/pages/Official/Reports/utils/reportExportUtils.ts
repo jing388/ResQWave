@@ -29,7 +29,7 @@ export interface OfficialReportData {
   rescueFormId?: string;
   postRescueFormId?: string;
   noOfPersonnelDeployed?: string;
-  resourcesUsed?: string;
+  resourcesUsed?: { name: string; quantity: number }[] | string;
   actionTaken?: string;
   rescueCompletionTime?: string;
 }
@@ -250,13 +250,20 @@ export const exportOfficialReportToPdf = async (data: OfficialReportData) => {
   doc.text("Rescue Completion Details", marginLeft, y);
   y += 6;
 
+  // Format resources used for display
+  const formatResourcesUsed = (resources: { name: string; quantity: number }[] | string | undefined) => {
+    if (!resources) return "N/A";
+    if (typeof resources === "string") return resources;
+    return resources.map(r => `${r.name} (${r.quantity})`).join(", ");
+  };
+
   const rescueTable = [
     ["Field", "Value"], // Header row
     ["Rescue Form ID", String(data.rescueFormId || "N/A")],
     ["Post Rescue Form ID", String(data.postRescueFormId || "N/A")],
     ["Rescue Completion Time", String(data.rescueCompletionTime || "N/A")],
     ["No. of Personnel Deployed", String(data.noOfPersonnelDeployed || "N/A")],
-    ["Resources Used", String(data.resourcesUsed || "N/A")],
+    ["Resources Used", formatResourcesUsed(data.resourcesUsed)],
     ["Actions Taken", String(data.actionTaken || "N/A")],
   ];
 

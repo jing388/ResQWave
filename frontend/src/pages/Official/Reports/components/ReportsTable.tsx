@@ -1,33 +1,33 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
 } from "@/components/ui/select";
 import {
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
 } from "@/components/ui/table";
 import { useAuth } from "@/contexts/AuthContext";
 import {
-  getCoreRowModel,
-  getPaginationRowModel,
-  useReactTable,
-  type CellContext,
-  type ColumnDef,
+    getCoreRowModel,
+    getPaginationRowModel,
+    useReactTable,
+    type CellContext,
+    type ColumnDef,
 } from "@tanstack/react-table";
 import { Archive, ArchiveRestore, FileText, Info, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
@@ -36,9 +36,10 @@ import { CommunityGroupInfoSheet } from "../../CommunityGroups/components/Commun
 import type { CommunityGroupDetails } from "../../CommunityGroups/types";
 import { fetchDetailedReportData, type DetailedReportData } from "../api/api";
 import {
-  exportOfficialReportToPdf,
-  type OfficialReportData,
+    exportOfficialReportToPdf,
+    type OfficialReportData,
 } from "../utils/reportExportUtils";
+import { PostRescueFormInfoSheet } from "./PostRescueFormInfoSheet";
 import "./ReportsTable.css";
 import { RescueCompletionForm } from "./RescueCompletionForm";
 import { RescueFormInfoSheet } from "./RescueFormInfoSheet";
@@ -60,6 +61,10 @@ interface PendingReport {
   dispatcher: string;
   dateTimeOccurred: string;
   address: string;
+  terminalName?: string;
+  coordinates?: string;
+  neighborhoodId?: string;
+  focalPersonName?: string;
 }
 
 interface ReportsTableProps {
@@ -102,6 +107,10 @@ export function ReportsTable({
   // Rescue form info sheet state
   const [rescueFormInfoOpen, setRescueFormInfoOpen] = useState(false);
   const [selectedEmergencyId, setSelectedEmergencyId] = useState<string | null>(null);
+
+  // Post-rescue form info sheet state
+  const [postRescueFormInfoOpen, setPostRescueFormInfoOpen] = useState(false);
+  const [selectedPostRescueEmergencyId, setSelectedPostRescueEmergencyId] = useState<string | null>(null);
 
   const handleCreateReport = async (reportData: ReportData) => {
     setIsLoadingDetails(true);
@@ -191,6 +200,11 @@ export function ReportsTable({
   const handleViewRescueForm = (reportData: ReportData) => {
     setSelectedEmergencyId(reportData.emergencyId);
     setRescueFormInfoOpen(true);
+  };
+
+  const handleViewPostRescueForm = (reportData: ReportData) => {
+    setSelectedPostRescueEmergencyId(reportData.emergencyId);
+    setPostRescueFormInfoOpen(true);
   };
 
   const handleViewNeighborhoodInfo = async (reportData: ReportData) => {
@@ -353,6 +367,13 @@ export function ReportsTable({
                 </DropdownMenuItem>
                 <DropdownMenuItem 
                   className="hover:bg-[#404040] focus:bg-[#404040] rounded-[5px] cursor-pointer hover:text-white focus:text-white"
+                  onClick={() => handleViewPostRescueForm(row.original)}
+                >
+                  <Info className="mr-2 h-4 w-4 text-white" />
+                  <span className="text-xs">View Post-Rescue Form</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  className="hover:bg-[#404040] focus:bg-[#404040] rounded-[5px] cursor-pointer hover:text-white focus:text-white"
                   onClick={() => onRestore?.(row.original.emergencyId)}
                 >
                   <ArchiveRestore className="mr-2 h-4 w-4 text-white" />
@@ -399,7 +420,10 @@ export function ReportsTable({
                       <Info className="mr-2 h-4 w-4 text-white" />
                       <span className="text-xs">View Rescue Form</span>
                     </DropdownMenuItem>
-                    <DropdownMenuItem className="hover:bg-[#404040] focus:bg-[#404040] rounded-[5px] cursor-pointer hover:text-white focus:text-white">
+                    <DropdownMenuItem 
+                      className="hover:bg-[#404040] focus:bg-[#404040] rounded-[5px] cursor-pointer hover:text-white focus:text-white"
+                      onClick={() => handleViewPostRescueForm(row.original)}
+                    >
                       <Info className="mr-2 h-4 w-4 text-white" />
                       <span className="text-xs">View Post-Rescue Form</span>
                     </DropdownMenuItem>
@@ -433,7 +457,10 @@ export function ReportsTable({
                       <Info className="mr-2 h-4 w-4 text-white" />
                       <span className="text-xs">View Rescue Form</span>
                     </DropdownMenuItem>
-                    <DropdownMenuItem className="hover:bg-[#404040] focus:bg-[#404040] rounded-[5px] cursor-pointer hover:text-white focus:text-white">
+                    <DropdownMenuItem 
+                      className="hover:bg-[#404040] focus:bg-[#404040] rounded-[5px] cursor-pointer hover:text-white focus:text-white"
+                      onClick={() => handleViewPostRescueForm(row.original)}
+                    >
                       <Info className="mr-2 h-4 w-4 text-white" />
                       <span className="text-xs">View Post-Rescue Form</span>
                     </DropdownMenuItem>
@@ -471,10 +498,6 @@ export function ReportsTable({
                     >
                       <Info className="h-4 w-4 mr-2" />
                       View Rescue Form
-                    </DropdownMenuItem>
-                    <DropdownMenuItem className="hover:bg-[#404040] focus:bg-[#404040] rounded-[5px] cursor-pointer hover:text-white focus:text-white">
-                      <Info className="h-4 w-4 mr-2" />
-                      View Post-Rescue Form
                     </DropdownMenuItem>
                     <DropdownMenuItem 
                       className="hover:bg-[#404040] focus:bg-[#404040] rounded-[5px] cursor-pointer hover:text-white focus:text-white"
@@ -760,12 +783,14 @@ export function ReportsTable({
             ? {
                 emergencyId: selectedReportData.emergencyId,
                 communityName: selectedReportData.communityName,
-                neighborhoodId: detailedReportData?.neighborhoodId,
-                focalPersonName: detailedReportData?.focalPersonName,
+                neighborhoodId: (selectedReportData as PendingReport).neighborhoodId || detailedReportData?.neighborhoodId,
+                focalPersonName: (selectedReportData as PendingReport).focalPersonName || detailedReportData?.focalPersonName,
                 alertType: selectedReportData.alertType,
                 dispatcher: selectedReportData.dispatcher,
                 dateTimeOccurred: selectedReportData.dateTimeOccurred,
                 address: selectedReportData.address,
+                terminalName: (selectedReportData as PendingReport).terminalName,
+                coordinates: (selectedReportData as PendingReport).coordinates,
               }
             : undefined
         }
@@ -783,6 +808,13 @@ export function ReportsTable({
         open={rescueFormInfoOpen}
         onOpenChange={setRescueFormInfoOpen}
         emergencyId={selectedEmergencyId}
+      />
+
+      {/* Post-Rescue Form Info Sheet */}
+      <PostRescueFormInfoSheet
+        open={postRescueFormInfoOpen}
+        onOpenChange={setPostRescueFormInfoOpen}
+        emergencyId={selectedPostRescueEmergencyId}
       />
     </div>
   );
