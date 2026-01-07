@@ -22,7 +22,7 @@ export default function MapControls({
   const [selectedLayer, setSelectedLayer] = useState<"terrain" | "satellite">(
     "terrain",
   );
-  const [heatmapVisible, setHeatmapVisible] = useState(true);
+  const [heatmapVisible, setHeatmapVisible] = useState(false);
 
   const toggleHeatmap = () => {
     const map = mapRef.current;

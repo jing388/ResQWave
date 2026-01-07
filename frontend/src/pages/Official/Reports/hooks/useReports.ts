@@ -1,3 +1,4 @@
+import { useSocket } from "@/contexts/SocketContext";
 import {
     archivePostRescueForm as apiArchivePostRescueForm,
     deletePostRescueForm as apiDeletePostRescueForm,
@@ -31,9 +32,7 @@ export interface TransformedCompletedReport extends TransformedPendingReport {
   accomplishedOn: string;
 }
 
-export interface TransformedArchivedReport extends TransformedCompletedReport {
-  // Same structure as completed report since archived reports have the same columns
-}
+export type TransformedArchivedReport = TransformedCompletedReport;
 
 // Helper function to format date and time in shorter version
 const formatDateTime = (dateString: string): string => {
@@ -335,6 +334,32 @@ export function useReports() {
   useEffect(() => {
     fetchReportsData();
   }, [fetchReportsData]);
+
+  // Socket listener for real-time updates when post-rescue forms are created
+  const { socket, isConnected } = useSocket();
+  
+  useEffect(() => {
+    if (!socket || !isConnected) return;
+
+    const handlePostRescueCreated = () => {
+      console.log('[Reports] Post-rescue form created, refreshing reports...');
+      // Refresh both pending and completed to reflect the changes
+      fetchPendingReports(true).catch(err => 
+        console.error('[Reports] Failed to refresh pending reports:', err)
+      );
+      fetchCompletedReports(true).catch(err => 
+        console.error('[Reports] Failed to refresh completed reports:', err)
+      );
+    };
+
+    socket.on('postRescue:created', handlePostRescueCreated);
+    console.log('[Reports] Listening for postRescue:created events');
+
+    return () => {
+      socket.off('postRescue:created', handlePostRescueCreated);
+      console.log('[Reports] Stopped listening for postRescue:created events');
+    };
+  }, [socket, isConnected, fetchPendingReports, fetchCompletedReports]);
 
   return {
     // Data

@@ -30,6 +30,10 @@ module.exports = new EntitySchema ({
             length: 255,
             nullable: false,
         },
+        passwordLastUpdated: {
+            type: "timestamp",
+            nullable: true
+        },
         photo: {
             type: "longblob",
             nullable: true,

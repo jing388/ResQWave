@@ -20,6 +20,11 @@ module.exports = new EntitySchema ({
             nullable: false,
             unique: true,
         },
+        contactNumber: {
+            type: "varchar",
+            length: 13,
+            nullable: true,
+        },
         failedAttempts: {
             type: "int",
             default: 0
@@ -32,6 +37,10 @@ module.exports = new EntitySchema ({
             type: "varchar",
             length: 255,
             nullable: false,
+        },
+        passwordLastUpdated: {
+            type: "timestamp",
+            nullable: true
         },
         createdAt: {
             type: "timestamp",

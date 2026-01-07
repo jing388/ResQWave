@@ -17,10 +17,6 @@ export function CommunityGroupInfoSheet({
   communityData,
 }: CommunityGroupInfoSheetProps) {
   // Image viewer state
-  useEffect(() => {
-    if (open && communityData) {
-    }
-  }, [open, communityData]);
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerUrl, setViewerUrl] = useState<string | null>(null);
 

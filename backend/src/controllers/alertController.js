@@ -2,10 +2,12 @@ const { AppDataSource } = require("../config/dataSource");
 const alertRepo = AppDataSource.getRepository("Alert");
 const terminalRepo = AppDataSource.getRepository("Terminal");
 const rescueFormRepo = AppDataSource.getRepository("RescueForm");
+const { sendDownlink } = require("../lms/downlink");
 const { getIO } = require("../realtime/socket");
 const {
 	getCache,
 	setCache,
+    deleteCache
 } = require("../config/cache");
 
 
@@ -43,6 +45,8 @@ const createCriticalAlert = async (req, res) => {
 		});
 
 		await alertRepo.save(alert);
+        await deleteCache("adminDashboardStats");
+        await deleteCache("adminDashboard:aggregatedMap");
 		res.status(201).json({ message: "Critical alert created", alert });
 	} catch (err) {
 		console.error(err);
@@ -70,6 +74,8 @@ const createUserInitiatedAlert = async (req, res) => {
 		});
 
 		await alertRepo.save(alert);
+        await deleteCache("adminDashboardStats");
+        await deleteCache("adminDashboard:aggregatedMap");
 		res.status(201).json({ message: "User-initiated alert created", alert });
 	} catch (err) {
 		console.error(err);
@@ -388,10 +394,10 @@ const updateAlertStatus = async (req, res) => {
         const { action } = req.body; // "waitlist" or "dispatch"
 
         // 1. Find alert
-        const alert = await alertRepo.findOne({ where: { id: alertID } });
-        if (!alert) {
-            return res.status(404).json({ message: "Alert not found" });
-        }
+        const alert = await alertRepo.findOne({
+          where: { id: alertID },
+          relations: ["terminal"],
+        });
 
         // 2. Validate that rescue form exists
         const rescueForm = await rescueFormRepo.findOne({ where: { emergencyID: alertID } });
@@ -410,11 +416,25 @@ const updateAlertStatus = async (req, res) => {
 
         await alertRepo.save(alert);
 
-		//  Realtime broadcast
-		getIO().to("alerts:all").emit("alertStatusUpdated", {
-		alertID: alert.id,
-		newStatus: alert.status,
-		});
+        // Send Downlink ONLY when DISPATCHED
+        if (alert.status === "Dispatched") {
+          if (!alert.terminal?.devEUI) {
+            console.warn(
+              `[Downlink Skipped] Terminal has no DevEUI for alert ${alert.id}`
+            );
+          } else {
+            await sendDownlink(
+              alert.terminal.devEUI,
+              alert.status
+            );
+          }
+        }
+
+        //  Realtime broadcast
+        getIO().to("alerts:all").emit("alertStatusUpdated", {
+        alertID: alert.id,
+        newStatus: alert.status,
+        });
 
 
         return res.status(200).json({

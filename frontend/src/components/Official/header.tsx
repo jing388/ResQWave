@@ -1,17 +1,18 @@
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs-focal";
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 
 export function Header({
   isVisualizationOpen,
 }: {
   isVisualizationOpen: boolean;
 }) {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [currentTime, setCurrentTime] = useState("");
   const [currentDate, setCurrentDate] = useState("");
-
-  const [activeTab, setActiveTab] = useState<"map" | "table">("map");
-  const navigate = useNavigate();
+  
+  const activeTab = searchParams.get("tab") || "overview";
 
   useEffect(() => {
     const updateDateTime = () => {
@@ -36,16 +37,6 @@ export function Header({
     return () => clearInterval(interval);
   }, []);
 
-  const handleTabClick = (tab: "map" | "table") => {
-    if (tab === "map") {
-      setActiveTab("map");
-      navigate("/visualization");
-    } else {
-      setActiveTab("table");
-      navigate("/tabular");
-    }
-  };
-
   return (
     <header
       className={`h-auto min-h-18 bg-[#171717] border-b border-[#2a2a2a] flex flex-wrap md:flex-nowrap items-center justify-between px-4 md:px-6 py-2 md:py-0`}
@@ -55,54 +46,36 @@ export function Header({
           BARANGAY 175
         </h1>
         {isVisualizationOpen && (
-          <Tabs
-            value={activeTab}
-            defaultValue="map"
-            onValueChange={(v) => handleTabClick(v as "map" | "table")}
-          >
-            <TabsList>
-              <TabsTrigger
-                value="map"
-                style={{
-                  color: "#fff",
-                  fontSize: "1rem",
-                  padding: "0.5rem 1.5rem",
-                  borderRadius: 4,
-                  transition: "background 0.2s",
-                  cursor: "pointer",
-                }}
-                className="tab-trigger"
-                onMouseEnter={(e) =>
-                  (e.currentTarget.style.background = "#333333")
-                }
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.background = "transparent")
-                }
-              >
-                Map View
-              </TabsTrigger>
-              <TabsTrigger
-                value="table"
-                style={{
-                  color: "#fff",
-                  fontSize: "1rem",
-                  padding: "0.5rem 1.5rem",
-                  borderRadius: 4,
-                  transition: "background 0.2s",
-                  cursor: "pointer",
-                }}
-                className="tab-trigger"
-                onMouseEnter={(e) =>
-                  (e.currentTarget.style.background = "#333333")
-                }
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.background = "transparent")
-                }
-              >
-                Table View
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
+          <>
+            {location.pathname.startsWith("/dashboard") ? (
+              <div className="flex items-center gap-0 bg-[#222222] rounded-[5px] p-1">
+                <button
+                  onClick={() => navigate("/dashboard?tab=overview")}
+                  className={`px-6 py-2 text-sm md:text-base font-medium transition-colors rounded-[5px] ${
+                    activeTab === "overview"
+                      ? "text-white bg-[#414141]"
+                      : "text-white/60 bg-transparent hover:text-white"
+                  }`}
+                >
+                  Overview
+                </button>
+                <button
+                  onClick={() => navigate("/dashboard?tab=map-view")}
+                  className={`px-6 py-2 text-sm md:text-base font-medium transition-colors rounded-[5px] ${
+                    activeTab === "map-view"
+                      ? "text-white bg-[#414141]"
+                      : "text-white/60 bg-transparent hover:text-white"
+                  }`}
+                >
+                  Map View
+                </button>
+              </div>
+            ) : (
+              <span className="text-white/80 text-sm md:text-base font-medium bg-[#2a2a2a] px-4 py-2 rounded-[5px]">
+                Visualization Map
+              </span>
+            )}
+          </>
         )}
       </div>
       <div className="flex items-center gap-2 md:gap-4 text-white/90 text-xs md:text-sm mt-2 md:mt-0 w-full md:w-auto justify-end">

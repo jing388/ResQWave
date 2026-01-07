@@ -1,6 +1,5 @@
 const { AppDataSource } = require("../config/dataSource");
 const terminalRepo = AppDataSource.getRepository("Terminal");
-// removed unused communityGroupRepo variable
 const neighborhoodRepo = AppDataSource.getRepository("Neighborhood");
 const {
     getCache,
@@ -36,13 +35,33 @@ const getNextTerminalId = async (req, res) => {
 // CREATE Terminal
 const createTerminal = async (req, res) => {
     try {
-        const { name } = req.body;
+        const { name, devEUI } = req.body;
 
         // Validate Terminal Name
-        if (!name) {
-            return res.status(400).json({ message: "Terminal name is required" });
+        if (!name || !devEUI ) {
+            return res.status(400).json({ message: "Terminal name and devEUI is required" });
         }
 
+        // Normalize devEUI
+        const normalizedDevEUI = devEUI.replace(/-/g, "").toUpperCase();
+
+        if (!/^[0-9A-F]{16}$/.test(normalizedDevEUI)) {
+            return res.status(400).json({
+                message: "Invalid devEUI format"
+            });
+        }
+
+        // Prevent Duplicated DevEUI
+        const existing = await terminalRepo.findOne({
+            where: {devEUI: normalizedDevEUI}
+        });
+
+        if (existing) {
+            return res.status(400).json({
+                message: "devEUI already exists"
+            });
+        }
+        
         // Generate Specific UID
         const lastTerminal = await terminalRepo
             .createQueryBuilder("terminal")
@@ -60,6 +79,7 @@ const createTerminal = async (req, res) => {
         const terminal = terminalRepo.create({
             id: newID,
             name,
+            devEUI: normalizedDevEUI,
             status: "Offline",
         });
 
@@ -82,6 +102,8 @@ const createTerminal = async (req, res) => {
         await deleteCache("onlineTerminals");
         await deleteCache("offlineTerminals");
         await deleteCache("terminals:archived");
+        await deleteCache("adminDashboardStats");
+        await deleteCache("adminDashboard:aggregatedMap");
 
         res.status(201).json({ message: "Terminal Created", terminal });
     } catch (err) {
@@ -331,6 +353,7 @@ const updateTerminal = async (req, res) => {
         await deleteCache("onlineTerminals");
         await deleteCache("offlineTerminals");
         await deleteCache("terminals:archived");
+        await deleteCache("adminDashboard:aggregatedMap");
 
         res.json({ message: "Terminal Updated", terminal });
     } catch (err) {
@@ -392,6 +415,8 @@ const archivedTerminal = async (req, res) => {
         await deleteCache("onlineTerminals");
         await deleteCache("offlineTerminals");
         await deleteCache("terminals:archived");
+        await deleteCache("adminDashboardStats");
+        await deleteCache("adminDashboard:aggregatedMap");
 
         res.json({ message: "Terminal Archived and Now Available" });
     } catch (err) {
@@ -438,6 +463,8 @@ const unarchiveTerminal = async (req, res) => {
         await deleteCache("onlineTerminals");
         await deleteCache("offlineTerminals");
         await deleteCache("terminals:archived");
+        await deleteCache("adminDashboardStats");
+        await deleteCache("adminDashboard:aggregatedMap");
 
         return res.json({ message: "Terminal Unarchived and Available" });
     } catch (err) {
@@ -533,6 +560,8 @@ const permanentDeleteTerminal = async (req, res) => {
         await deleteCache("onlineTerminals");
         await deleteCache("offlineTerminals");
         await deleteCache("terminals:archived");
+        await deleteCache("adminDashboardStats");
+        await deleteCache("adminDashboard:aggregatedMap");
 
         res.json({
             message: "Terminal Permanently Deleted",

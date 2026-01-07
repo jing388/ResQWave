@@ -8,6 +8,7 @@ const {
   setCache,
   deleteCache
 } = require("../config/cache");
+const { getIO } = require("../realtime/socket");
 
 // CREATE POST RESCUE FORM
 const createPostRescueForm = async (req, res) => {
@@ -49,6 +50,20 @@ const createPostRescueForm = async (req, res) => {
         rescueForm.status = "Completed";
         await rescueFormRepo.save(rescueForm);
 
+        // Emit socket event for real-time updates
+        try {
+            const io = getIO();
+            io.to("alerts:all").emit("postRescue:created", {
+                alertId: alertID,
+                rescueFormId: rescueForm.id,
+                status: "Completed",
+                completedAt: newForm.completedAt
+            });
+            console.log('[PostRescue] Emitted postRescue:created event for alert:', alertID);
+        } catch (err) {
+            console.error('[PostRescue] Failed to emit socket event:', err);
+        }
+
         // Cache invalidation - clear all relevant caches immediately for real-time updates
         await deleteCache("completedReports");
         await deleteCache("pendingReports");
@@ -61,6 +76,7 @@ const createPostRescueForm = async (req, res) => {
         await deleteCache(`rescueAggregatesBasic:${alertID}`);
         await deleteCache(`aggregatedReports:${alertID}`);
         await deleteCache(`aggregatedPRF:${alertID}`);
+        await deleteCache("adminDashboardStats");
 
         return res.status(201).json({message: "Post Rescue Form Created", newForm});
     } catch (err) {
@@ -844,6 +860,7 @@ const archivePostRescueForm = async (req, res) => {
         await deleteCache(`aggregatedPRF:${alertID}`);
         await deleteCache("archivedPRF:all");
         await deleteCache(`archivedPRF:${alertID}`);
+        await deleteCache("adminDashboardStats");
 
         return res.json({ message: "Post Rescue Form Archived Successfully" });
     } catch (err) {

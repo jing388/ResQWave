@@ -11,6 +11,7 @@ export interface User {
   role: 'admin' | 'dispatcher'
   name: string
   email: string
+  passwordLastUpdated?: string | null
 }
 
 interface AuthContextType {
@@ -83,7 +84,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           id: userData.id,
           role: userData.role,
           name: userData.name || userData.id,
-          email: userData.email
+          email: userData.email,
+          passwordLastUpdated: userData.passwordLastUpdated || null
         }
 
         setUser(user)
@@ -158,7 +160,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         id: response.user.id,
         role: response.user.role,
         name: response.user.name || response.user.id,
-        email: response.user.email
+        email: response.user.email,
+        passwordLastUpdated: response.user.passwordLastUpdated || null
       }
 
       setUser(userData)

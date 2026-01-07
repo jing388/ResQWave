@@ -49,10 +49,6 @@ export function parseCoordinates(addressJson: string): [number, number] | null {
       typeof parsed.lat === "number" &&
       typeof parsed.lng === "number"
     ) {
-      console.log("[parseCoordinates] Using lat/lng format:", [
-        parsed.lng,
-        parsed.lat,
-      ]);
       return [parsed.lng, parsed.lat]; // Return as [lng, lat] for Mapbox
     }
 
@@ -62,37 +58,21 @@ export function parseCoordinates(addressJson: string): [number, number] | null {
         .split(",")
         .map((s: string) => parseFloat(s.trim()));
       if (coords.length === 2 && !isNaN(coords[0]) && !isNaN(coords[1])) {
-        console.log(
-          "[parseCoordinates] Using coordinates string format:",
-          coords,
-        );
         return [coords[0], coords[1]];
       }
     }
-  } catch (err) {
-    console.warn(
-      "[parseCoordinates] JSON parsing failed, trying regex fallback:",
-      err,
-    );
+  } catch {
     // Parsing failed, try regex fallback
     const match = addressJson.match(/(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)/);
     if (match) {
       const first = parseFloat(match[1]);
       const second = parseFloat(match[2]);
       if (!isNaN(first) && !isNaN(second)) {
-        console.log("[parseCoordinates] Using regex fallback:", [
-          first,
-          second,
-        ]);
         return [first, second];
       }
     }
   }
 
-  console.warn(
-    "[parseCoordinates] Failed to parse coordinates from:",
-    addressJson,
-  );
   return null;
 }
 
@@ -165,7 +145,6 @@ export function transformToMapSignal(
     coordinates,
   };
 
-  console.log("[transformToMapSignal] Transformed signal:", signal);
   return signal;
 }
 
@@ -216,12 +195,6 @@ export async function fetchAllMapAlerts(): Promise<MapSignal[]> {
     ]);
 
     const allAlerts = [...unassigned, ...waitlisted];
-    console.log("[MAP API] Fetched alerts:", {
-      unassigned: unassigned.length,
-      waitlisted: waitlisted.length,
-      total: allAlerts.length,
-      alerts: allAlerts,
-    });
 
     return allAlerts;
   } catch (error) {

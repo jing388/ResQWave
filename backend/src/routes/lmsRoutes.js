@@ -4,5 +4,6 @@ const { handleUplink } = require("../lms/uplink");
 
 // LMS POST endpoint
 router.post("/uplink", handleUplink);
+// router.post("/alarm")
 
 module.exports = router;

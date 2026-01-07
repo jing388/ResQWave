@@ -1,69 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Send, X, MessageCircle } from "lucide-react";
-import { GoogleGenerativeAI } from "@google/generative-ai";
-
-// Initialize Gemini AI with token from environment variable
-const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);
-
-// ResQWave system context for consistent AI responses
-const RESQWAVE_CONTEXT = `You are ResQWave Assistant, an AI helper for ResQWave - a LoRa-powered emergency communication system designed to help communities send SOS alerts, share updates, and guide rescuers during flood events. Our terminals work even when cellular networks fail.
-
-Chatbot Capabilities:
-
-1. Interpret Distress Signals
-    - Understand SOS button triggers and auto-flood alerts from IoT terminals. (keywords: SOS, distress, alert, auto-flood, trigger, button, terminal)
-    - LoRa-powered terminals enable continuous distress signaling and location reporting even during power or internet outages. (keywords: LoRa, continuous, signaling, location, outage, power, internet)
-    - SOS button: Press and hold for 5 seconds to send a distress signal via LoRa. (keywords: SOS, button, press, hold, 5 seconds, distress, send, LoRa)
-    - Water sensor module: Automatically triggers emergency alerts when rising flood levels are detected. (keywords: water sensor, flood, rising, emergency, alert, auto, trigger)
-    - LED indicators: Green (powered), Red (sending distress), Yellow (signal received), Blue (rescue incoming). (keywords: LED, indicator, green, red, yellow, blue, status)
-    - Decision support dashboard: Consolidates real-time distress signals and vulnerability data for rescue coordination. (keywords: dashboard, decision support, real-time, distress, vulnerability, rescue, coordination)
-    - Community participation: Residents and focal persons can send localized alerts and updates directly through the terminal system. (keywords: community, participation, resident, focal person, alert, update, terminal)
-    - Visualization map: Displays distress signals with community and focal person info, color-coded by status (Gray: offline, Green: online, Yellow: user-initiated, Red: auto-flood, Blue: rescue dispatched). (keywords: visualization, map, distress, color, status, offline, online, user-initiated, auto-flood, rescue)
-
-2. Handle General Questions
-    - Provide broad, high-level information about ResQWave's purpose, features, and system overview for both residents and focal persons.
-    - Predefined answers for general questions (include which user role can access each feature):
-        * Purpose (keywords: purpose, goal, mission): ResQWave is designed to provide reliable emergency communication and rescue coordination for communities during disasters, especially floods. (All roles: residents, focal persons, dispatchers)
-        * Benefits (keywords: benefits, advantages, why use): It enables distress signaling even during power or internet outages, improves rescue coordination, and empowers community participation. (All roles)
-        * Technology (keywords: technology, technical, how it works, LoRa, IoT): ResQWave uses LoRa-powered IoT terminals, water sensors, and a decision support dashboard to transmit and visualize emergency alerts. (All roles)
-        * Operation (keywords: operation, how to use, process, workflow): Community terminals send alerts via LoRa, which are received by a gateway and displayed on a dashboard for responders. The system supports real-time tracking, reporting, and resource allocation. (Residents and focal persons can send alerts; dispatchers and focal persons can view dashboard)
-        * Who can use (keywords: users, who, access): Barangay dispatchers, community focal persons, and residents in flood-prone areas. (Role-specific: residents use terminals, focal persons manage community info, dispatchers coordinate rescues)
-        * Dashboard (keywords: dashboard, map, reports, management): The dashboard provides map-based visualization, live reports, and management tools for communities, dispatchers, and terminals. (Dashboard access: dispatchers and focal persons)
-        * Community involvement (keywords: community, residents, focal persons, participation): Residents and focal persons can send alerts, updates, and requests directly through the terminal system. (Residents and focal persons)
-
-3. User Guidance
-    - Provide specific, step-by-step instructions or task-based guidance for users, especially in emergency contexts.
-    - Use natural, varied phrasing and only mention roles when necessary.
-    - Predefined answers for user guidance (conversational and concise):
-        * How to send an SOS alert: Press and hold the SOS button on your terminal for 5 seconds until the LED turns red—this sends a distress signal. (Residents and focal persons use terminals; others can assist by notifying their community focal person or dispatcher.)
-        * How to check dashboard status: Log in to the dashboard and view the map for real-time alerts, community statuses, and rescue operations. (Dashboard access is for dispatchers and focal persons. If you don't have access, request updates from your focal person or dispatcher.)
-        * How to update community info: Go to your dashboard profile, select your community, and update details like household count, flood risk, and focal person information. (Only focal persons can update; others should contact their focal person for changes.)
-        * What to do during a flood emergency: Send an SOS alert using your terminal, follow instructions from barangay officials, and stay updated via community announcements. (Residents take these actions; others should help share official instructions and support communication.)
-        * How to acknowledge a received signal: Confirm the alert in the dashboard, dispatch rescue if needed, and send a response to the terminal to change the LED status to blue. (This is done by dispatchers; if you're not a dispatcher, notify your dispatcher or focal person about received alerts.)
-        * How to manage system settings: Use the admin dashboard to manage system settings, user roles, and permissions. (Admins only; for changes or support, contact your system administrator.)
-
-4. Clarification Requests Fallback (for unclear or unmatched inputs, choose one dynamically):
-    * "I didn't quite catch that. Could you please clarify your question about ResQWave?"
-    * "Can you rephrase or provide more details? I'm here to help with anything about ResQWave's system or features."
-    * "I'm not sure I understand. Would you like to know about ResQWave's technology, operation, or benefits?"
-    * "Could you tell me a bit more about what you're looking for regarding ResQWave?"
-    * "Let me know if you want to ask about SOS alerts, the dashboard, or how ResQWave works!"
-
-5. Safety Tips & Preparedness Guidance
-    - Provide general disaster preparedness advice and safety instructions during emergencies.
-    - Predefined answers for safety and preparedness:
-        * Flood safety tips: Move to higher ground, avoid walking or driving through floodwaters, and keep emergency supplies ready (water, food, flashlight, radio, first aid kit).
-        * Emergency kit checklist: Pack clean water, non-perishable food, flashlight, batteries, radio, first aid kit, important documents, and necessary medications.
-        * Family emergency plan: Agree on a safe meeting place, share contact information, and make sure everyone knows how to use the ResQWave terminal for alerts.
-        * Power outage safety: Use battery-powered lights, avoid candles, unplug electronics, and keep your phone charged for emergency updates.
-        * Evacuation advice: Follow instructions from local officials, bring your emergency kit, and help neighbors who may need assistance.
-        * Staying informed: Listen to official announcements, monitor the ResQWave dashboard or community updates, and avoid spreading rumors.
-
-6. Contact Information
-    - When users ask about contacting ResQWave, support, or need help, always provide:
-        * Email: resqwaveinfo@gmail.com
-        * Include this in responses about technical support, questions, or assistance
-    - Example responses: "For additional support, you can reach us at resqwaveinfo@gmail.com" or "Contact our team at resqwaveinfo@gmail.com for further assistance"`;
+import { apiFetch } from "../../../../lib/api";
 
 interface Message {
   id: number;
@@ -110,21 +47,21 @@ export function ChatbotDrawer({ isOpen, onClose }: ChatbotDrawerProps) {
     );
 
     try {
-      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-      const prompt = `Translate the following English text to Tagalog (Filipino). Keep it natural and conversational. Return ONLY the Tagalog translation, no explanation:\n\n${message.text}`;
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      const translatedText = response.text().trim();
+      const data = await apiFetch<{ translatedText?: string }>('/chatbot/translate', {
+        method: 'POST',
+        body: JSON.stringify({ text: message.text }),
+      });
+      const translatedText = data.translatedText || '[Translation unavailable]';
 
       setMessages((prev) =>
         prev.map((m) =>
           m.id === messageId
             ? {
-                ...m,
-                translatedText,
-                showTranslation: true,
-                isTranslating: false,
-              }
+              ...m,
+              translatedText,
+              showTranslation: true,
+              isTranslating: false,
+            }
             : m
         )
       );
@@ -154,22 +91,17 @@ export function ChatbotDrawer({ isOpen, onClose }: ChatbotDrawerProps) {
       setIsTyping(true);
       setGreetingShown(false);
 
-      const greetingText =
-        "Hi there! I'm ResQWave Assistant. How can I help you today?";
+      const greetingText = "Hi there! I'm ResQWave Assistant. How can I help you today?";
 
-      // Fetch quick actions in parallel (don't wait for timeout)
+      // Fetch quick actions from backend in parallel
       (async () => {
         try {
-          const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-          const prompt = `Generate 3 specific, clear questions about ResQWave. Each must be a complete question (6-9 words) that users would actually ask. Focus on: purpose, benefits, technology, who can use it, how it works. Return ONLY JSON array. Examples: ["What is the purpose of ResQWave?", "How does the LoRa technology work?", "Who can use the ResQWave system?", "What are the main benefits of ResQWave?"]`;
-          const result = await model.generateContent(prompt);
-          const response = await result.response;
-          let text = response.text().trim();
-          // Remove markdown code blocks if present
-          text = text.replace(/```json\s*/g, "").replace(/```\s*/g, "");
-          const actions = JSON.parse(text);
-          if (Array.isArray(actions)) {
-            setQuickActions(actions.slice(0, 3));
+          const data = await apiFetch<{ quickActions?: string[] }>('/chatbot/chat', {
+            method: 'POST',
+            body: JSON.stringify({ text: 'Generate quick actions for greeting', mode: 'quickActions' }),
+          });
+          if (Array.isArray(data.quickActions) && data.quickActions.length) {
+            setQuickActions(data.quickActions.slice(0, 3));
           }
         } catch (_err) {
           console.error("Quick actions error:", _err);
@@ -208,40 +140,12 @@ export function ChatbotDrawer({ isOpen, onClose }: ChatbotDrawerProps) {
     setQuickActions([]); // Hide quick actions immediately after user clicks one
 
     try {
-      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-
-      const context = `${RESQWAVE_CONTEXT}
-    
-            Answer the following question helpfully and concisely (2-3 sentences max): ${textToSend}`;
-
-      // Start fetching quick actions immediately in parallel (don't wait for bot response)
-
-      // Start fetching quick actions immediately in parallel (don't wait for bot response)
-      const quickActionsPromise = (async () => {
-        try {
-          const quickActionsModel = genAI.getGenerativeModel({
-            model: "gemini-2.5-flash",
-          });
-          const prompt = `User asked: "${textToSend}". Generate 3 specific follow-up questions (6-9 words each) related to ResQWave emergency system. Each must be a clear, complete question users would ask. Return ONLY valid JSON array. Examples: ["How do I send an SOS alert?", "What do the LED indicators mean?", "How can I access the dashboard?", "What features are available?"]`;
-          const result = await quickActionsModel.generateContent(prompt);
-          const response = await result.response;
-          let text = response.text().trim();
-          // Remove markdown code blocks if present
-          text = text.replace(/```json\s*/g, "").replace(/```\s*/g, "");
-          const actions = JSON.parse(text);
-          if (Array.isArray(actions)) {
-            return actions.slice(0, 3);
-          }
-          return [];
-        } catch (err) {
-          console.error("Quick actions error:", err);
-          return [];
-        }
-      })();
-
-      const result = await model.generateContent(context);
-      const response = await result.response;
-      const aiResponse = response.text();
+      // Main bot response via apiFetch
+      const data = await apiFetch<{ response?: string }>('/chatbot/chat', {
+        method: 'POST',
+        body: JSON.stringify({ text: textToSend, mode: 'main' }),
+      });
+      const aiResponse = (data && (data as any).response) || (data as any) || '[No response]';
 
       const botMessage: Message = {
         id: messages.length + 2,
@@ -251,19 +155,22 @@ export function ChatbotDrawer({ isOpen, onClose }: ChatbotDrawerProps) {
       };
 
       setMessages((prev) => [...prev, botMessage]);
-      setIsTyping(false); // Hide typing indicator immediately after bot message
+      setIsTyping(false);
 
-      // Wait for quick actions to finish and update UI
-      const actions = await quickActionsPromise;
-      setQuickActions(actions);
+      // Quick actions (fire-and-forget and update when available)
+      (async () => {
+        try {
+          const qaData = await apiFetch<{ quickActions?: string[] }>('/chatbot/chat', {
+            method: 'POST',
+            body: JSON.stringify({ text: textToSend, mode: 'quickActions' }),
+          });
+          if (Array.isArray(qaData.quickActions)) setQuickActions(qaData.quickActions.slice(0, 3));
+        } catch (err) {
+          console.error("Quick actions error:", err);
+        }
+      })();
     } catch (error) {
-      console.error("Error calling Gemini AI:", error);
-      console.error(
-        "Error details:",
-        error instanceof Error ? error.message : String(error)
-      );
-
-      // Fallback response if AI fails
+      console.error("Error calling backend chatbot:", error);
       const botMessage: Message = {
         id: messages.length + 2,
         text: "I apologize, but I'm having trouble connecting right now. ResQWave is a LoRa-powered emergency communication system that helps communities during floods. Please try asking your question again, or contact our support team for immediate assistance.",
@@ -271,11 +178,7 @@ export function ChatbotDrawer({ isOpen, onClose }: ChatbotDrawerProps) {
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, botMessage]);
-      setQuickActions([
-        "Send SOS alert",
-        "Show safety tips",
-        "Evacuation advice",
-      ]);
+      setQuickActions(["Send SOS alert", "Show safety tips", "Evacuation advice"]);
       setIsTyping(false);
     }
   };
@@ -413,16 +316,14 @@ export function ChatbotDrawer({ isOpen, onClose }: ChatbotDrawerProps) {
             {messages.map((message) => (
               <div
                 key={message.id}
-                className={`mb-3 flex ${
-                  message.sender === "user" ? "justify-end" : "justify-start"
-                }`}
+                className={`mb-3 flex ${message.sender === "user" ? "justify-end" : "justify-start"
+                  }`}
               >
                 <div
-                  className={`max-w-[80%] rounded-2xl px-3 py-2 ${
-                    message.sender === "user"
+                  className={`max-w-[80%] rounded-2xl px-3 py-2 ${message.sender === "user"
                       ? "bg-linear-to-br from-blue-600 to-blue-500 text-white"
                       : "bg-gray-700/50 text-gray-100"
-                  }`}
+                    }`}
                   style={{
                     boxShadow:
                       message.sender === "user"
@@ -432,18 +333,17 @@ export function ChatbotDrawer({ isOpen, onClose }: ChatbotDrawerProps) {
                 >
                   <p className="text-sm leading-relaxed">
                     {message.sender === "bot" &&
-                    message.showTranslation &&
-                    message.translatedText
+                      message.showTranslation &&
+                      message.translatedText
                       ? message.translatedText
                       : message.text}
                   </p>
                   <div className="flex items-center justify-between mt-1">
                     <p
-                      className={`text-xs ${
-                        message.sender === "user"
+                      className={`text-xs ${message.sender === "user"
                           ? "text-blue-100"
                           : "text-gray-400"
-                      }`}
+                        }`}
                     >
                       {message.timestamp.toLocaleTimeString([], {
                         hour: "2-digit",
@@ -459,8 +359,8 @@ export function ChatbotDrawer({ isOpen, onClose }: ChatbotDrawerProps) {
                         {message.isTranslating
                           ? "Translating..."
                           : message.showTranslation
-                          ? "Hide translation"
-                          : "See translation"}
+                            ? "Hide translation"
+                            : "See translation"}
                       </button>
                     )}
                   </div>

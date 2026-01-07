@@ -5,6 +5,7 @@ const alertRepo = AppDataSource.getRepository("Alert");
 const terminalRepo = AppDataSource.getRepository("Terminal");
 const neighborhoodRepo = AppDataSource.getRepository("Neighborhood");
 const focalPersonRepo = AppDataSource.getRepository("FocalPerson");
+const { deleteCache } = require("../config/cache");
 
 let io;
 
@@ -82,6 +83,8 @@ function setupSocket(server, options = {}) {
           status, // "Critical" | "User-Initiated"
         });
         const saved = await alertRepo.save(entity);
+        await deleteCache("adminDashboardStats");
+        await deleteCache("adminDashboard:aggregatedMap");
 
         // Get neighborhood and focal person separately (no relation defined in model)
         const neighborhood = await neighborhoodRepo.findOne({ 

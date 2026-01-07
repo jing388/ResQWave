@@ -74,6 +74,7 @@ const createDispatcher = async (req, res) => {
         // Invalidate Caches
         await deleteCache("dispatchers:active");
         await deleteCache("dispatcher:archived");
+        await deleteCache("adminDashboardStats");
 
         // Send Email (Fire and Forget)
         sendTemporaryPasswordEmail({
@@ -173,7 +174,10 @@ const updateDispatcher = async (req, res) => {
         }
 
         if (name) dispatcher.name = name;
-        if (password) dispatcher.password = await bcrypt.hash(password, 10);
+        if (password) {
+            dispatcher.password = await bcrypt.hash(password, 10);
+            dispatcher.passwordLastUpdated = new Date();
+        }
 
         // Photo update: replace if new file; otherwise keep existing
         if (photoFile?.buffer) {
@@ -259,6 +263,7 @@ const archiveDispatcher = async (req, res) => {
         await deleteCache("dispatchers:active");
         await deleteCache("dispatchers:archived");
         await deleteCache(`dispatcher:${id}`);
+        await deleteCache("adminDashboardStats");
 
         res.json({ message: "Dispatcher Archived" });
     } catch (err) {
@@ -300,6 +305,7 @@ const unarchiveDispatcher = async (req, res) => {
         await deleteCache("dispatchers:active");
         await deleteCache("dispatchers:archived");
         await deleteCache(`dispatcher:${id}`);
+        await deleteCache("adminDashboardStats");
 
         res.json({ message: "Dispatcher Restored" });
     } catch (err) {
@@ -363,6 +369,7 @@ const deleteDispatcherPermanently = async (req, res) => {
         await deleteCache("dispatchers:active");
         await deleteCache("dispatchers:archived");
         await deleteCache(`dispatcher:${id}`);
+        await deleteCache("adminDashboardStats");
 
         res.json({ message: "Dispatcher Permanently Deleted" });
     } catch (err) {

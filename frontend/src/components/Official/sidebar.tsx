@@ -1,26 +1,23 @@
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
 } from "@/components/ui/tooltip-white";
 // import { useAuth } from "@/contexts/AuthContext";
 import {
-  ClipboardCheck,
-  Radio,
-  RadioReceiver,
-  UserCog,
-  Users,
+    ClipboardCheck,
+    LayoutDashboard,
+    Radio,
+    RadioReceiver,
+    TriangleAlert,
+    UserCog,
+    Users,
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import SettingsPopover from "./settingsPopover";
 import resqwave_logo from "/resqwave_logo.png";
 
-const baseNavigationItems = [
-  {
-    icon: Radio,
-    label: "Visualization",
-    path: "/visualization",
-  },
+const otherNavigationItems = [
   {
     icon: ClipboardCheck,
     label: "Reports",
@@ -44,6 +41,11 @@ const adminOnlyItems = [
     label: "Terminal",
     path: "/terminal",
   },
+  {
+    icon: TriangleAlert,
+    label: "Alarms",
+    path: "/alarms",
+  },
 ];
 
 export default function Sidebar() {
@@ -63,9 +65,23 @@ export default function Sidebar() {
     isAdminUser = false;
   }
 
+  // Create role-based first navigation item
+  const firstNavItem = isAdminUser
+    ? {
+        icon: LayoutDashboard,
+        label: "Dashboard",
+        path: "/dashboard",
+      }
+    : {
+        icon: Radio,
+        label: "Visualization",
+        path: "/visualization",
+      };
+
   // Combine navigation items based on user role
   const navigationItems = [
-    ...baseNavigationItems,
+    firstNavItem,
+    ...otherNavigationItems,
     ...(isAdminUser ? adminOnlyItems : []),
   ];
 
@@ -83,9 +99,8 @@ export default function Sidebar() {
             {navigationItems.map((item, index) => {
               const Icon = item.icon;
               const isActive =
-                item.path === "/visualization"
-                  ? location.pathname.startsWith("/visualization") ||
-                    location.pathname.startsWith("/tabular")
+                item.path === "/visualization" || item.path === "/dashboard"
+                  ? location.pathname.startsWith(item.path)
                   : location.pathname === item.path;
               return (
                 <li key={index}>
@@ -127,9 +142,8 @@ export default function Sidebar() {
         {navigationItems.map((item, index) => {
           const Icon = item.icon;
           const isActive =
-            item.path === "/visualization"
-              ? location.pathname.startsWith("/visualization") ||
-                location.pathname.startsWith("/tabular")
+            item.path === "/visualization" || item.path === "/dashboard"
+              ? location.pathname.startsWith(item.path)
               : location.pathname === item.path;
           return (
             <Tooltip key={index}>

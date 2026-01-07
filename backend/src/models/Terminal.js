@@ -8,6 +8,12 @@ module.exports = new EntitySchema ({
             type: "varchar",
             primary: true,
         },
+        devEUI: {
+            type: "varchar",
+            length: 16,
+            unique: true,
+            nullable: true,
+        },
         name: {
             type: "varchar",
             length: 255,

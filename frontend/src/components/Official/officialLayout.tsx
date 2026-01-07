@@ -1,10 +1,10 @@
 import {
-  LiveReportProvider,
-  useLiveReport,
+    LiveReportProvider,
+    useLiveReport,
 } from "@/components/Official/LiveReportContext";
 import {
-  RescueFormProvider,
-  useRescueForm,
+    RescueFormProvider,
+    useRescueForm,
 } from "@/components/Official/RescueFormContext";
 import { useAuth } from "@/contexts/AuthContext";
 import type React from "react";
@@ -58,10 +58,10 @@ function OfficialLayoutContent({ children }: officialLayoutProps) {
     return <Navigate to="/login-official" replace />;
   }
 
-  // Visualization nav is open if path starts with /visualization or /tabular
+  // Special pages that show header label and may have sidebars
   const isVisualizationOpen =
     location.pathname.startsWith("/visualization") ||
-    location.pathname.startsWith("/tabular");
+    location.pathname.startsWith("/dashboard");
 
   // Calculate margin based on which sidebars are open (only for visualization pages)
   const getMarginRight = () => {

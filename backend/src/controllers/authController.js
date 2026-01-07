@@ -664,6 +664,7 @@ const getCurrentUser = async (req, res) => {
         name: admin.name,
         email: admin.email,
         role: "admin",
+        passwordLastUpdated: admin.passwordLastUpdated
       };
     } else if (decoded.role === "dispatcher") {
       const dispatcher = await dispatcherRepo.findOne({
@@ -676,7 +677,9 @@ const getCurrentUser = async (req, res) => {
         id: dispatcher.id,
         name: dispatcher.name,
         email: dispatcher.email,
+        contactNumber: dispatcher.contactNumber,
         role: "dispatcher",
+        passwordLastUpdated: dispatcher.passwordLastUpdated
       };
     } else if (decoded.role === "focalPerson") {
       const focal = await focalRepo.findOne({ where: { id: decoded.id } });

@@ -23,9 +23,9 @@ export function cinematicMapEntrance(
 ) {
   map.flyTo({
     center: coord,
-    zoom: 16,
-    pitch: 35,
-    bearing: -17.6,
+    zoom: 14,
+    pitch: 20,
+    bearing: 5,
     duration: 4000,
     curve: 1.8,
     speed: 0.8,

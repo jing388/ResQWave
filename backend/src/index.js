@@ -5,12 +5,15 @@ const { AppDataSource } = require("./config/dataSource");
 const http = require("http");
 const { setupSocket } = require("./realtime/socket");
 const authRoutes = require("./routes/authRoutes");
+const chatbotRoutes = require("./routes/chatbotRoutes");
 const resetPasswordRoutes = require("./routes/resetPasswordRoutes");
 const dispatcherRoutes = require("./routes/dispatcherRoutes");
 const terminalRoutes = require("./routes/terminalRoutes");
 const focalPersonRoutes = require("./routes/focalPersonRoutes");
 const neighborhoodRoutes = require("./routes/neighborhoodRoutes");
 const alertRoutes = require("./routes/alertRoutes");
+const alarmRoutes = require("./routes/alarmRoutes");
+const profileRoutes = require("./routes/profileRoutes");
 const verificationRoutes = require("./routes/verificationRoutes");
 const rescueFormRoutes = require("./routes/rescueFormRoutes");
 const postRescueRoutes = require("./routes/postRescueRoutes");
@@ -19,6 +22,7 @@ const documentRoutes = require("./routes/documentRoutes");
 const focalRegistrationRoutes = require("./routes/focalRegistrationRoutes");
 const logsRoute = require("./routes/logRoutes");
 const adminLogRoutes = require("./routes/adminLogRoutes");
+const adminDashboardRoutes = require("./routes/adminDashboardRoutes");
 const sensorDataRoutes = require("./routes/sensorDataRoutes");
 const lmsRoutes = require("./routes/lmsRoutes");
 const { authMiddleware, requireRole } = require("./middleware/authMiddleware");
@@ -66,6 +70,9 @@ AppDataSource.initialize()
     app.use("/", sensorDataRoutes); // public route for sensor data
     app.use("/lms", lmsRoutes); // public routes for the data
 
+    // Chatbot (public) routes
+    app.use("/chatbot", chatbotRoutes);
+
     // Public endpoint for map data (landing page)
     app.get("/terminals/map", getTerminalsForMap);
 
@@ -85,7 +92,10 @@ AppDataSource.initialize()
     app.use("/neighborhood", neighborhoodRoutes);
     app.use("/logs", logsRoute);
     app.use("/admin-logs", requireRole("admin"), adminLogRoutes);
+    app.use("/admin-dashboard", requireRole("admin"), adminDashboardRoutes);
     app.use("/alerts", alertRoutes);
+    app.use("/alarms", alarmRoutes);
+    app.use("/profile", profileRoutes);
     app.use("/forms", rescueFormRoutes);
     app.use("/post", postRescueRoutes);
     app.use("/", graphRoutes);

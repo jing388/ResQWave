@@ -41,6 +41,7 @@ export interface VerificationResponse {
     role: "admin" | "dispatcher";
     email: string;
     name?: string;
+    passwordLastUpdated?: string | null;
   };
 }
 

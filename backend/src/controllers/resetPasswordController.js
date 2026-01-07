@@ -242,6 +242,9 @@ const resetPassword = async (req, res) => {
         }
 
         user.password = await bcrypt.hash(newPassword, 10); 
+        if (userType === 'admin' || userType === 'dispatcher') {
+            user.passwordLastUpdated = new Date();
+        }
     await repo.save(user);
     await passwordResetRepo.remove(resetEntry);
 

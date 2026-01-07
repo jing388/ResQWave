@@ -5,21 +5,22 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import React from "react";
 import { createBrowserRouter, Navigate, Outlet } from "react-router-dom";
 import {
-  FocalForgotPasswordFlow,
-  FocalForgotPasswordVerification,
-  Landing,
-  LoginFocal,
-  RegisterAccount,
+    FocalForgotPasswordFlow,
+    FocalForgotPasswordVerification,
+    Landing,
+    LoginFocal,
+    RegisterAccount,
 } from "../pages/Focal";
 import VerifyAccount from "../pages/Focal/LoginFocal/pages/RegisterAccount/VerifyAccount";
 import VerificationSignin from "../pages/Focal/LoginFocal/pages/SignAccount/VerificationSignin";
 import {
-  CommunityGroups,
-  LoginOfficial,
-  Reports,
-  Tabular,
-  VerificationOfficial,
-  Visualization,
+    Alarms,
+    CommunityGroups,
+    Dashboard,
+    LoginOfficial,
+    Reports,
+    VerificationOfficial,
+    Visualization,
 } from "../pages/Official";
 import { ForgotPasswordFlow } from "../pages/Official/LoginDispatcher/ForgotPasswordFlow";
 // TypeScript declaration for window property
@@ -179,8 +180,20 @@ export const router = createBrowserRouter([
         ),
         children: [
           {
+            path: "dashboard",
+            element: (
+              <ProtectedRoute adminOnly={true}>
+                <Dashboard />
+              </ProtectedRoute>
+            ),
+          },
+          {
             path: "visualization",
-            element: <Visualization />,
+            element: (
+              <ProtectedRoute dispatcherOnly={true}>
+                <Visualization />
+              </ProtectedRoute>
+            ),
           },
           {
             path: "reports",
@@ -207,8 +220,12 @@ export const router = createBrowserRouter([
             ),
           },
           {
-            path: "tabular",
-            element: <Tabular />,
+            path: "alarms",
+            element: (
+              <ProtectedRoute adminOnly={true}>
+                <Alarms />
+              </ProtectedRoute>
+            ),
           },
         ],
       },

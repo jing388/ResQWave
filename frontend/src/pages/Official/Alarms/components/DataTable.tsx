@@ -1,31 +1,31 @@
 import {
-  type ColumnFiltersState,
-  type SortingState,
-  type VisibilityState,
-  flexRender,
-  getCoreRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
-  useReactTable,
+    type ColumnFiltersState,
+    type SortingState,
+    type VisibilityState,
+    flexRender,
+    getCoreRowModel,
+    getFilteredRowModel,
+    getPaginationRowModel,
+    getSortedRowModel,
+    useReactTable,
 } from "@tanstack/react-table";
 import * as React from "react";
 
 import { Button } from "@/components/ui/button";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
 } from "@/components/ui/select";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
 } from "@/components/ui/table";
 import type { DataTableProps } from "../types";
 
@@ -40,7 +40,6 @@ export function DataTable<TData, TValue>({
   );
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>({});
-  const [rowSelection, setRowSelection] = React.useState({});
 
   const table = useReactTable({
     data,
@@ -52,12 +51,10 @@ export function DataTable<TData, TValue>({
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     onColumnVisibilityChange: setColumnVisibility,
-    onRowSelectionChange: setRowSelection,
     state: {
       sorting,
       columnFilters,
       columnVisibility,
-      rowSelection,
     },
     initialState: {
       pagination: {
@@ -68,19 +65,24 @@ export function DataTable<TData, TValue>({
 
   return (
     <div className="w-full">
-      <div className="bg-[#191818] rounded-[5px] border border-[#262626] overflow-hidden">
+      <div className="rounded-[5px] border border-[#2a2a2a] bg-[#171717]">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow
                 key={headerGroup.id}
-                className="bg-white border-b border-[#404040] hover:bg-white"
+                className="border-b border-[#2a2a2a] hover:bg-[#262626]"
               >
-                {headerGroup.headers.map((header) => {
+                {headerGroup.headers.map((header, index) => {
+                  const isFirst = index === 0;
+                  const isLast = index === headerGroup.headers.length - 1;
+
                   return (
                     <TableHead
                       key={header.id}
-                      className="text-black font-medium"
+                      className={`text-black font-medium bg-white h-12 px-4 text-left align-middle ${
+                        isFirst ? "rounded-tl-[5px]" : ""
+                      } ${isLast ? "rounded-tr-[5px]" : ""}`}
                     >
                       {header.isPlaceholder
                         ? null
@@ -99,14 +101,11 @@ export function DataTable<TData, TValue>({
               table.getRowModel().rows.map((row) => (
                 <TableRow
                   key={row.id}
-                  data-state={row.getIsSelected() && "selected"}
-                  className="border-b border-[#262626] hover:bg-[#1f1f1f] data-[state=selected]:bg-[#1f1f1f] cursor-pointer"
-                  onClick={() =>
-                    onRowClick && onRowClick(row.original as TData)
-                  }
+                  className="border-b border-[#2a2a2a] hover:bg-[#262626] cursor-pointer transition-colors"
+                  onClick={() => onRowClick?.(row.original)}
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id} className="py-[8.7px]">
+                    <TableCell key={cell.id} className="px-4 py-3">
                       {flexRender(
                         cell.column.columnDef.cell,
                         cell.getContext(),
@@ -121,7 +120,7 @@ export function DataTable<TData, TValue>({
                   colSpan={columns.length}
                   className="h-24 text-center text-[#a1a1a1]"
                 >
-                  No results.
+                  No alarms found.
                 </TableCell>
               </TableRow>
             )}
@@ -129,14 +128,14 @@ export function DataTable<TData, TValue>({
         </Table>
       </div>
 
+      {/* Pagination */}
       <div className="flex items-center justify-between space-x-2 py-4">
         <div className="text-sm text-[#a1a1a1]">
-          {table.getFilteredSelectedRowModel().rows.length} of{" "}
-          {table.getFilteredRowModel().rows.length} row(s) selected.
+          Showing {table.getFilteredRowModel().rows.length} alarm(s).
         </div>
         <div className="flex items-center space-x-6 lg:space-x-8">
           <div className="flex items-center space-x-2">
-            <p className="text-sm font-medium text-[#a1a1a1]">Rows per page:</p>
+            <p className="text-sm font-medium text-white">Rows per page:</p>
             <Select
               value={`${table.getState().pagination.pageSize}`}
               onValueChange={(value) => {
@@ -150,26 +149,32 @@ export function DataTable<TData, TValue>({
               </SelectTrigger>
               <SelectContent
                 side="top"
-                className="bg-[#262626] border-[#404040] text-white"
+                className="bg-[#171717] border border-[#404040]"
               >
-                {[8, 16, 24, 32, 50].map((pageSize) => (
-                  <SelectItem key={pageSize} value={`${pageSize}`}>
+                {[4, 8, 12, 16, 20].map((pageSize) => (
+                  <SelectItem
+                    key={pageSize}
+                    value={`${pageSize}`}
+                    className="text-white hover:bg-[#262626]"
+                  >
                     {pageSize}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
-          <div className="flex items-center space-x-1">
+          <div className="flex w-[100px] items-center justify-center text-sm font-medium text-white">
+            Page {table.getState().pagination.pageIndex + 1} of{" "}
+            {table.getPageCount()}
+          </div>
+          <div className="flex items-center space-x-2">
             <Button
               variant="outline"
-              className="h-8 px-2 lg:px-3 bg-transparent border-[#404040] text-[#a1a1a1] hover:bg-[#262626] hover:text-white"
+              className="h-8 w-8 p-0 bg-[#262626] border-[#404040] text-white hover:bg-[#404040] hover:text-white"
               onClick={() => table.previousPage()}
               disabled={!table.getCanPreviousPage()}
             >
-              <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-                Previous
-              </span>
+              <span className="sr-only">Go to previous page</span>
               <svg
                 className="h-4 w-4"
                 fill="none"
@@ -184,39 +189,13 @@ export function DataTable<TData, TValue>({
                 />
               </svg>
             </Button>
-
-            {Array.from(
-              { length: Math.min(3, table.getPageCount()) },
-              (_, i) => {
-                const pageNumber = i + 1;
-                const isCurrentPage =
-                  table.getState().pagination.pageIndex + 1 === pageNumber;
-                return (
-                  <Button
-                    key={pageNumber}
-                    variant={isCurrentPage ? "default" : "outline"}
-                    className={
-                      isCurrentPage
-                        ? "h-8 w-8 bg-[#4285f4] text-white hover:bg-[#3367d6]"
-                        : "h-8 w-8 bg-transparent border-[#404040] text-[#a1a1a1] hover:bg-[#262626] hover:text-white"
-                    }
-                    onClick={() => table.setPageIndex(pageNumber - 1)}
-                  >
-                    {pageNumber}
-                  </Button>
-                );
-              },
-            )}
-
             <Button
               variant="outline"
-              className="h-8 px-2 lg:px-3 bg-transparent border-[#404040] text-[#a1a1a1] hover:bg-[#262626] hover:text-white"
+              className="h-8 w-8 p-0 bg-[#262626] border-[#404040] text-white hover:bg-[#404040] hover:text-white"
               onClick={() => table.nextPage()}
               disabled={!table.getCanNextPage()}
             >
-              <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-                Next
-              </span>
+              <span className="sr-only">Go to next page</span>
               <svg
                 className="h-4 w-4"
                 fill="none"
