@@ -114,7 +114,6 @@ export function Dispatchers() {
     loading,
     archiveDispatcherById,
     restoreDispatcherById,
-    createNewDispatcher,
     updateDispatcherById,
     deleteDispatcherPermanentlyById,
     refreshData,
@@ -321,17 +320,11 @@ export function Dispatchers() {
             name?: string;
             email?: string;
             contactNumber?: string;
-            password?: string;
           } = {
             name: formData.name,
             email: formData.email,
             contactNumber: formData.contactNumber,
           };
-
-          // Only include password if provided (for editing, password is optional)
-          if (formData.password && formData.password.trim()) {
-            updateData.password = formData.password;
-          }
 
           await updateDispatcherById(editingDispatcher.id, updateData);
 
@@ -348,20 +341,10 @@ export function Dispatchers() {
             throw new Error(
               "Form data is required for creating a new dispatcher",
             );
-          }
+          } 
 
-          const result = await createNewDispatcher({
-            name: formData.name,
-            email: formData.email,
-            contactNumber: formData.contactNumber,
-            password: formData.password, // Pass the password if provided
-          });
-
-          // Show success alert with or without temporary password
-          alertsRef.current?.showCreateSuccess(
-            formData.name,
-            result.temporaryPassword,
-          );
+          // Show success alert
+          alertsRef.current?.showCreateSuccess(formData.name);
           return true; // Success
         }
       } catch (err) {
@@ -400,7 +383,7 @@ export function Dispatchers() {
         setSaving(false);
       }
     },
-    [editingDispatcher, createNewDispatcher, updateDispatcherById],
+    [editingDispatcher, updateDispatcherById],
   );
 
   // Function to clear specific server errors when user starts typing

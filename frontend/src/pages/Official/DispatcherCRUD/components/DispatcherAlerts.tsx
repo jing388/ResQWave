@@ -2,18 +2,15 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { UserCheck, UserPlus, UserX } from "lucide-react";
 import {
-  forwardRef,
-  useEffect,
-  useImperativeHandle,
-  useRef,
-  useState,
+    forwardRef,
+    useEffect,
+    useImperativeHandle,
+    useRef,
+    useState,
 } from "react";
 
 export type DispatcherAlertsHandle = {
-  showCreateSuccess: (
-    dispatcherName: string,
-    temporaryPassword?: string,
-  ) => void;
+  showCreateSuccess: (dispatcherName: string) => void;
   showUpdateSuccess: (dispatcherName: string) => void;
   showDeleteSuccess: (dispatcherName: string) => void;
   showArchiveSuccess: (dispatcherName: string) => void;
@@ -32,8 +29,6 @@ export default forwardRef<DispatcherAlertsHandle>(
     // Create success alert (bottom left)
     const [showCreate, setShowCreate] = useState(false);
     const [createMessage, setCreateMessage] = useState("");
-    const [showTempPassword, setShowTempPassword] = useState(false);
-    const [tempPassword, setTempPassword] = useState("");
     const createTimer = useRef<number | null>(null);
 
     // Update success alert (bottom center)
@@ -117,28 +112,16 @@ export default forwardRef<DispatcherAlertsHandle>(
     useImperativeHandle(
       ref,
       () => ({
-        showCreateSuccess: (
-          dispatcherName: string,
-          temporaryPassword?: string,
-        ) => {
+        showCreateSuccess: (dispatcherName: string) => {
           hideAllAlerts();
           setCreateMessage(
-            `Dispatcher "${dispatcherName}" created successfully!`,
+            `Dispatcher "${dispatcherName}" created successfully! Password has been sent to their email.`,
           );
-          if (temporaryPassword) {
-            setTempPassword(temporaryPassword);
-            setShowTempPassword(true);
-          } else {
-            setShowTempPassword(false);
-          }
           setShowCreate(true);
-          createTimer.current = window.setTimeout(
-            () => {
-              setShowCreate(false);
-              createTimer.current = null;
-            },
-            temporaryPassword ? 8000 : 3000,
-          ); // Longer duration if showing temp password
+          createTimer.current = window.setTimeout(() => {
+            setShowCreate(false);
+            createTimer.current = null;
+          }, 4000);
         },
         showUpdateSuccess: (dispatcherName: string) => {
           hideAllAlerts();
@@ -218,20 +201,7 @@ export default forwardRef<DispatcherAlertsHandle>(
               <UserPlus className="size-5 text-[#22c55e]" />
             </div>
             <AlertDescription className="text-[13px] leading-tight">
-              <div>{createMessage}</div>
-              {showTempPassword && (
-                <div className="mt-2 p-2 bg-blue-600/20 rounded border border-blue-600/30">
-                  <div className="text-[12px] text-blue-200 mb-1">
-                    Temporary Password:
-                  </div>
-                  <div className="font-mono text-[13px] text-blue-100 font-semibold">
-                    {tempPassword}
-                  </div>
-                  <div className="text-[11px] text-blue-300 mt-1">
-                    Please save this and share with the dispatcher.
-                  </div>
-                </div>
-              )}
+              {createMessage}
             </AlertDescription>
           </Alert>
         </div>

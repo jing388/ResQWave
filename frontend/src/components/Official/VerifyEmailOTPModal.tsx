@@ -66,10 +66,11 @@ export default function VerifyEmailOTPModal({ open, onClose, email, onVerify, er
             });
             setResendMsg("A new code has been sent to your email.");
             setTimeout(() => setResendMsg(""), 2000);
-        } catch (err: any) {
-            let msg = err.message || "Failed to resend code.";
+        } catch (err) {
+            const error = err as Error;
+            let msg = error.message || "Failed to resend code.";
             if (typeof err === 'object' && err !== null && 'message' in err) {
-                msg = err.message;
+                msg = (err as Error).message;
             }
             if (msg.includes("Email already in use")) {
                 msg = "This email is already in use.";
@@ -77,7 +78,9 @@ export default function VerifyEmailOTPModal({ open, onClose, email, onVerify, er
                 try {
                     const parsed = JSON.parse(msg);
                     if (parsed.message) msg = parsed.message;
-                } catch { }
+                } catch (parseError) {
+                    console.error('Failed to parse error message:', parseError);
+                }
             }
             setResendError(msg);
         } finally {

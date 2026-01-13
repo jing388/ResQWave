@@ -48,6 +48,7 @@ async function apiRequest<T>(
 export interface TerminalApiResponse {
   id: string;
   name: string;
+  devEUI?: string;
   status: "Online" | "Offline";
   availability?: "Available" | "Occupied";
   dateCreated: string;
@@ -78,6 +79,7 @@ export async function getNextTerminalId(): Promise<{ nextId: string }> {
 // Create new terminal
 export async function createTerminal(terminalData: {
   name: string;
+  devEUI: string;
 }): Promise<{ message: string; terminal: TerminalApiResponse }> {
   return apiRequest<{ message: string; terminal: TerminalApiResponse }>(
     "/terminal",
@@ -172,6 +174,7 @@ export function transformTerminalResponse(apiData: TerminalApiResponse) {
 // Helper function to convert backend response to frontend TerminalDetails type
 export function transformTerminalDetailsResponse(apiData: TerminalApiResponse) {
   return {
+    devEUI: apiData.devEUI || "",
     id: apiData.id,
     name: apiData.name,
     status: apiData.status,

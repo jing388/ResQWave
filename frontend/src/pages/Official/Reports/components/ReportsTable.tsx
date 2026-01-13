@@ -556,7 +556,7 @@ export function ReportsTable({
     state: {},
     initialState: {
       pagination: {
-        pageSize: isCompleted ? 5 : 6, // Reduce page size for completed to account for extra column
+        pageSize: 8,
       },
     },
   });
@@ -653,13 +653,14 @@ export function ReportsTable({
             </TableBody>
           </table>
         </div>
+      </div>
 
-        {/* Pagination */}
-        <div className="shrink-0 flex items-center justify-between px-3 py-2 border-t border-[#262626] bg-[#191818]">
+      {/* Pagination */}
+      <div className="flex items-center justify-between space-x-2 py-4">
         <div className="text-sm text-[#a1a1a1]">
           Showing {table.getFilteredRowModel().rows.length} report(s).
         </div>
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-6 lg:space-x-8">
           <div className="flex items-center space-x-2">
             <p className="text-sm font-medium text-[#a1a1a1]">Rows per page:</p>
             <Select
@@ -677,45 +678,15 @@ export function ReportsTable({
                 side="top"
                 className="bg-[#262626] border-[#404040] text-white"
               >
-                {isCompleted
-                  ? [5, 10, 15, 20].map((pageSize) => (
-                      <SelectItem key={pageSize} value={`${pageSize}`}>
-                        {pageSize}
-                      </SelectItem>
-                    ))
-                  : [6, 12, 18, 24].map((pageSize) => (
-                      <SelectItem key={pageSize} value={`${pageSize}`}>
-                        {pageSize}
-                      </SelectItem>
-                    ))}
+                {[8, 16, 24, 32, 50].map((pageSize) => (
+                  <SelectItem key={pageSize} value={`${pageSize}`}>
+                    {pageSize}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
           <div className="flex items-center space-x-1">
-            <Button
-              variant="outline"
-              className="h-8 px-2 lg:px-3 bg-transparent border-[#404040] text-[#a1a1a1] hover:bg-[#262626] hover:text-white"
-              onClick={() => table.previousPage()}
-              disabled={!table.getCanPreviousPage()}
-            >
-              <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-                Previous
-              </span>
-              <svg
-                className="h-4 w-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M15 19l-7-7 7-7"
-                />
-              </svg>
-            </Button>
-
             {Array.from(
               { length: Math.min(3, table.getPageCount()) },
               (_, i) => {
@@ -738,33 +709,31 @@ export function ReportsTable({
                 );
               },
             )}
-
-            <Button
-              variant="outline"
-              className="h-8 px-2 lg:px-3 bg-transparent border-[#404040] text-[#a1a1a1] hover:bg-[#262626] hover:text-white"
-              onClick={() => table.nextPage()}
-              disabled={!table.getCanNextPage()}
-            >
-              <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-                Next
-              </span>
-              <svg
-                className="h-4 w-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 5l7 7-7 7"
-                />
-              </svg>
-            </Button>
           </div>
+          <Button
+            variant="outline"
+            className="h-8 px-2 lg:px-3 bg-transparent border-[#404040] text-[#a1a1a1] hover:bg-[#262626] hover:text-white"
+            onClick={() => table.nextPage()}
+            disabled={!table.getCanNextPage()}
+          >
+            <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
+              Next
+            </span>
+            <svg
+              className="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 5l7 7-7 7"
+              />
+            </svg>
+          </Button>
         </div>
-      </div>
       </div>
 
       {/* Rescue Completion Form */}

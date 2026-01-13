@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { X, Edit, Archive, Trash2, Plus, RotateCcw, ChevronDown, Calendar, Pen } from "lucide-react";
+import { X, Archive, ChevronDown, Calendar, Pen } from "lucide-react";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -99,6 +99,7 @@ export default function ActivityLogsModal({ open, onClose }: ActivityLogsModalPr
         if (open) {
             fetchLogs();
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open]);
 
     // Replace the fetchLogs function to use apiFetch

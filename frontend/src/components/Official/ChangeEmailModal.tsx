@@ -28,6 +28,7 @@ export default function ChangeEmailModal({ open, onClose, currentEmail }: Change
 
         window.addEventListener("keydown", handleEscape);
         return () => window.removeEventListener("keydown", handleEscape);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open, showOTPModal]);
 
     if (!open && !showSnackbar) return null;
@@ -52,12 +53,13 @@ export default function ChangeEmailModal({ open, onClose, currentEmail }: Change
                     body: JSON.stringify({ newEmail: email })
                 });
                 setShowOTPModal(true);
-            } catch (err: any) {
+            } catch (err) {
                 // User-friendly error messages
-                let msg = err.message || "Failed to send OTP";
+                const error = err as Error;
+                let msg = error.message || "Failed to send OTP";
                 // If error is an object (e.g., { message: ... }), extract message
                 if (typeof err === 'object' && err !== null && 'message' in err) {
-                    msg = err.message;
+                    msg = (err as Error).message;
                 }
                 if (msg.includes("Email already in use")) {
                     msg = "This email is already in use.";
@@ -68,7 +70,9 @@ export default function ChangeEmailModal({ open, onClose, currentEmail }: Change
                     try {
                         const parsed = JSON.parse(msg);
                         if (parsed.message) msg = parsed.message;
-                    } catch { }
+                    } catch (parseError) {
+                        console.error('Failed to parse error message:', parseError);
+                    }
                 }
                 setError(msg);
             } finally {
@@ -96,11 +100,12 @@ export default function ChangeEmailModal({ open, onClose, currentEmail }: Change
             setEmail("");
             setError("");
             onClose();
-        } catch (err: any) {
+        } catch (err) {
             // User-friendly error messages
-            let msg = err.message || "Failed to update email";
+            const error = err as Error;
+            let msg = error.message || "Failed to update email";
             if (typeof err === 'object' && err !== null && 'message' in err) {
-                msg = err.message;
+                msg = (err as Error).message;
             }
             if (msg.includes("OTP does not match")) {
                 msg = "The code does not match the requested email.";
@@ -113,7 +118,9 @@ export default function ChangeEmailModal({ open, onClose, currentEmail }: Change
                 try {
                     const parsed = JSON.parse(msg);
                     if (parsed.message) msg = parsed.message;
-                } catch { }
+                } catch (parseError) {
+                    console.error('Failed to parse error message:', parseError);
+                }
             }
             setError(msg);
         }

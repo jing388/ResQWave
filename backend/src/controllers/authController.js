@@ -1,10 +1,10 @@
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
-const nodemailer = require("nodemailer");
 const { AppDataSource } = require("../config/dataSource");
 const { sendLockoutEmail } = require("../utils/lockUtils");
 const SibApiV3Sdk = require("sib-api-v3-sdk");
+const { sendSMS } = require("../utils/textbeeSMS");
 require("dotenv").config();
 
 const client = SibApiV3Sdk.ApiClient.instance;
@@ -177,6 +177,14 @@ const focalLogin = async (req, res) => {
       });
 
       console.log(`OTP email sent to ${focal.email}`);
+
+      // Send OTP via SMS
+      if (focal.contactNumber) {
+        await sendSMS(
+          focal.contactNumber,
+          `Your ResQWave verification code is: ${focalCode}. Valid for 5 minutes.`
+        );
+      }
     } catch (err) {
       console.error("[focalLogin] Failed to send OTP via Brevo:", err);
       return res
@@ -197,8 +205,6 @@ const focalLogin = async (req, res) => {
       message: "Verification Send to Email",
       tempToken: focalTempToken,
       otpSent: true,
-      locked,
-      lockUntil,
     });
   } catch (err) {
     console.error(err);
@@ -445,6 +451,14 @@ const adminDispatcherLogin = async (req, res) => {
       });
 
       console.log(`Verification email sent to ${recipientEmail}`);
+
+      // Send OTP via SMS
+      if (user.contactNumber) {
+        await sendSMS(
+          user.contactNumber,
+          `Your ResQWave verification code is: ${code}. Valid for 5 minutes.`
+        );
+      }
     } catch (err) {
       console.error("[dispatcherLogin] Failed to send OTP via Brevo:", err);
       return res
@@ -688,8 +702,13 @@ const getCurrentUser = async (req, res) => {
       }
       userData = {
         id: focal.id,
-        name: focal.name,
+        firstName: focal.firstName || focal.name?.split(' ')[0] || '',
+        lastName: focal.lastName || focal.name?.split(' ').slice(1).join(' ') || '',
         email: focal.email,
+        phone: focal.contactNumber,
+        address: focal.address,
+        photo: focal.photo,
+        lastPasswordChange: focal.passwordLastUpdated,
         role: "focalPerson",
       };
     } else {
@@ -769,6 +788,14 @@ const resendFocalLoginCode = async (req, res) => {
       });
 
       console.log(` Resent verification code to ${focal.email}`);
+
+      // Send OTP via SMS
+      if (focal.contactNumber) {
+        await sendSMS(
+          focal.contactNumber,
+          `Your ResQWave verification code is: ${code}. Valid for 5 minutes.`
+        );
+      }
     } catch (emailErr) {
       console.error(
         " Failed to send Brevo email:",
@@ -811,6 +838,7 @@ const resendAdminDispatcherCode = async (req, res) => {
         decoded = jwt.verify(tempToken, process.env.JWT_SECRET);
       } catch (err) {
         // If token is expired, decode it without verification to get the user ID
+        console.log('Token expired, attempting to decode without verification:', err.message);
         try {
           decoded = jwt.decode(tempToken);
           if (
@@ -901,6 +929,14 @@ const resendAdminDispatcherCode = async (req, res) => {
       });
 
       console.log(`Verification code sent to ${recipientEmail}`);
+
+      // Send OTP via SMS
+      if (user.contactNumber) {
+        await sendSMS(
+          user.contactNumber,
+          `Your ResQWave verification code is: ${code}. Valid for 5 minutes.`
+        );
+      }
     } catch (emailErr) {
       console.error(
         "Failed to send Brevo email:",

@@ -1,10 +1,10 @@
 import { Button } from "@/components/ui/button";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { ArchiveRestore, Info, Trash2 } from "lucide-react";
@@ -13,7 +13,7 @@ import { createColumns, type Terminal } from "./components/Column";
 import { CreateTerminalSheet } from "./components/CreateTerminalModal";
 import { DataTable } from "./components/DataTable";
 import TerminalAlerts, {
-  type TerminalAlertsHandle,
+    type TerminalAlertsHandle,
 } from "./components/TerminalAlerts";
 import { TerminalInfoSheet } from "./components/TerminalInfoSheet";
 import { useTerminals } from "./hooks/useTerminals";
@@ -145,6 +145,7 @@ export function Terminals() {
           setSelectedInfoData(fetchedDetails);
         } else {
           setSelectedInfoData({
+            devEUI: "",
             id: terminal.id,
             name: terminal.name,
             status: terminal.status,
@@ -156,6 +157,7 @@ export function Terminals() {
       } catch (error) {
         console.error("Error fetching terminal details:", error);
         setSelectedInfoData({
+          devEUI: "",
           id: terminal.id,
           name: terminal.name,
           status: terminal.status,

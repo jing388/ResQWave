@@ -66,6 +66,7 @@ export const useMapPins = () => {
             {
               neighborhoodID: "", // Not provided in socket update
               terminalID: update.terminalId,
+              terminalName: update.terminalId, // Use terminalID as name if not provided
               terminalStatus: update.terminalStatus,
               latestAlertTime: update.timeSent,
               totalAlerts: 1,

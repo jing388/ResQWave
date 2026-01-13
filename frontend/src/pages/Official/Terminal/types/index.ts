@@ -27,6 +27,7 @@ export interface DataTableProps<TData, TValue> {
 
 // Detailed terminal information used by drawer/info sheet
 export interface TerminalDetails {
+  devEUI: string;
   id: string;
   name: string;
   status: "Online" | "Offline";
@@ -39,6 +40,7 @@ export interface TerminalDetails {
 // Raw form data for API calls
 export interface TerminalFormData {
   name: string;
+  devEUI: string;
   status: "Online" | "Offline";
   availability: "Available" | "Occupied";
 }

@@ -281,43 +281,55 @@ const getUnassignedMapAlerts = async (req, res) => {
 
     console.log('[BACKEND] Fetching all occupied terminals from database...');
 
-    // Fetch all terminals that have a neighborhood/focal person (occupied terminals)
-    // Join with the latest alert for each terminal to get alert data
+    // FIXED latest alert subquery (NULL-safe)
     const latestAlertSQ = alertRepo
       .createQueryBuilder("a")
       .select("a.terminalID", "terminalID")
       .addSelect("MAX(a.dateTimeSent)", "lastTime")
+      .where("a.dateTimeSent IS NOT NULL")
       .groupBy("a.terminalID");
 
     const terminals = await terminalRepo
       .createQueryBuilder("t")
-      .leftJoin("Neighborhood", "n", "n.terminalID = t.id")
-      .leftJoin("FocalPerson", "fp", "fp.id = n.focalPersonID")
+
+      // FIXED: use actual table names
+      .leftJoin("neighborhood", "n", "n.terminalID = t.id")
+      .leftJoin("focalpersons", "fp", "fp.id = n.focalPersonID")
+
+      // FIXED: properly aliased subquery
       .leftJoin(
         "(" + latestAlertSQ.getQuery() + ")",
         "latestAlert",
-        "latestAlert.terminalID = t.id"
+        "`latestAlert`.`terminalID` = `t`.`id`"
       )
-      .leftJoin("Alert", "alert", "alert.terminalID = t.id AND alert.dateTimeSent = latestAlert.lastTime")
+
+      // FIXED: backticked alias usage
+      .leftJoin(
+        "alerts",
+        "alert",
+        "`alert`.`terminalID` = `t`.`id` AND `alert`.`dateTimeSent` = `latestAlert`.`lastTime`"
+      )
+
       .setParameters(latestAlertSQ.getParameters())
+
       .select([
-        // Terminal data
         "t.id AS terminalId",
         "t.name AS terminalName",
         "t.status AS terminalStatus",
-        // Alert data (from latest alert, or null if no alerts exist)
+
         "alert.id AS alertId",
-        "alert.alertType AS alertType", // Can be NULL, 'Critical', or 'User-Initiated'
+        "alert.alertType AS alertType",
         "COALESCE(alert.dateTimeSent, t.dateCreated) AS timeSent",
         "alert.status AS alertStatus",
-        // Focal Person data
+
         "fp.id AS focalPersonId",
         "fp.firstName AS focalFirstName",
         "fp.lastName AS focalLastName",
         "fp.address AS focalAddress",
         "fp.contactNumber AS focalContactNumber",
       ])
-      .where("n.focalPersonID IS NOT NULL") // Only occupied terminals
+
+      .where("n.focalPersonID IS NOT NULL")
       .getRawMany();
 
     console.log('[BACKEND] Found occupied terminals:', terminals.length);
@@ -334,7 +346,7 @@ const getUnassignedMapAlerts = async (req, res) => {
     res.json(terminals);
   } catch (err) {
     console.error('[BACKEND] Error in getUnassignedMapAlerts:', err);
-    res.status(500).json({message: "Server Error"});
+    res.status(500).json({ message: "Server Error" });
   }
 };
 

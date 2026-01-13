@@ -1,31 +1,31 @@
 import {
-  type ColumnFiltersState,
-  type SortingState,
-  type VisibilityState,
-  flexRender,
-  getCoreRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
-  useReactTable,
+    type ColumnFiltersState,
+    type SortingState,
+    type VisibilityState,
+    flexRender,
+    getCoreRowModel,
+    getFilteredRowModel,
+    getPaginationRowModel,
+    getSortedRowModel,
+    useReactTable,
 } from "@tanstack/react-table";
 import * as React from "react";
 
 import { Button } from "@/components/ui/button";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
 } from "@/components/ui/select";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
 } from "@/components/ui/table";
 import type { DataTableProps } from "../types";
 
@@ -135,7 +135,7 @@ export function DataTable<TData, TValue>({
         </div>
         <div className="flex items-center space-x-6 lg:space-x-8">
           <div className="flex items-center space-x-2">
-            <p className="text-sm font-medium text-white">Rows per page:</p>
+            <p className="text-sm font-medium text-[#a1a1a1]">Rows per page:</p>
             <Select
               value={`${table.getState().pagination.pageSize}`}
               onValueChange={(value) => {
@@ -149,68 +149,63 @@ export function DataTable<TData, TValue>({
               </SelectTrigger>
               <SelectContent
                 side="top"
-                className="bg-[#171717] border border-[#404040]"
+                className="bg-[#262626] border-[#404040] text-white"
               >
-                {[4, 8, 12, 16, 20].map((pageSize) => (
-                  <SelectItem
-                    key={pageSize}
-                    value={`${pageSize}`}
-                    className="text-white hover:bg-[#262626]"
-                  >
+                {[8, 16, 24, 32, 50].map((pageSize) => (
+                  <SelectItem key={pageSize} value={`${pageSize}`}>
                     {pageSize}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
-          <div className="flex w-[100px] items-center justify-center text-sm font-medium text-white">
-            Page {table.getState().pagination.pageIndex + 1} of{" "}
-            {table.getPageCount()}
+          <div className="flex items-center space-x-1">
+            {Array.from(
+              { length: Math.min(3, table.getPageCount()) },
+              (_, i) => {
+                const pageNumber = i + 1;
+                const isCurrentPage =
+                  table.getState().pagination.pageIndex + 1 === pageNumber;
+                return (
+                  <Button
+                    key={pageNumber}
+                    variant={isCurrentPage ? "default" : "outline"}
+                    className={
+                      isCurrentPage
+                        ? "h-8 w-8 bg-[#4285f4] text-white hover:bg-[#3367d6]"
+                        : "h-8 w-8 bg-transparent border-[#404040] text-[#a1a1a1] hover:bg-[#262626] hover:text-white"
+                    }
+                    onClick={() => table.setPageIndex(pageNumber - 1)}
+                  >
+                    {pageNumber}
+                  </Button>
+                );
+              },
+            )}
           </div>
-          <div className="flex items-center space-x-2">
-            <Button
-              variant="outline"
-              className="h-8 w-8 p-0 bg-[#262626] border-[#404040] text-white hover:bg-[#404040] hover:text-white"
-              onClick={() => table.previousPage()}
-              disabled={!table.getCanPreviousPage()}
+          <Button
+            variant="outline"
+            className="h-8 px-2 lg:px-3 bg-transparent border-[#404040] text-[#a1a1a1] hover:bg-[#262626] hover:text-white"
+            onClick={() => table.nextPage()}
+            disabled={!table.getCanNextPage()}
+          >
+            <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
+              Next
+            </span>
+            <svg
+              className="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
             >
-              <span className="sr-only">Go to previous page</span>
-              <svg
-                className="h-4 w-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M15 19l-7-7 7-7"
-                />
-              </svg>
-            </Button>
-            <Button
-              variant="outline"
-              className="h-8 w-8 p-0 bg-[#262626] border-[#404040] text-white hover:bg-[#404040] hover:text-white"
-              onClick={() => table.nextPage()}
-              disabled={!table.getCanNextPage()}
-            >
-              <span className="sr-only">Go to next page</span>
-              <svg
-                className="h-4 w-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 5l7 7-7 7"
-                />
-              </svg>
-            </Button>
-          </div>
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 5l7 7-7 7"
+              />
+            </svg>
+          </Button>
         </div>
       </div>
     </div>

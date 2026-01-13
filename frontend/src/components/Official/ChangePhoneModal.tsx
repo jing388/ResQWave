@@ -19,13 +19,14 @@ export default function ChangePhoneModal({ open, onClose, currentPhone }: Change
 
         window.addEventListener("keydown", handleEscape);
         return () => window.removeEventListener("keydown", handleEscape);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open]);
 
     if (!open) return null;
 
     const isValidPhone = (phone: string) => {
         // Basic phone validation - adjust regex as needed for your requirements
-        const phoneRegex = /^[\d\s\-\+\(\)]+$/;
+        const phoneRegex = /^[\d\s\-+()]+$/;
         return phoneRegex.test(phone) && phone.length >= 10;
     };
 

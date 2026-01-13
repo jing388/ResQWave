@@ -81,8 +81,7 @@ export async function createDispatcher(dispatcherData: {
   name: string;
   email: string;
   contactNumber: string;
-  password?: string;
-}): Promise<{ message: string; temporaryPassword?: string }> {
+}): Promise<{ message: string }> {
   const token = localStorage.getItem("resqwave_token");
 
   // Create FormData for multipart upload
@@ -90,11 +89,6 @@ export async function createDispatcher(dispatcherData: {
   formData.append("name", dispatcherData.name);
   formData.append("email", dispatcherData.email);
   formData.append("contactNumber", dispatcherData.contactNumber);
-
-  // Only include password if provided, otherwise backend will use default (dispatcher ID)
-  if (dispatcherData.password) {
-    formData.append("password", dispatcherData.password);
-  }
 
   const response = await fetch(`${API_BASE_URL}/dispatcher`, {
     method: "POST",

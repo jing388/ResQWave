@@ -1,15 +1,15 @@
 import { useCallback, useEffect, useState } from "react";
 import {
-  archiveTerminal,
-  createTerminal,
-  getActiveTerminals,
-  getArchivedTerminals,
-  getTerminal,
-  permanentDeleteTerminal,
-  transformTerminalDetailsResponse,
-  transformTerminalResponse,
-  unarchiveTerminal,
-  updateTerminal,
+    archiveTerminal,
+    createTerminal,
+    getActiveTerminals,
+    getArchivedTerminals,
+    getTerminal,
+    permanentDeleteTerminal,
+    transformTerminalDetailsResponse,
+    transformTerminalResponse,
+    unarchiveTerminal,
+    updateTerminal,
 } from "../api/terminalApi";
 import type { Terminal, TerminalDetails, TerminalFormData } from "../types";
 
@@ -113,6 +113,7 @@ export function useTerminals() {
         setError(null);
         const result = await createTerminal({
           name: terminalData.name,
+          devEUI: terminalData.devEUI,
         });
 
         // Refresh the active terminals list after successful creation

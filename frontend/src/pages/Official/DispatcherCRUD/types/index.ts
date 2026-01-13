@@ -40,7 +40,6 @@ export interface DispatcherFormData {
   name: string;
   email: string;
   contactNumber: string;
-  password?: string;
   photo?: File;
 }
 

@@ -4,7 +4,7 @@ import type { MapPinData } from "../api/adminDashboardApi";
 interface MapPinsProps {
   map: mapboxgl.Map | null;
   pins: MapPinData[];
-  mapContainer: React.RefObject<HTMLDivElement>;
+  mapContainer: React.RefObject<HTMLDivElement | null>;
   onPinClick: (popoverData: {
     lng: number;
     lat: number;
@@ -242,61 +242,62 @@ export function MapPins({ map, pins, mapContainer, onPinClick }: MapPinsProps) {
         // Silent error handling
       }
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map]);
 
   // Attach event handlers only once
   useEffect(() => {
     if (!map || !layersInitialized.current || handlersAttached.current) return;
 
+    const handleClick = (e: mapboxgl.MapMouseEvent) => {
+      const features = map.queryRenderedFeatures(e.point, {
+        layers: ["admin-pins-layer"],
+      });
+
+      if (features.length > 0) {
+        const feature = features[0];
+        const props = feature.properties;
+        const coords = (feature.geometry as GeoJSON.Point).coordinates as [number, number];
+
+        const timeSent = props?.latestAlertTime 
+          ? new Date(props.latestAlertTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true })
+          : "N/A";
+
+        const pt = map.project(coords);
+        const rect = mapContainer.current?.getBoundingClientRect();
+        const absX = (rect?.left ?? 0) + pt.x;
+        const absY = (rect?.top ?? 0) + pt.y;
+
+        onPinClick({
+          lng: coords[0],
+          lat: coords[1],
+          screen: { x: absX, y: absY },
+          terminalID: props?.terminalID || "N/A",
+          terminalName: props?.terminalName || "N/A",
+          terminalStatus: props?.terminalStatus || "N/A",
+          timeSent,
+          focalPerson: props?.focalPerson || "N/A",
+          contactNumber: props?.contactNumber || "N/A",
+          totalAlerts: props?.totalAlerts || 0,
+        });
+      }
+    };
+
+    const handleMouseEnter = () => {
+      if (map && map.getCanvas) {
+        map.getCanvas().style.cursor = "pointer";
+      }
+    };
+
+    const handleMouseLeave = () => {
+      if (map && map.getCanvas) {
+        map.getCanvas().style.cursor = "";
+      }
+    };
+
     // Wait a bit to ensure layers are fully added
     const timer = setTimeout(() => {
       if (!map.getLayer("admin-pins-layer")) return;
-
-      const handleClick = (e: mapboxgl.MapMouseEvent) => {
-        const features = map.queryRenderedFeatures(e.point, {
-          layers: ["admin-pins-layer"],
-        });
-
-        if (features.length > 0) {
-          const feature = features[0];
-          const props = feature.properties;
-          const coords = (feature.geometry as GeoJSON.Point).coordinates as [number, number];
-
-          const timeSent = props?.latestAlertTime 
-            ? new Date(props.latestAlertTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true })
-            : "N/A";
-
-          const pt = map.project(coords);
-          const rect = mapContainer.current?.getBoundingClientRect();
-          const absX = (rect?.left ?? 0) + pt.x;
-          const absY = (rect?.top ?? 0) + pt.y;
-
-          onPinClick({
-            lng: coords[0],
-            lat: coords[1],
-            screen: { x: absX, y: absY },
-            terminalID: props?.terminalID || "N/A",
-            terminalName: props?.terminalName || "N/A",
-            terminalStatus: props?.terminalStatus || "N/A",
-            timeSent,
-            focalPerson: props?.focalPerson || "N/A",
-            contactNumber: props?.contactNumber || "N/A",
-            totalAlerts: props?.totalAlerts || 0,
-          });
-        }
-      };
-
-      const handleMouseEnter = () => {
-        if (map && map.getCanvas) {
-          map.getCanvas().style.cursor = "pointer";
-        }
-      };
-
-      const handleMouseLeave = () => {
-        if (map && map.getCanvas) {
-          map.getCanvas().style.cursor = "";
-        }
-      };
 
       map.on("click", "admin-pins-layer", handleClick);
       map.on("mouseenter", "admin-pins-layer", handleMouseEnter);
@@ -310,9 +311,9 @@ export function MapPins({ map, pins, mapContainer, onPinClick }: MapPinsProps) {
       if (!map || typeof map.off !== 'function') return;
       
       try {
-        map.off("click", "admin-pins-layer");
-        map.off("mouseenter", "admin-pins-layer");
-        map.off("mouseleave", "admin-pins-layer");
+        map.off("click", "admin-pins-layer", handleClick);
+        map.off("mouseenter", "admin-pins-layer", handleMouseEnter);
+        map.off("mouseleave", "admin-pins-layer", handleMouseLeave);
         handlersAttached.current = false;
       } catch {
         // Silent error handling

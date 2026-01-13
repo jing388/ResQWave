@@ -12,7 +12,7 @@ interface AccountSettingsModalProps {
 
 export default function AccountSettingsModal({ open, onClose }: AccountSettingsModalProps) {
     const { user } = useAuth();
-    const [phone, setPhone] = useState(""); // You can fetch this from user data if available
+    const [phone] = useState(""); // You can fetch this from user data if available
     const [showPasswordModal, setShowPasswordModal] = useState(false);
     const [showEmailModal, setShowEmailModal] = useState(false);
     const [showPhoneModal, setShowPhoneModal] = useState(false);

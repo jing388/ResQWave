@@ -1,11 +1,58 @@
-import { useState } from "react";
+import { ChatbotConvo } from "@/pages/Focal/Landing/components/ChatbotConvo";
 import { LandingHeader } from "@/pages/Focal/Landing/components/Header";
 import { LandingHero } from "@/pages/Focal/Landing/components/Hero";
-import { ChatbotConvo } from "@/pages/Focal/Landing/components/ChatbotConvo";
+import { useEffect, useState } from "react";
+import { LandingCTA } from "./components/CTA";
+import { LandingFAQs } from "./components/FAQs";
+import { LandingFooter } from "./components/Footer";
+import { LandingGoal } from "./components/Goal";
+import { LandingHowItWorks } from "./components/HowItWorks";
+import { LandingNumbers } from "./components/Numbers";
 
 export function Landing() {
   const [navOpen, setNavOpen] = useState(false);
-  const [showSearch, setShowSearch] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [showHeader, setShowHeader] = useState(true);
+  const [lastScrollY, setLastScrollY] = useState(0);
+
+  useEffect(() => {
+    let ticking = false;
+    
+    const handleScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          const currentScrollY = window.scrollY;
+          
+          // Apply background/fixed style after minimal scroll
+          if (currentScrollY > 20) {
+            setIsScrolled(true);
+          } else {
+            setIsScrolled(false);
+          }
+          
+          // Hide/show logic - only when scrolled down significantly
+          if (currentScrollY < 100) {
+            // Always show near top
+            setShowHeader(true);
+          } else if (currentScrollY < lastScrollY - 5) {
+            // Scrolling up (with small buffer to avoid jitter)
+            setShowHeader(true);
+          } else if (currentScrollY > lastScrollY + 5) {
+            // Scrolling down (with small buffer to avoid jitter)
+            setShowHeader(false);
+          }
+          
+          setLastScrollY(currentScrollY);
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [lastScrollY]);
+
   return (
     <div className="min-h-screen text-white flex flex-col primary-background" style={{ position: 'relative', overflow: 'hidden' }}>
       {/* Global Radial Gradient Backgrounds with animation */}
@@ -30,11 +77,18 @@ export function Landing() {
         }}
       />
       {/* Header */}
-      <LandingHeader navOpen={navOpen} setNavOpen={setNavOpen} />
+      <LandingHeader navOpen={navOpen} setNavOpen={setNavOpen} isScrolled={isScrolled} showHeader={showHeader} />
       {/* Hero Section */}
-      <LandingHero showSearch={showSearch} setShowSearch={setShowSearch} />
+      <LandingHero />
+      <LandingGoal />
+      <LandingHowItWorks />
+      <LandingNumbers />
+      <LandingFAQs />
+      <LandingCTA />
+      <LandingFooter />
       {/* Floating Chatbot Widget */}
       <ChatbotConvo />
+     
     </div>
   );
 }

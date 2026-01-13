@@ -1,15 +1,15 @@
 import { useCallback, useEffect, useState } from "react";
 import {
-  archiveDispatcher,
-  createDispatcher,
-  deleteDispatcherPermanently,
-  getActiveDispatchers,
-  getArchivedDispatchers,
-  getDispatcher,
-  restoreDispatcher,
-  transformDispatcherDetailsResponse,
-  transformDispatcherResponse,
-  updateDispatcher,
+    archiveDispatcher,
+    createDispatcher,
+    deleteDispatcherPermanently,
+    getActiveDispatchers,
+    getArchivedDispatchers,
+    getDispatcher,
+    restoreDispatcher,
+    transformDispatcherDetailsResponse,
+    transformDispatcherResponse,
+    updateDispatcher,
 } from "../api/dispatcherApi";
 import type { Dispatcher, DispatcherDetails } from "../types";
 
@@ -123,7 +123,6 @@ export function useDispatchers() {
       name: string;
       email: string;
       contactNumber: string;
-      password?: string;
     }) => {
       try {
         setError(null);
@@ -267,7 +266,6 @@ export function useDispatchers() {
         name?: string;
         email?: string;
         contactNumber?: string;
-        password?: string;
       },
     ) => {
       try {
@@ -325,8 +323,6 @@ export function useDispatchers() {
           formData.append("email", dispatcherData.email);
         if (dispatcherData.contactNumber)
           formData.append("contactNumber", dispatcherData.contactNumber);
-        if (dispatcherData.password)
-          formData.append("password", dispatcherData.password);
 
         try {
           const result = await updateDispatcher(id, formData);

@@ -1,9 +1,9 @@
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,10 +13,12 @@ import type { TerminalDrawerProps, TerminalFormData } from "../types";
 
 interface FormData {
   name: string;
+  devEUI: string;
 }
 
 interface FormErrors {
   name?: string;
+  devEUI?: string;
 }
 
 export function CreateTerminalSheet({
@@ -30,6 +32,7 @@ export function CreateTerminalSheet({
 
   const [formData, setFormData] = useState<FormData>({
     name: "",
+    devEUI: "",
   });
 
   const [errors, setErrors] = useState<FormErrors>({});
@@ -60,10 +63,21 @@ export function CreateTerminalSheet({
     return undefined;
   };
 
+  const validateDevEUI = (devEUI: string): string | undefined => {
+    if (!devEUI || !devEUI.trim()) return "DevEUI is required";
+    // Remove dashes and spaces for validation
+    const normalized = devEUI.replace(/[-\s]/g, "").toUpperCase();
+    if (!/^[0-9A-F]{16}$/.test(normalized)) {
+      return "DevEUI must be 16 hexadecimal characters (e.g., 00-11-22-33-44-55-66-77)";
+    }
+    return undefined;
+  };
+
   // Check if form is valid
   const isFormValid = (): boolean => {
     const hasValidName = !validateName(formData.name);
-    return hasValidName;
+    const hasValidDevEUI = !validateDevEUI(formData.devEUI);
+    return hasValidName && hasValidDevEUI;
   };
 
   // Reset form when opening/closing or when edit data changes
@@ -71,6 +85,7 @@ export function CreateTerminalSheet({
     if (open && isEditing && editData) {
       setFormData({
         name: editData.name,
+        devEUI: "",
       });
       setErrors({});
       setDisplayId(editData.id);
@@ -78,6 +93,7 @@ export function CreateTerminalSheet({
       // Reset for new terminal and fetch the next ID from backend
       setFormData({
         name: "",
+        devEUI: "",
       });
       setErrors({});
       setDisplayId("Loading...");
@@ -109,6 +125,9 @@ export function CreateTerminalSheet({
       if (field === "name") {
         const error = validateName(value);
         setErrors((prev) => ({ ...prev, name: error }));
+      } else if (field === "devEUI") {
+        const error = validateDevEUI(value);
+        setErrors((prev) => ({ ...prev, devEUI: error }));
       }
     },
     [errors],
@@ -122,9 +141,11 @@ export function CreateTerminalSheet({
 
     // Validate all fields
     const nameError = validateName(formData.name);
+    const devEUIError = validateDevEUI(formData.devEUI);
 
     const newErrors: FormErrors = {
       name: nameError,
+      devEUI: devEUIError,
     };
 
     setErrors(newErrors);
@@ -145,6 +166,7 @@ export function CreateTerminalSheet({
     // Prepare the data
     const terminalFormData: TerminalFormData = {
       name: formData.name.trim(),
+      devEUI: formData.devEUI.trim(),
       status: "Offline", // Default status
       availability: "Available", // Default availability
     };
@@ -156,7 +178,7 @@ export function CreateTerminalSheet({
         onOpenChange(false);
 
         // Reset form
-        setFormData({ name: "" });
+        setFormData({ name: "", devEUI: "" });
         setErrors({});
       })
       .catch((err) => {
@@ -217,6 +239,27 @@ export function CreateTerminalSheet({
             />
             {errors.name && (
               <p className="text-red-400 text-xs">{errors.name}</p>
+            )}
+          </div>
+
+          {/* DevEUI Field */}
+          <div className="space-y-3">
+            <div className="flex justify-between items-center">
+              <Label className="text-white font-medium">DevEUI</Label>
+              <span className="text-[#a1a1a1] text-xs">
+                16 hex characters
+              </span>
+            </div>
+            <Input
+              value={formData.devEUI}
+              onChange={(e) => handleInputChange("devEUI", e.target.value)}
+              disabled={isSaving || loading}
+              className="bg-[#262626] border-[#404040] text-white placeholder:text-[#a1a1a1] focus:border-[#4285f4] disabled:opacity-50 disabled:cursor-not-allowed font-mono"
+              placeholder="00-11-22-33-44-55-66-77"
+              maxLength={23}
+            />
+            {errors.devEUI && (
+              <p className="text-red-400 text-xs">{errors.devEUI}</p>
             )}
           </div>
 

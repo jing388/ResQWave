@@ -38,6 +38,7 @@ export default function ChangePasswordModal({ open, onClose }: ChangePasswordMod
 
         window.addEventListener("keydown", handleEscape);
         return () => window.removeEventListener("keydown", handleEscape);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open, isLoading]);
 
     // Password validation requirements
@@ -119,10 +120,11 @@ export default function ChangePasswordModal({ open, onClose }: ChangePasswordMod
             setTimeout(() => {
                 handleClose();
             }, 100);
-        } catch (err: any) {
-            let msg = err.message || "Failed to change password";
+        } catch (err) {
+            const error = err as Error;
+            let msg = error.message || "Failed to change password";
             if (typeof err === 'object' && err !== null && 'message' in err) {
-                msg = err.message;
+                msg = (err as Error).message;
             }
             if (msg.includes("Incorrect current password")) {
                 msg = "Current password is incorrect.";
@@ -132,7 +134,9 @@ export default function ChangePasswordModal({ open, onClose }: ChangePasswordMod
                 try {
                     const parsed = JSON.parse(msg);
                     if (parsed.message) msg = parsed.message;
-                } catch {}
+                } catch (parseError) {
+                    console.error('Failed to parse error message:', parseError);
+                }
             }
             setError(msg);
         } finally {

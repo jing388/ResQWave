@@ -28,6 +28,7 @@ const lmsRoutes = require("./routes/lmsRoutes");
 const { authMiddleware, requireRole } = require("./middleware/authMiddleware");
 const { getTerminalsForMap } = require("./controllers/terminalController");
 const { createCriticalAlert, createUserInitiatedAlert } = require("./controllers/alertController");
+const { testSanityConnection } = require("./services/sanity-chatbot-service");
 
 // Test For Realtime
 // Remove the comment to test again
@@ -50,8 +51,16 @@ app.use(express.json());
 
 //Connect DB
 AppDataSource.initialize()
-  .then(() => {
+  .then(async () => {
     console.log("Database Connected and Synced!");
+
+    // Test Sanity connection
+    try {
+      await testSanityConnection();
+      console.log("Sanity CMS Connected! (Project: 5u9e9skw)");
+    } catch (err) {
+      console.error("⚠️ Sanity CMS Connection Failed:", err.message);
+    }
 
     // test route
     app.get("/", (req, res) => {
@@ -61,6 +70,9 @@ AppDataSource.initialize()
     // Serve static files (for test page)
     // Add comment to test the realtime page again
     app.use(express.static(path.join(__dirname, "public")));
+
+    // Serve uploaded files (profile pictures, etc.)
+    app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
     // Public Routes
     app.use("/", authRoutes);

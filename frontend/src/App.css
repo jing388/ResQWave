@@ -81,8 +81,8 @@ select {
 .header-navs {
   color: #707070;
   display: flex;
-  gap: 2.75rem; /* gap-11 */
-  font-size: 16px;
+  gap: 2.2rem; /* Reduced from 2.75rem */
+  font-size: 14px; /* Reduced from 16px to match 80% scale */
 }
 
 .header-navs a {
@@ -117,6 +117,37 @@ select {
 
 .header-navs a.importance-link:hover {
   text-decoration: none;
+}
+
+/* Header animations */
+@keyframes slideDown {
+  from {
+    transform: scale(0.9) translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: scale(0.9) translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideDownFadeIn {
+  from {
+    transform: translateY(-10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-slideDown {
+  animation: slideDown 0.3s ease-out forwards;
+}
+
+.animate-slideDownFadeIn {
+  animation: slideDownFadeIn 0.25s ease-out forwards;
 }
 
 .global-radial-gradient {
