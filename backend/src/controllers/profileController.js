@@ -69,7 +69,7 @@ const getProfile = async (req, res) => {
                 id: admin.id,
                 name: admin.name,
                 email: admin.email,
-                phone: admin.contactNumber,
+                contactNumber: admin.contactNumber,
                 passwordLastUpdated: admin.passwordLastUpdated,
             });
         } else if (role === "dispatcher") {
@@ -80,7 +80,7 @@ const getProfile = async (req, res) => {
                 id: dispatcher.id,
                 name: dispatcher.name,
                 email: dispatcher.email,
-                phone: dispatcher.contactNumber,
+                contactNumber: dispatcher.contactNumber,
                 passwordLastUpdated: dispatcher.passwordLastUpdated,
             });
         } else if (role === "focalPerson") {
@@ -92,7 +92,7 @@ const getProfile = async (req, res) => {
                 firstName: focalPerson.firstName,
                 lastName: focalPerson.lastName,
                 email: focalPerson.email,
-                phone: focalPerson.contactNumber,
+                contactNumber: focalPerson.contactNumber,
                 passwordLastUpdated: focalPerson.passwordLastUpdated,
                 photo: focalPerson.photo
             });

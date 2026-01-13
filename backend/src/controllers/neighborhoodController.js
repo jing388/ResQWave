@@ -145,6 +145,9 @@ const stringifyHazards = (v) => {
 const viewMapOwnNeighborhood = async (req, res) => {
   try {
     const focalPersonID = req.user?.id || req.params.focalPersonID || req.query.focalPersonID;
+    console.log('🔍 [viewMapOwnNeighborhood] Focal Person ID from token:', focalPersonID);
+    console.log('🔍 [viewMapOwnNeighborhood] User object:', req.user);
+    
     if (!focalPersonID) return res.status(400).json({ message: "Missing Focal Person ID" });
 
     const cacheKey = `viewMap:nb:${focalPersonID}`;
@@ -152,11 +155,21 @@ const viewMapOwnNeighborhood = async (req, res) => {
     if (cached) return res.json(cached);
 
     const focal = await focalPersonRepo.findOne({ where: { id: focalPersonID } });
+    console.log('🔍 [viewMapOwnNeighborhood] Focal person found:', focal?.id, focal?.firstName, focal?.lastName);
+    
     if (!focal) return res.status(404).json({ message: "Focal Person Not Found" });
 
     const nb = await neighborhoodRepo.findOne({
       where: { focalPersonID, archived: false },
     });
+    
+    console.log('🔍 [viewMapOwnNeighborhood] Neighborhood query result:', nb);
+    console.log('🔍 [viewMapOwnNeighborhood] Looking for focalPersonID:', focalPersonID);
+    
+    // DEBUG: Let's see all neighborhoods to compare
+    const allNbs = await neighborhoodRepo.find({ where: { archived: false } });
+    console.log('🔍 [viewMapOwnNeighborhood] All neighborhoods:', allNbs.map(n => ({ id: n.id, focalPersonID: n.focalPersonID })));
+    
     if (!nb) return res.status(404).json({ message: "Neighborhood Not Found" });
 
     const payload = {

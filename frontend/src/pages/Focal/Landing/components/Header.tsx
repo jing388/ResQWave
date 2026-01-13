@@ -15,11 +15,8 @@ export function LandingHeader({ navOpen, setNavOpen, isScrolled, showHeader }: {
         backdropFilter: isScrolled ? 'blur(16px) saturate(180%)' : 'none',
         WebkitBackdropFilter: isScrolled ? 'blur(10px) saturate(180%)' : 'none',
         zIndex: 9999,
-        transform: showHeader ? 'scale(0.9) translateY(0)' : 'scale(0.9) translateY(-100%)',
+        transform: showHeader ? 'translateY(0)' : 'translateY(-100%)',
         transformOrigin: 'top center',
-        width: '111.11%',
-        marginLeft: '-5.56%',
-        marginRight: '-5.56%',
         transition: 'all 0.3s ease-in-out',
       }}
     >

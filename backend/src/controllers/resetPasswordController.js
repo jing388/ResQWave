@@ -148,7 +148,16 @@ const requestFocalReset = async(req, res) => {
             return res.status(400).json({ message: "Email or contact number is required" });
         }
 
-        const focal = await focalPersonRepo.findOne({ where: [{email: identifier}, {contactNumber: identifier}]});
+        console.log(`[PasswordReset] Searching for focal person with identifier: ${identifier}`);
+        
+        const focal = await focalPersonRepo.findOne({ 
+            where: [
+                { email: identifier }, 
+                { contactNumber: identifier }
+            ]
+        });
+
+        console.log(`[PasswordReset] Focal person found:`, focal ? `Yes (ID: ${focal.id})` : 'No');
 
         if (!focal) {
             return res.status(404).json({ success: false, message: "User Not Found" });
@@ -173,7 +182,7 @@ const requestFocalReset = async(req, res) => {
 const verifyResetCode = async(req, res) => {
     try {
         const {userID, code} = req.body;
-        if (!userID | !code) return res.status(400).json({message: 'userID and Code are required'});
+        if (!userID || !code) return res.status(400).json({message: 'userID and Code are required'});
 
         // Fetch latest reset entry for user
         const resetEntry = await passwordResetRepo.findOne({where: {userID} });

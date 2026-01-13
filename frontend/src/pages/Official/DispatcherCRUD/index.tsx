@@ -1,10 +1,10 @@
 import { Button } from "@/components/ui/button";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { ArchiveRestore, Info, Trash2 } from "lucide-react";
@@ -13,7 +13,7 @@ import { createColumns, type Dispatcher } from "./components/Column";
 import { CreateDispatcherSheet } from "./components/CreateDispatcherSheet";
 import { DataTable } from "./components/DataTable";
 import DispatcherAlerts, {
-  type DispatcherAlertsHandle,
+    type DispatcherAlertsHandle,
 } from "./components/DispatcherAlerts";
 import { DispatcherInfoSheet } from "./components/DispatcherInfoSheet";
 import { useDispatchers } from "./hooks/useDispatchers";
@@ -341,7 +341,18 @@ export function Dispatchers() {
             throw new Error(
               "Form data is required for creating a new dispatcher",
             );
-          } 
+          }
+
+          // Import and call the createDispatcher API
+          const { createDispatcher } = await import("./api/dispatcherApi");
+          await createDispatcher({
+            name: formData.name,
+            email: formData.email,
+            contactNumber: formData.contactNumber,
+          });
+
+          // Refresh the data to show the new dispatcher
+          await refreshData();
 
           // Show success alert
           alertsRef.current?.showCreateSuccess(formData.name);
@@ -383,7 +394,7 @@ export function Dispatchers() {
         setSaving(false);
       }
     },
-    [editingDispatcher, updateDispatcherById],
+    [editingDispatcher, updateDispatcherById, refreshData],
   );
 
   // Function to clear specific server errors when user starts typing
