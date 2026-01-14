@@ -10,7 +10,7 @@ const AppDataSource = new DataSource ({
     username: process.env.DB_USER ,
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME ,
-    synchronize: true, // auto create/update for tables
+    synchronize: false, // auto create/update for tables
     logging: true,
     entities: [
         __dirname + "/../models/*.js" // load all models in models

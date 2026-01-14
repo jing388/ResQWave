@@ -216,9 +216,14 @@ const getPendingReports = async (req, res) => {
 const getAggregatedRescueReports = async (req, res) => {
   try {
     const { alertID } = req.query || {};
+    const bypassCache = req.query.refresh === 'true';
     const cacheKey = alertID ? `aggregatedReports:${alertID}` : `aggregatedReports:all`;
-    const cached = await getCache(cacheKey);
-    if (cached) return res.json(cached);
+    
+    // Check cache only if not bypassing
+    if (!bypassCache) {
+      const cached = await getCache(cacheKey);
+      if (cached) return res.json(cached);
+    }
 
     let qb = alertRepo
       .createQueryBuilder("alert")
@@ -229,10 +234,13 @@ const getAggregatedRescueReports = async (req, res) => {
 
     if (alertID) {
       qb = qb.where("alert.id = :alertID", { alertID })
-             .andWhere("rf.status = :rfStatus", { rfStatus: "Dispatched" });
+             .andWhere("rf.status = :rfStatus", { rfStatus: "Completed" })
+             .andWhere("prf.id IS NOT NULL");
     } else {
-      // Only include those with a RescueForm that is Dispatched
-      qb = qb.where("rf.status = :rfStatus", { rfStatus: "Dispatched" });
+      // Only include those with a RescueForm that is Completed and have a PostRescueForm
+      qb = qb.where("rf.status = :rfStatus", { rfStatus: "Completed" })
+             .andWhere("prf.id IS NOT NULL")
+             .andWhere("(prf.archived IS NULL OR prf.archived = :archived)", { archived: false });
     }
 
     const rows = await qb
@@ -292,11 +300,14 @@ const getAggregatedRescueReports = async (req, res) => {
 
       return {
         neighborhoodId: r.neighborhoodId || null,
-        focalPersonName: [r.fpFirstName, r.fpLastName].filter(Boolean).join(" ") || null,
-        focalPersonAddress: r.fpAddress || null,
-        focalPersonContactNumber: r.fpContactNumber || null,
+        focalFirstName: r.fpFirstName || null,
+        focalLastName: r.fpLastName || null,
+        focalAddress: r.fpAddress || null,
+        focalContactNumber: r.fpContactNumber || null,
 
         emergencyId: r.emergencyId || r.alertId || null,
+        alertId: r.alertId || r.emergencyId || null,
+        dateTimeOccurred: r.prfCreatedAt || null,
         waterLevel: r.waterLevel || null,
         urgencyOfEvacuation: r.urgencyOfEvacuation || null,
         hazardPresent: r.hazardPresent || null,
@@ -305,6 +316,7 @@ const getAggregatedRescueReports = async (req, res) => {
         otherInformation: r.otherInformation || null,
         timeOfRescue, // PostRescueForm.createdAt
         alertType: r.alertType || null,
+        completionDate: completedAt,
 
         rescueCompleted,
         rescueCompletionTime, // human (e.g., "1h 12m")

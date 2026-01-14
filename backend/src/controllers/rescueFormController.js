@@ -4,7 +4,6 @@ const alertRepo = AppDataSource.getRepository("Alert");
 const neighborhoodRepo = AppDataSource.getRepository("Neighborhood");
 const terminalRepo = AppDataSource.getRepository("Terminal");
 const focalPersonRepo = AppDataSource.getRepository("FocalPerson");
-// const postRescueRepo = AppDataSource.getRepository("PostRescueForm"); // removed unused postRescueRepo variable
 const {
     getCache,
     setCache,
@@ -325,115 +324,112 @@ const getRescueForms = async (req, res) => {
 const updateRescueFormStatus = async (req, res) => {
     try {
         const { alertID } = req.params;
-        const { status } = req.body;
+        const { status } = req.body; // 'Dispatched', 'Waitlisted', or 'Completed'
 
         console.log('[RescueForm] Updating status for alert:', alertID, 'to:', status);
 
-        // Find existing form
+        // 1. Fetch records with terminal relation to get DevEUI
         const form = await rescueFormRepo.findOne({ where: { emergencyID: alertID } });
-        if (!form) {
-            return res.status(404).json({ message: "Rescue Form Not Found" });
+        const alert = await alertRepo.findOne({ 
+            where: { id: alertID }, 
+            relations: ["terminal"] 
+        });
+
+        if (!form || !alert) {
+            return res.status(404).json({ message: "Required Records Not Found" });
         }
 
-        // Get the alert to capture original alert type if not already captured
-        const alert = await alertRepo.findOne({ where: { id: alertID } });
-        if (alert && !form.originalAlertType && alert.alertType) {
+        // 2. Capture original alert type if not already present
+        if (!form.originalAlertType && alert.alertType) {
             form.originalAlertType = alert.alertType;
-            console.log('[RescueForm] Captured original alert type during update:', alert.alertType);
         }
 
-        // Update status
+        // 3. Update Rescue Form Status in DB
         form.status = status;
         await rescueFormRepo.save(form);
 
-        // Update alert and terminal when dispatched
-        if (status === 'Dispatched') {
-            const alert = await alertRepo.findOne({ where: { id: alertID } });
-            if (alert) {
-                alert.status = 'Dispatched';
-                alert.alertType = null; // Clear alert type since rescue is complete
-                await alertRepo.save(alert);
-                console.log('[RescueForm] Alert updated: status=Dispatched, alertType=null');
-
-                // Keep terminal online (rescue is done)
-                const terminal = await terminalRepo.findOne({ where: { id: alert.terminalID } });
-                if (terminal) {
-                    terminal.status = 'Online';
-                    await terminalRepo.save(terminal);
-                    console.log('[RescueForm] Terminal kept online:', terminal.id);
-                }
-
-                // Emit real-time alert status update to all connected clients
-                try {
-                    const io = getIO();
-
-                    // Get updated alert data with relationships for complete payload
-                    const updatedAlert = await alertRepo
-                        .createQueryBuilder("alert")
-                        .leftJoinAndSelect("alert.terminal", "terminal")
-                        .where("alert.id = :id", { id: alert.id })
-                        .getOne();
-
-                    // Get focal person data
-                    const neighborhood = await neighborhoodRepo.findOne({
-                        where: { terminalID: alert.terminalID }
-                    });
-
-                    let focalPerson = null;
-                    if (neighborhood?.focalPersonID) {
-                        focalPerson = await focalPersonRepo.findOne({
-                            where: { id: neighborhood.focalPersonID }
-                        });
-                    }
-
-                    const alertUpdatePayload = {
-                        alertId: updatedAlert.id,
-                        alertType: null, // Now null since dispatched
-                        timeSent: updatedAlert.dateTimeSent || updatedAlert.createdAt || new Date(),
-                        alertStatus: 'Dispatched', // New status
-                        terminalId: updatedAlert.terminalID,
-                        terminalName: updatedAlert.terminal?.name || `Terminal ${updatedAlert.terminalID}`,
-                        terminalStatus: 'Online',
-                        focalPersonId: focalPerson?.id || null,
-                        focalFirstName: focalPerson?.firstName || 'N/A',
-                        focalLastName: focalPerson?.lastName || '',
-                        focalAddress: focalPerson?.address || null,
-                        focalContactNumber: focalPerson?.contactNumber || 'N/A',
-                        // Include rescue form info for waitlist removal
-                        rescueFormId: form.id,
-                        rescueFormStatus: 'Dispatched'
-                    };
-
-                    io.to("alerts:all").emit("alert:statusUpdate", alertUpdatePayload);
-                    io.to(`terminal:${alert.terminalID}`).emit("alert:statusUpdate", alertUpdatePayload);
-                    console.log('[RescueForm] Alert status update broadcasted:', alertUpdatePayload);
-
-                    // Also emit specific waitlist removal event
-                    const waitlistRemovalPayload = {
-                        alertId: alert.id,
-                        rescueFormId: form.id,
-                        action: 'dispatched'
-                    };
-                    io.to("alerts:all").emit("waitlist:formRemoved", waitlistRemovalPayload);
-                    console.log('[RescueForm] Waitlist removal broadcasted:', waitlistRemovalPayload);
-                } catch (socketError) {
-                    console.error('[RescueForm] Error emitting alert status update:', socketError);
-                }
+        // 4. TRIGGER LORAWAN DOWNLINK
+        // This queues the message in ThingPark for the physical device
+        if (alert.terminal && alert.terminal.devEUI) {
+            try {
+                // This sends 01 for Dispatched, 02 for Waitlisted, 03 for others
+                await sendDownlink(alert.terminal.devEUI, status);
+            } catch (downlinkError) {
+                console.error('[Downlink] LoRaWAN queuing failed:', downlinkError.message);
+                // We don't block the HTTP response if LoRaWAN fails, 
+                // but we log it for debugging.
             }
         }
 
-        // Invalidate Cache
-        const cacheKey = `rescueForm:${alertID}`;
-        await deleteCache(cacheKey);
+        // 5. STATUS-SPECIFIC LOGIC (Dispatched)
+        if (status === 'Dispatched') {
+            alert.status = 'Dispatched';
+            alert.alertType = null; 
+            await alertRepo.save(alert);
 
-        console.log('[RescueForm] Status updated successfully');
+            if (alert.terminal) {
+                alert.terminal.status = 'Online';
+                await terminalRepo.save(alert.terminal);
+            }
+        }
+
+        // 6. REAL-TIME BROADCAST (Socket.io)
+        // We move this outside the 'if' so UI updates for Waitlisted/Completed too
+        try {
+            const io = getIO();
+            
+            // Get focal person data for the payload
+            const neighborhood = await neighborhoodRepo.findOne({
+                where: { terminalID: alert.terminalID }
+            });
+
+            let focalPerson = null;
+            if (neighborhood?.focalPersonID) {
+                focalPerson = await focalPersonRepo.findOne({
+                    where: { id: neighborhood.focalPersonID }
+                });
+            }
+
+            const alertUpdatePayload = {
+                alertId: alert.id,
+                alertType: alert.alertType, // Will be null if Dispatched
+                timeSent: alert.dateTimeSent || alert.createdAt,
+                alertStatus: status === 'Dispatched' ? 'Dispatched' : alert.status,
+                terminalId: alert.terminalID,
+                terminalName: alert.terminal?.name || `Terminal ${alert.terminalID}`,
+                terminalStatus: alert.terminal?.status || 'Online',
+                focalFirstName: focalPerson?.firstName || 'N/A',
+                focalLastName: focalPerson?.lastName || '',
+                focalContactNumber: focalPerson?.contactNumber || 'N/A',
+                rescueFormId: form.id,
+                rescueFormStatus: status // Updated Status (Dispatched/Waitlisted/Completed)
+            };
+
+            // Notify everyone
+            io.to("alerts:all").emit("alert:statusUpdate", alertUpdatePayload);
+            io.to(`terminal:${alert.terminalID}`).emit("alert:statusUpdate", alertUpdatePayload);
+
+            // If Dispatched or Completed, remove from waitlist UI
+            if (status === 'Dispatched' || status === 'Completed') {
+                io.to("alerts:all").emit("waitlist:formRemoved", {
+                    alertId: alert.id,
+                    rescueFormId: form.id,
+                    action: status.toLowerCase()
+                });
+            }
+
+            console.log(`[RescueForm] Socket broadcasted for status: ${status}`);
+        } catch (socketError) {
+            console.error('[RescueForm] Socket.io Error:', socketError);
+        }
+
+        // 7. Invalidate Cache & Return
+        await deleteCache(`rescueForm:${alertID}`);
         res.json(form);
+
     } catch (err) {
-        console.error('[RescueForm Controller] Error updating status:', err);
-        res.status(500).json({
-            message: "Server Error",
-            error: process.env.NODE_ENV === 'development' ? err.message : undefined
-        });
+        console.error('[RescueForm Controller] Error:', err);
+        res.status(500).json({ message: "Server Error" });
     }
 };
 

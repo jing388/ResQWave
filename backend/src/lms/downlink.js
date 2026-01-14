@@ -12,13 +12,9 @@ function generateToken(queryString, asKey) {
 
 function mapPayloadByStatus(status) {
     switch (status) {
-        case "Dispatched":
-        case "dispatched":
-            return "01";
-        case "Waitlist":
-            return "02";
-        default:
-            return "03";
+        case "Waitlisted": return "01";
+        case "Dispatched": return "02";
+        case "Completed": return "03";
     }
 }
 

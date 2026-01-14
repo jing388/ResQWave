@@ -13,7 +13,8 @@ export function TestWebSocketButton() {
     const testPayload = {
       terminalId: 'RESQWAVE005', // Use a valid terminal ID from your database
       alertType: 'Critical', // 'Critical' | 'User-Initiated' | null (for no alert)
-      terminalStatus: 'Online' // Terminal status (Online/Offline)
+      terminalStatus: 'Online', // Terminal status (Online/Offline)
+      sentThrough: "Sensor" // Sensor or Button
     };
 
     console.log('[TEST] Sending test alert:', testPayload);
