@@ -1,14 +1,15 @@
 const { AppDataSource } = require("../config/dataSource");
 const { getCache, setCache } = require("../config/cache");
+const catchAsync = require("../utils/catchAsync");
+const { ForbiddenError } = require("../exceptions");
 
 const adminLogRepo = AppDataSource.getRepository("AdminLog");
 
-const getAdminLogs = async (req, res) => {
-    try {
-        // Check if requester is admin
-        if (req.user?.role !== "admin") {
-            return res.status(403).json({ message: "Forbidden. Admin access required." });
-        }
+const getAdminLogs = catchAsync(async (req, res) => {
+    // Check if requester is admin
+    if (req.user?.role !== "admin") {
+        throw new ForbiddenError("Forbidden. Admin access required.");
+    }
 
         const cacheKey = "admin:logs:all";
         const cached = await getCache(cacheKey);
@@ -120,11 +121,7 @@ const getAdminLogs = async (req, res) => {
 
         await setCache(cacheKey, payload, 60);
         return res.json(payload);
-    } catch (err) {
-        console.error(err);
-        return res.status(500).json({ message: "Server Error - READ Admin Logs" });
-    }
-};
+});
 
 module.exports = {
     getAdminLogs

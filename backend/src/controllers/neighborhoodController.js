@@ -1,118 +1,9 @@
-// Upload alternative focal person photo
-const uploadAltFocalPhoto = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const files = req.files || {};
-    const altPhotoFile = files.alternativeFPImage?.[0];
-    if (!altPhotoFile) return res.status(400).json({ message: "No file uploaded" });
-
-    const neighborhood = await neighborhoodRepo.findOne({ where: { id } });
-    if (!neighborhood) return res.status(404).json({ message: "Neighborhood Not Found" });
-    if (!neighborhood.focalPersonID) return res.status(400).json({ message: "No focal person linked" });
-
-    const focal = await focalPersonRepo.findOne({ where: { id: neighborhood.focalPersonID } });
-    if (!focal) return res.status(404).json({ message: "Focal Person Not Found" });
-
-    // Take snapshot before update for logging
-    const fpBefore = { ...focal };
-
-    focal.alternativeFPImage = altPhotoFile.buffer;
-    await focalPersonRepo.save(focal);
-
-    // Log the photo change
-    const actorID = req.user?.focalPersonID || req.user?.id || neighborhood.focalPersonID || null;
-    const actorRole = req.user?.role || "FocalPerson";
-
-    await addLogs({
-      entityType: "FocalPerson",
-      entityID: neighborhood.focalPersonID,
-      changes: [{
-        field: "alternativeFPImage",
-        oldValue: fpBefore.alternativeFPImage ? "Previous photo" : "No photo",
-        newValue: "Updated new photo"
-      }],
-      actorID,
-      actorRole,
-    });
-
-    return res.json({ message: "Alternative focal person photo uploaded" });
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ message: "Server Error - UPLOAD Alt Focal Photo" });
-  }
-};
-
-// Get alternative focal person photo (returns image blob)
-const getAltFocalPhoto = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const neighborhood = await neighborhoodRepo.findOne({ where: { id } });
-    if (!neighborhood) return res.status(404).json({ message: "Neighborhood Not Found" });
-    if (!neighborhood.focalPersonID) return res.status(400).json({ message: "No focal person linked" });
-
-    const focal = await focalPersonRepo.findOne({ where: { id: neighborhood.focalPersonID } });
-    if (!focal || !focal.alternativeFPImage) return res.status(404).json({ message: "No alternative focal person photo found" });
-
-    // Default to jpeg, but you may want to store mimetype in DB for production
-    res.setHeader("Content-Type", "image/jpeg");
-    res.setHeader("Content-Disposition", "inline; filename=alt-focal-photo.jpg");
-    return res.end(focal.alternativeFPImage);
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ message: "Server Error - GET Alt Focal Photo" });
-  }
-};
-
-// Delete alternative focal person photo
-const deleteAltFocalPhoto = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const neighborhood = await neighborhoodRepo.findOne({ where: { id } });
-    if (!neighborhood) return res.status(404).json({ message: "Neighborhood Not Found" });
-    if (!neighborhood.focalPersonID) return res.status(400).json({ message: "No focal person linked" });
-
-    const focal = await focalPersonRepo.findOne({ where: { id: neighborhood.focalPersonID } });
-    if (!focal) return res.status(404).json({ message: "Focal Person Not Found" });
-
-    // Only log if photo actually exists
-    if (focal.alternativeFPImage) {
-      // Take snapshot before deletion for logging
-      const fpBefore = { ...focal };
-
-      focal.alternativeFPImage = null;
-      await focalPersonRepo.save(focal);
-
-      // Log the photo deletion
-      const actorID = req.user?.focalPersonID || req.user?.id || neighborhood.focalPersonID || null;
-      const actorRole = req.user?.role || "FocalPerson";
-
-      await addLogs({
-        entityType: "FocalPerson",
-        entityID: neighborhood.focalPersonID,
-        changes: [{
-          field: "alternativeFPImage",
-          oldValue: "Previous photo",
-          newValue: "Removed photo"
-        }],
-        actorID,
-        actorRole,
-      });
-    }
-
-    return res.json({ message: "Alternative focal person photo deleted successfully" });
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ message: "Server Error - DELETE Alt Focal Photo" });
-  }
-};
 const { AppDataSource } = require("../config/dataSource");
-const {
-  getCache,
-  setCache,
-  deleteCache
-} = require("../config/cache");
+const { getCache, setCache, deleteCache } = require("../config/cache");
 const { diffFields, addLogs, toJSONSafe } = require("../utils/logs");
 const { addAdminLog } = require("../utils/adminLogs");
+const { BadRequestError, NotFoundError, UnauthorizedError, ForbiddenError } = require("../exceptions");
+const catchAsync = require("../utils/catchAsync");
 
 const neighborhoodRepo = AppDataSource.getRepository("Neighborhood");
 const terminalRepo = AppDataSource.getRepository("Terminal");
@@ -141,23 +32,114 @@ const stringifyHazards = (v) => {
   try { return JSON.stringify(v); } catch { return JSON.stringify([]); }
 };
 
+// Upload alternative focal person photo
+const uploadAltFocalPhoto = catchAsync(async (req, res, next) => {
+  const { id } = req.params;
+  const files = req.files || {};
+  const altPhotoFile = files.alternativeFPImage?.[0];
+  if (!altPhotoFile) return next(new BadRequestError("No file provided"));
+
+  const neighborhood = await neighborhoodRepo.findOne({ where: { id } });
+  if (!neighborhood) return next(new NotFoundError("Neighborhood not found"));
+  if (!neighborhood.focalPersonID) return next(new BadRequestError("No focal person linked"));
+
+  const focal = await focalPersonRepo.findOne({ where: { id: neighborhood.focalPersonID } });
+  if (!focal) return next(new NotFoundError("Focal person not found"));
+
+    // Take snapshot before update for logging
+    const fpBefore = { ...focal };
+
+    focal.alternativeFPImage = altPhotoFile.buffer;
+    await focalPersonRepo.save(focal);
+
+    // Log the photo change
+    const actorID = req.user?.focalPersonID || req.user?.id || neighborhood.focalPersonID || null;
+    const actorRole = req.user?.role || "FocalPerson";
+
+    await addLogs({
+      entityType: "FocalPerson",
+      entityID: neighborhood.focalPersonID,
+      changes: [{
+        field: "alternativeFPImage",
+        oldValue: fpBefore.alternativeFPImage ? "Previous photo" : "No photo",
+        newValue: "Updated new photo"
+      }],
+      actorID,
+      actorRole,
+    });
+
+  return res.json({ message: "Alternative focal person photo uploaded" });
+});
+
+// Get alternative focal person photo (returns image blob)
+const getAltFocalPhoto = catchAsync(async (req, res, next) => {
+  const { id } = req.params;
+  const neighborhood = await neighborhoodRepo.findOne({ where: { id } });
+  if (!neighborhood) return next(new NotFoundError("Neighborhood not found"));
+  if (!neighborhood.focalPersonID) return next(new BadRequestError("No focal person linked"));
+
+  const focal = await focalPersonRepo.findOne({ where: { id: neighborhood.focalPersonID } });
+  if (!focal || !focal.alternativeFPImage) return next(new NotFoundError("Photo not found"));
+
+  res.setHeader("Content-Type", "image/jpeg");
+  res.setHeader("Content-Disposition", "inline; filename=alt-focal-photo.jpg");
+  return res.end(focal.alternativeFPImage);
+});
+
+// Delete alternative focal person photo
+const deleteAltFocalPhoto = catchAsync(async (req, res, next) => {
+  const { id } = req.params;
+  const neighborhood = await neighborhoodRepo.findOne({ where: { id } });
+  if (!neighborhood) return next(new NotFoundError("Neighborhood not found"));
+  if (!neighborhood.focalPersonID) return next(new BadRequestError("No focal person linked"));
+
+  const focal = await focalPersonRepo.findOne({ where: { id: neighborhood.focalPersonID } });
+  if (!focal) return next(new NotFoundError("Focal person not found"));
+
+    // Only log if photo actually exists
+    if (focal.alternativeFPImage) {
+      // Take snapshot before deletion for logging
+      const fpBefore = { ...focal };
+
+      focal.alternativeFPImage = null;
+      await focalPersonRepo.save(focal);
+
+      // Log the photo deletion
+      const actorID = req.user?.focalPersonID || req.user?.id || neighborhood.focalPersonID || null;
+      const actorRole = req.user?.role || "FocalPerson";
+
+      await addLogs({
+        entityType: "FocalPerson",
+        entityID: neighborhood.focalPersonID,
+        changes: [{
+          field: "alternativeFPImage",
+          oldValue: "Previous photo",
+          newValue: "Removed photo"
+        }],
+        actorID,
+        actorRole,
+      });
+    }
+
+  return res.json({ message: "Alternative focal person photo deleted successfully" });
+});
+
 // VIEW Own Neighborhood (Map-ish view + cache)
-const viewMapOwnNeighborhood = async (req, res) => {
-  try {
-    const focalPersonID = req.user?.id || req.params.focalPersonID || req.query.focalPersonID;
-    console.log('🔍 [viewMapOwnNeighborhood] Focal Person ID from token:', focalPersonID);
-    console.log('🔍 [viewMapOwnNeighborhood] User object:', req.user);
-    
-    if (!focalPersonID) return res.status(400).json({ message: "Missing Focal Person ID" });
+const viewMapOwnNeighborhood = catchAsync(async (req, res, next) => {
+  const focalPersonID = req.user?.id || req.params.focalPersonID || req.query.focalPersonID;
+  console.log('🔍 [viewMapOwnNeighborhood] Focal Person ID from token:', focalPersonID);
+  console.log('🔍 [viewMapOwnNeighborhood] User object:', req.user);
+  
+  if (!focalPersonID) return next(new UnauthorizedError("Unauthorized"));
 
     const cacheKey = `viewMap:nb:${focalPersonID}`;
     const cached = await getCache(cacheKey);
     if (cached) return res.json(cached);
 
-    const focal = await focalPersonRepo.findOne({ where: { id: focalPersonID } });
-    console.log('🔍 [viewMapOwnNeighborhood] Focal person found:', focal?.id, focal?.firstName, focal?.lastName);
-    
-    if (!focal) return res.status(404).json({ message: "Focal Person Not Found" });
+  const focal = await focalPersonRepo.findOne({ where: { id: focalPersonID } });
+  console.log('🔍 [viewMapOwnNeighborhood] Focal person found:', focal?.id, focal?.firstName, focal?.lastName);
+  
+  if (!focal) return next(new NotFoundError("Focal person not found"));
 
     const nb = await neighborhoodRepo.findOne({
       where: { focalPersonID, archived: false },
@@ -166,11 +148,11 @@ const viewMapOwnNeighborhood = async (req, res) => {
     console.log('🔍 [viewMapOwnNeighborhood] Neighborhood query result:', nb);
     console.log('🔍 [viewMapOwnNeighborhood] Looking for focalPersonID:', focalPersonID);
     
-    // DEBUG: Let's see all neighborhoods to compare
-    const allNbs = await neighborhoodRepo.find({ where: { archived: false } });
-    console.log('🔍 [viewMapOwnNeighborhood] All neighborhoods:', allNbs.map(n => ({ id: n.id, focalPersonID: n.focalPersonID })));
-    
-    if (!nb) return res.status(404).json({ message: "Neighborhood Not Found" });
+  // DEBUG: Let's see all neighborhoods to compare
+  const allNbs = await neighborhoodRepo.find({ where: { archived: false } });
+  console.log('🔍 [viewMapOwnNeighborhood] All neighborhoods:', allNbs.map(n => ({ id: n.id, focalPersonID: n.focalPersonID })));
+  
+  if (!nb) return next(new NotFoundError("Neighborhood not found"));
 
     const payload = {
       neighborhoodID: nb.id,
@@ -188,27 +170,22 @@ const viewMapOwnNeighborhood = async (req, res) => {
       createdDate: nb.createdAt ?? null,
     };
 
-    await setCache(cacheKey, payload, 120);
-    return res.json(payload);
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ message: "Server Error -- VIEW OWN Neighborhood" });
-  }
-};
+  await setCache(cacheKey, payload, 120);
+  return res.json(payload);
+});
 
 // View Own Neighborhood (More Information)
-const viewAboutYourNeighborhood = async (req, res) => {
-  try {
-    const focalPersonID = req.user?.id || req.params.focalPersonID || req.query.focalPersonID;
-    if (!focalPersonID) return res.status(400).json({ message: "Missing Focal Person ID" });
+const viewAboutYourNeighborhood = catchAsync(async (req, res, next) => {
+  const focalPersonID = req.user?.id || req.params.focalPersonID || req.query.focalPersonID;
+  if (!focalPersonID) return next(new UnauthorizedError("Unauthorized"));
 
-    const focal = await focalPersonRepo.findOne({ where: { id: focalPersonID } });
-    if (!focal) return res.status(404).json({ message: "Focal Person Not Found" });
+  const focal = await focalPersonRepo.findOne({ where: { id: focalPersonID } });
+  if (!focal) return next(new NotFoundError("Focal person not found"));
 
-    const nb = await neighborhoodRepo.findOne({
-      where: { focalPersonID, archived: false },
-    });
-    if (!nb) return res.status(404).json({ message: "Neighborhood Not Found" });
+  const nb = await neighborhoodRepo.findOne({
+    where: { focalPersonID, archived: false },
+  });
+  if (!nb) return next(new NotFoundError("Neighborhood not found"));
 
     const payload = {
       neighborhoodID: nb.id,
@@ -234,16 +211,11 @@ const viewAboutYourNeighborhood = async (req, res) => {
       updatedDate: nb.updatedAt ?? null,
     }
 
-    return res.json(payload);
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ message: "Server Error -- VIEW OWN Neighborhood (More)" });
-  }
-};
+  return res.json(payload);
+});
 
 // VIEW Other Neighborhoods (focal person sees limited fields only)
-const viewOtherNeighborhoods = async (req, res) => {
-  try {
+const viewOtherNeighborhoods = catchAsync(async (req, res, next) => {
     const focalPersonID = req.user?.id || req.params.focalPersonID || req.query.focalPersonID;
     let ownNeighborhoodId = null;
     if (focalPersonID) {
@@ -277,21 +249,16 @@ const viewOtherNeighborhoods = async (req, res) => {
         neighborhoodID: n.n_id,
         hazards: parseHazards(n.n_hazards),
         createdDate: n.n_createdAt ?? null,
-        address: byFocalId[n.n_focalPersonID]?.f_address || null,
-        focalPerson: byFocalId[n.n_focalPersonID]
-          ? `${byFocalId[n.n_focalPersonID].f_firstName || ''} ${byFocalId[n.n_focalPersonID].f_lastName || ''}`.trim()
-          : null,
-      }))
-    );
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ message: "Server Error -- VIEW OTHER Neighborhoods" });
-  }
-};
+      address: byFocalId[n.n_focalPersonID]?.f_address || null,
+      focalPerson: byFocalId[n.n_focalPersonID]
+        ? `${byFocalId[n.n_focalPersonID].f_firstName || ''} ${byFocalId[n.n_focalPersonID].f_lastName || ''}`.trim()
+        : null,
+    }))
+  );
+});
 
 // READ All Neighborhoods (Active) + Cache
-const getNeighborhoods = async (req, res) => {
-  try {
+const getNeighborhoods = catchAsync(async (req, res, next) => {
     const cacheKey = "neighborhoods:active";
     const cached = await getCache(cacheKey);
     if (cached) return res.json(cached);
@@ -352,24 +319,19 @@ const getNeighborhoods = async (req, res) => {
       };
     });
 
-    await setCache(cacheKey, result, 60);
-    return res.json(result);
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ message: "Server Error -- ACTIVE Neighborhoods TABLE" });
-  }
-};
+  await setCache(cacheKey, result, 60);
+  return res.json(result);
+});
 
 // READ One Neighborhood + Cache
-const getNeighborhood = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const cacheKey = `neighborhood:${id}`;
-    const cached = await getCache(cacheKey);
-    if (cached) return res.json(cached);
+const getNeighborhood = catchAsync(async (req, res, next) => {
+  const { id } = req.params;
+  const cacheKey = `neighborhood:${id}`;
+  const cached = await getCache(cacheKey);
+  if (cached) return res.json(cached);
 
-    const neighborhood = await neighborhoodRepo.findOne({ where: { id } });
-    if (!neighborhood) return res.status(404).json({ message: "Neighborhood Not Found" });
+  const neighborhood = await neighborhoodRepo.findOne({ where: { id } });
+  if (!neighborhood) return next(new NotFoundError("Neighborhood not found"));
 
     // Load focal person info (if linked)
     let focal = null;
@@ -399,18 +361,13 @@ const getNeighborhood = async (req, res) => {
         : null,
     };
 
-    await setCache(cacheKey, safe, 300);
-    return res.json(safe);
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ message: "Server Error -- READ One Neighborhood" });
-  }
-};
+  await setCache(cacheKey, safe, 300);
+  return res.json(safe);
+});
 
 // UPDATE Neighborhood (counts, flood hours, hazards, otherInformation)
-const updateNeighborhood = async (req, res) => {
-  try {
-    const { id } = req.params;
+const updateNeighborhood = catchAsync(async (req, res, next) => {
+  const { id } = req.params;
 
     const {
       noOfHouseholds,
@@ -433,9 +390,9 @@ const updateNeighborhood = async (req, res) => {
     const photoFile = req.file || req.files?.photo?.[0];
     const altPhotoFile = req.files?.alternativeFPImage?.[0] || req.files?.altPhoto?.[0];
 
-    const neighborhood = await neighborhoodRepo.findOne({ where: { id } });
-    if (!neighborhood) return res.status(404).json({ message: "Neighborhood Not Found" });
-    if (neighborhood.archived) return res.status(400).json({ message: "Cannot update archived neighborhood" });
+  const neighborhood = await neighborhoodRepo.findOne({ where: { id } });
+  if (!neighborhood) return next(new NotFoundError("Neighborhood not found"));
+  if (neighborhood.archived) return next(new BadRequestError("Cannot update archived neighborhood"));
 
     // Validate alternative focal person fields - all must be provided together or none
     const hasAnyAltField = altFirstName || altLastName || altContactNumber || altEmail;
@@ -585,32 +542,27 @@ const updateNeighborhood = async (req, res) => {
     await deleteCache(`neighborhood:${id}`);
     await deleteCache("neighborhoods:active");
 
-    return res.json({
-      message: "Neighborhood Updated",
-      neighborhood: {
-        ...neighborhood,
-        hazards: parseHazards(neighborhood.hazards),
-      },
-    });
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ message: "Server Error - UPDATE Neighborhood" });
-  }
-};
+  return res.json({
+    message: "Neighborhood Updated",
+    neighborhood: {
+      ...neighborhood,
+      hazards: parseHazards(neighborhood.hazards),
+    },
+  });
+});
 
 // ARCHIVE Neighborhood
-const archivedNeighborhood = async (req, res) => {
-  try {
-    const { id } = req.params;
+const archivedNeighborhood = catchAsync(async (req, res, next) => {
+  const { id } = req.params;
 
-    const nb = await neighborhoodRepo
-      .createQueryBuilder("n")
-      .select(["n.id", "n.terminalID", "n.archived", "n.focalPersonID"])
-      .where("n.id = :id", { id })
-      .getRawOne();
+  const nb = await neighborhoodRepo
+    .createQueryBuilder("n")
+    .select(["n.id", "n.terminalID", "n.archived", "n.focalPersonID"])
+    .where("n.id = :id", { id })
+    .getRawOne();
 
-    if (!nb) return res.status(404).json({ message: "Neighborhood Not Found" });
-    if (nb.n_archived) return res.json({ message: "Neighborhood Already Archived" });
+  if (!nb) return next(new NotFoundError("Neighborhood not found"));
+  if (nb.n_archived) return next(new BadRequestError("Neighborhood is already archived"));
 
     // 1) Archive neighborhood
     await neighborhoodRepo.update({ id }, { archived: true });
@@ -682,12 +634,8 @@ const archivedNeighborhood = async (req, res) => {
       await deleteCache("offlineTerminals");
     }
 
-    return res.json({ message: "Neighborhood Archived, Focal Person Archived, Terminal Available" });
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ message: "Server Error - ARCHIVED Neighborhood", error: err.message });
-  }
-};
+  return res.json({ message: "Neighborhood Archived, Focal Person Archived, Terminal Available" });
+});
 
 // UNARCHIVE Neighborhood
 const unarchivedNeighborhood = async (req, res) => {
@@ -789,8 +737,7 @@ const unarchivedNeighborhood = async (req, res) => {
 };
 
 // DELETE Neighborhood
-const deleteNeighborhood = async (req, res) => {
-  try {
+const deleteNeighborhood = catchAsync(async (req, res, next) => {
     const { id } = req.params;
 
     const nb = await neighborhoodRepo
@@ -858,15 +805,10 @@ const deleteNeighborhood = async (req, res) => {
     }
 
     return res.json({ message: "Neighborhood permanently delete" });
-  } catch (err) {
-    console.error(err);
-    return res.status(500).son({ message: "Server Error" });
-  }
-};
+});
 
 // GET ARCHIVED Neighborhoods + Cache
-const getArchivedNeighborhoods = async (req, res) => {
-  try {
+const getArchivedNeighborhoods = catchAsync(async (req, res, next) => {
     const cacheKey = "neighborhoods:archived";
     const cached = await getCache(cacheKey);
     if (cached) return res.json(cached);
@@ -929,11 +871,7 @@ const getArchivedNeighborhoods = async (req, res) => {
 
     await setCache(cacheKey, result, 120);
     return res.json(result);
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ message: "Server Error -- ARCHIVED Neighborhoods TABLE" });
-  }
-};
+});
 
 module.exports = {
   getNeighborhoods,

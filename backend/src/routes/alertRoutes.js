@@ -9,7 +9,6 @@ const {
     getDispatchedAlerts,
     getUnassignedAlerts,
     getUnassignedMapAlerts,
-    getWaitlistedMapAlerts,
     getAlert,
     updateAlertStatus,
 } = require("../controllers/alertController");
@@ -25,7 +24,6 @@ router.get("/unassigned", getUnassignedAlerts);
 router.get("/waitlist", getWaitlistedAlerts);
 router.get("/dispatched", getDispatchedAlerts);
 router.get("/map/unassigned", getUnassignedMapAlerts);
-router.get("/map/waitlisted", getWaitlistedMapAlerts);
 router.get("/:id", getAlert);
 
 // UPDATE

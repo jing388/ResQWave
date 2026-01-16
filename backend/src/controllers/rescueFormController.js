@@ -4,37 +4,34 @@ const alertRepo = AppDataSource.getRepository("Alert");
 const neighborhoodRepo = AppDataSource.getRepository("Neighborhood");
 const terminalRepo = AppDataSource.getRepository("Terminal");
 const focalPersonRepo = AppDataSource.getRepository("FocalPerson");
-const {
-    getCache,
-    setCache,
-    deleteCache
-} = require("../config/cache");
+const { getCache, setCache, deleteCache } = require("../config/cache");
 const { getIO } = require("../realtime/socket");
+const catchAsync = require("../utils/catchAsync");
+const { NotFoundError, BadRequestError, ForbiddenError, UnauthorizedError } = require("../exceptions");
 
 // CREATE Rescue Form
-const createRescueForm = async (req, res) => {
-    try {
-        const { alertID } = req.params;
+const createRescueForm = catchAsync(async (req, res, next) => {
+    const { alertID } = req.params;
 
-        console.log('[RescueForm] Creating rescue form for alert:', alertID);
-        console.log('[RescueForm] Request body:', JSON.stringify(req.body, null, 2));
+    console.log('[RescueForm] Creating rescue form for alert:', alertID);
+    console.log('[RescueForm] Request body:', JSON.stringify(req.body, null, 2));
 
-        // Check if the Alert exists
-        const alert = await alertRepo.findOne({ where: { id: alertID } });
-        if (!alert) {
-            console.log('[RescueForm] Alert not found:', alertID);
-            return res.status(404).json({ message: "Alert Not Found" });
-        }
+    // Check if the Alert exists
+    const alert = await alertRepo.findOne({ where: { id: alertID } });
+    if (!alert) {
+        console.log('[RescueForm] Alert not found:', alertID);
+        return next(new NotFoundError("Alert Not Found"));
+    }
 
-        // Capture the original alert type BEFORE it gets modified for dispatch
-        const originalAlertType = alert.alertType;
-        console.log('[RescueForm] Captured original alert type:', originalAlertType);
+    // Capture the original alert type BEFORE it gets modified for dispatch
+    const originalAlertType = alert.alertType;
+    console.log('[RescueForm] Captured original alert type:', originalAlertType);
 
-        // Prevent Duplicate Form
-        const existing = await rescueFormRepo.findOne({ where: { emergencyID: alertID } });
-        if (existing) {
-            return res.status(400).json({ message: "Rescue Form Already Exists" });
-        }
+    // Prevent Duplicate Form
+    const existing = await rescueFormRepo.findOne({ where: { emergencyID: alertID } });
+    if (existing) {
+        return next(new BadRequestError("Rescue Form Already Exists"));
+    }
 
         // Generate Custom ID
         const lastForm = await rescueFormRepo
@@ -68,49 +65,41 @@ const createRescueForm = async (req, res) => {
             status = 'Waitlisted' // Default status
         } = req.body;
 
-        //  Validation: if focal is reachable, all main fields are required
-        if (focalUnreachable === false) {
-            if (
-                !waterLevel ||
-                !urgencyOfEvacuation ||
-                !hazardPresent ||
-                !accessibility ||
-                !resourceNeeds
-            ) {
-                return res.status(400).json({
-                    message: "All rescue details are required when focal is reachable."
-                });
-            }
+    //  Validation: if focal is reachable, all main fields are required
+    if (focalUnreachable === false) {
+        if (
+            !waterLevel ||
+            !urgencyOfEvacuation ||
+            !hazardPresent ||
+            !accessibility ||
+            !resourceNeeds
+        ) {
+            return next(new BadRequestError("All rescue details are required when focal is reachable."));
         }
+    }
 
-        // Get Logged-In Dispatcher (or Admin)
-        const dispatcherID = req.user?.id;
-        const userRole = req.user?.role?.toLowerCase();
+    // Get Logged-In Dispatcher (or Admin)
+    const dispatcherID = req.user?.id;
+    const userRole = req.user?.role?.toLowerCase();
 
-        console.log('[RescueForm] Dispatcher ID from req.user:', dispatcherID);
-        console.log('[RescueForm] User role:', userRole);
+    console.log('[RescueForm] Dispatcher ID from req.user:', dispatcherID);
+    console.log('[RescueForm] User role:', userRole);
 
-        if (!dispatcherID) {
-            return res.status(401).json({ message: "Unauthorized: User Not Found" });
-        }
+    if (!dispatcherID) {
+        return next(new UnauthorizedError("Unauthorized: User Not Found"));
+    }
 
-        // Check if user is admin - admins cannot create rescue forms
-        if (userRole === 'admin') {
-            console.log('[RescueForm] Admin attempting to create rescue form - blocking request');
-            return res.status(403).json({ 
-                message: "Access denied: Only dispatchers can create rescue forms. You are currently in the admin interface.",
-                code: "ADMIN_CANNOT_CREATE_RESCUE_FORM"
-            });
-        }
+    // Check if user is admin - admins cannot create rescue forms
+    if (userRole === 'admin') {
+        console.log('[RescueForm] Admin attempting to create rescue form - blocking request');
+        return next(new ForbiddenError("Access denied: Only dispatchers can create rescue forms. You are currently in the admin interface."));
+    }
 
-        // Only dispatchers can create rescue forms
-        if (userRole !== 'dispatcher') {
-            console.log('[RescueForm] Non-dispatcher user attempting to create rescue form:', userRole);
-            return res.status(403).json({ 
-                message: "Access denied: Only dispatchers can create rescue forms.",
-                code: "INVALID_USER_ROLE"
-            });
-        }
+    // Only dispatchers can create rescue forms
+    if (userRole !== 'dispatcher') {
+        console.log('[RescueForm] Non-dispatcher user attempting to create rescue form:', userRole);
+        return next(new ForbiddenError("Access denied: Only dispatchers can create rescue forms."));
+    }
 
         const finalDispatcherID = dispatcherID;
 
@@ -228,116 +217,98 @@ const createRescueForm = async (req, res) => {
             }
         }
 
-        // Invalidate Cache
-        const cacheKey = `rescueForm:${alertID}`;
-        const existingCache = await getCache(cacheKey);
-        if (existingCache) {
-            await deleteCache(cacheKey);
-            console.log(`[Cache] Invalidated: ${cacheKey}`);
-        }
-
-        res.status(201).json(newForm);
-    } catch (err) {
-        console.error('[RescueForm Controller] Error creating rescue form:', err);
-        res.status(500).json({
-            message: "Server Error",
-            error: process.env.NODE_ENV === 'development' ? err.message : undefined
-        });
+    // Invalidate Cache
+    const cacheKey = `rescueForm:${alertID}`;
+    const existingCache = await getCache(cacheKey);
+    if (existingCache) {
+        await deleteCache(cacheKey);
+        console.log(`[Cache] Invalidated: ${cacheKey}`);
     }
-};
+
+    res.status(201).json(newForm);
+});
 
 
 // READ RESCUE FORM
-const getRescueForm = async (req, res) => {
-    try {
-        const { formID } = req.params;
-        const cacheKey = `rescueForm:${formID}`;
-        const cached = await getCache(cacheKey);
-        if (cached) return res.json(cached);
+const getRescueForm = catchAsync(async (req, res, next) => {
+    const { formID } = req.params;
+    const cacheKey = `rescueForm:${formID}`;
+    const cached = await getCache(cacheKey);
+    if (cached) return res.json(cached);
 
-        const form = await rescueFormRepo
-            .createQueryBuilder("form")
-            .leftJoinAndSelect("form.alert", "alert")
-            .leftJoinAndSelect("alert.terminal", "terminal")
-            .where("form.id = :id", { id: formID })
-            .getOne();
+    const form = await rescueFormRepo
+        .createQueryBuilder("form")
+        .leftJoinAndSelect("form.alert", "alert")
+        .leftJoinAndSelect("alert.terminal", "terminal")
+        .where("form.id = :id", { id: formID })
+        .getOne();
 
-        if (!form) {
-            return res.status(404).json({ message: "Rescue Form Not Found" });
-        }
-
-        const responseData = {
-            terminalName: form.alert?.terminal?.name || null,
-            focalUnreachable: form.focalUnreachable,
-            waterLevel: form.waterLevel,
-            urgencyOfEvacuation: form.urgencyOfEvacuation,
-            hazardPresent: form.hazardPresent,
-            accessibility: form.accessibility,
-            resourceNeeds: form.resourceNeeds,
-            otherInformation: form.otherInformation,
-        };
-
-        await setCache(cacheKey, responseData, 300);
-        res.json(responseData);
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ message: "Server Error" });
+    if (!form) {
+        return next(new NotFoundError("Rescue Form Not Found"));
     }
-};
+
+    const responseData = {
+        terminalName: form.alert?.terminal?.name || null,
+        focalUnreachable: form.focalUnreachable,
+        waterLevel: form.waterLevel,
+        urgencyOfEvacuation: form.urgencyOfEvacuation,
+        hazardPresent: form.hazardPresent,
+        accessibility: form.accessibility,
+        resourceNeeds: form.resourceNeeds,
+        otherInformation: form.otherInformation,
+    };
+
+    await setCache(cacheKey, responseData, 300);
+    res.json(responseData);
+});
 
 // Read ALL Rescue Forms
-const getRescueForms = async (req, res) => {
-    try {
-        const cacheKey = "rescueForms:all";
-        const cached = await getCache(cacheKey);
-        if (cached) return res.json(cached);
+const getRescueForms = catchAsync(async (req, res, next) => {
+    const cacheKey = "rescueForms:all";
+    const cached = await getCache(cacheKey);
+    if (cached) return res.json(cached);
 
-        const forms = await rescueFormRepo
-            .createQueryBuilder("form")
-            .leftJoinAndSelect("form.alert", "alert")
-            .leftJoinAndSelect("alert.terminal", "terminal")
-            .orderBy("form.id", "DESC")
-            .getMany();
+    const forms = await rescueFormRepo
+        .createQueryBuilder("form")
+        .leftJoinAndSelect("form.alert", "alert")
+        .leftJoinAndSelect("alert.terminal", "terminal")
+        .orderBy("form.id", "DESC")
+        .getMany();
 
-        const data = forms.map((form) => ({
-            formID: form.id,
-            alertID: form.emergencyID,
-            terminalName: form.alert?.terminal?.name || null,
-            focalUnreachable: form.focalUnreachable,
-            waterLevel: form.waterLevel,
-            urgencyOfEvacuation: form.urgencyOfEvacuation,
-            hazardPresent: form.hazardPresent,
-            accessibility: form.accessibility,
-            resourceNeeds: form.resourceNeeds,
-            otherInformation: form.otherInformation,
-        }));
+    const data = forms.map((form) => ({
+        formID: form.id,
+        alertID: form.emergencyID,
+        terminalName: form.alert?.terminal?.name || null,
+        focalUnreachable: form.focalUnreachable,
+        waterLevel: form.waterLevel,
+        urgencyOfEvacuation: form.urgencyOfEvacuation,
+        hazardPresent: form.hazardPresent,
+        accessibility: form.accessibility,
+        resourceNeeds: form.resourceNeeds,
+        otherInformation: form.otherInformation,
+    }));
 
-        await setCache(cacheKey, data, 300);
-        return res.json(data);
-    } catch (err) {
-        console.error(err);
-        return res.status(500).json({ message: "Server Error" });
-    }
-};
+    await setCache(cacheKey, data, 300);
+    return res.json(data);
+});
 
 // UPDATE Rescue Form Status (for dispatching waitlisted forms)
-const updateRescueFormStatus = async (req, res) => {
-    try {
-        const { alertID } = req.params;
-        const { status } = req.body; // 'Dispatched', 'Waitlisted', or 'Completed'
+const updateRescueFormStatus = catchAsync(async (req, res, next) => {
+    const { alertID } = req.params;
+    const { status } = req.body; // 'Dispatched', 'Waitlisted', or 'Completed'
 
-        console.log('[RescueForm] Updating status for alert:', alertID, 'to:', status);
+    console.log('[RescueForm] Updating status for alert:', alertID, 'to:', status);
 
-        // 1. Fetch records with terminal relation to get DevEUI
-        const form = await rescueFormRepo.findOne({ where: { emergencyID: alertID } });
-        const alert = await alertRepo.findOne({ 
-            where: { id: alertID }, 
-            relations: ["terminal"] 
-        });
+    // 1. Fetch records with terminal relation to get DevEUI
+    const form = await rescueFormRepo.findOne({ where: { emergencyID: alertID } });
+    const alert = await alertRepo.findOne({
+        where: { id: alertID },
+        relations: ["terminal"]
+    });
 
-        if (!form || !alert) {
-            return res.status(404).json({ message: "Required Records Not Found" });
-        }
+    if (!form || !alert) {
+        return next(new NotFoundError("Required Records Not Found"));
+    }
 
         // 2. Capture original alert type if not already present
         if (!form.originalAlertType && alert.alertType) {
@@ -423,56 +394,46 @@ const updateRescueFormStatus = async (req, res) => {
             console.error('[RescueForm] Socket.io Error:', socketError);
         }
 
-        // 7. Invalidate Cache & Return
-        await deleteCache(`rescueForm:${alertID}`);
-        res.json(form);
-
-    } catch (err) {
-        console.error('[RescueForm Controller] Error:', err);
-        res.status(500).json({ message: "Server Error" });
-    }
-};
+    // 7. Invalidate Cache & Return
+    await deleteCache(`rescueForm:${alertID}`);
+    res.json(form);
+});
 
 // Rescue Form
 // Pending Table
-const getAggregatedRescueForm = async (req, res) => {
-    try {
-        const { alertID } = req.query || {};
-        const cacheKey = alertID ? `rescueAggregatesBasic:${alertID}` : `rescueAggregatesBasic:all`;
-        const cached = await getCache(cacheKey);
-        if (cached) return res.json(cached);
+const getAggregatedRescueForm = catchAsync(async (req, res, next) => {
+    const { alertID } = req.query || {};
+    const cacheKey = alertID ? `rescueAggregatesBasic:${alertID}` : `rescueAggregatesBasic:all`;
+    const cached = await getCache(cacheKey);
+    if (cached) return res.json(cached);
 
-        let qb = rescueFormRepo
-            .createQueryBuilder("rf")
-            .leftJoin("rf.alert", "alert")
-            .leftJoin("rf.focalPerson", "fp")
-            .leftJoin("rf.dispatcher", "dispatcher");
+    let qb = rescueFormRepo
+        .createQueryBuilder("rf")
+        .leftJoin("rf.alert", "alert")
+        .leftJoin("rf.focalPerson", "fp")
+        .leftJoin("rf.dispatcher", "dispatcher");
 
-        if (alertID) {
-            qb = qb.where("alert.id = :alertID", { alertID });
-        }
-
-        const rows = await qb
-            .select([
-                "rf.emergencyID AS emergencyId",
-                "alert.terminalID AS terminalId",
-                "fp.firstName AS focalFirstName",
-                "fp.lastName AS focalLastName",
-                "alert.dateTimeSent AS dateTimeOccurred",
-                "alert.alertType AS alertType",
-                "fp.address AS houseAddress",
-                "dispatcher.name AS dispatchedName",
-            ])
-            .orderBy("rf.id", "DESC")
-            .getRawMany();
-
-        await setCache(cacheKey, rows, 300);
-        return res.json(rows);
-    } catch (err) {
-        console.error(err);
-        return res.status(500).json({ message: "Server Error" });
+    if (alertID) {
+        qb = qb.where("alert.id = :alertID", { alertID });
     }
-};
+
+    const rows = await qb
+        .select([
+            "rf.emergencyID AS emergencyId",
+            "alert.terminalID AS terminalId",
+            "fp.firstName AS focalFirstName",
+            "fp.lastName AS focalLastName",
+            "alert.dateTimeSent AS dateTimeOccurred",
+            "alert.alertType AS alertType",
+            "fp.address AS houseAddress",
+            "dispatcher.name AS dispatchedName",
+        ])
+        .orderBy("rf.id", "DESC")
+        .getRawMany();
+
+    await setCache(cacheKey, rows, 300);
+    return res.json(rows);
+});
 
 
 module.exports = {

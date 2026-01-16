@@ -2,6 +2,8 @@
 const { Between } = require("typeorm");
 const dayjs = require("dayjs");
 const { AppDataSource } = require("../config/dataSource");
+const { BadRequestError } = require("../exceptions");
+const catchAsync = require("../utils/catchAsync");
 const alertRepo = AppDataSource.getRepository("Alert");
 const rescueFormRepo = AppDataSource.getRepository("RescueForm");
 const postRescueRepo = AppDataSource.getRepository("PostRescueForm");
@@ -10,44 +12,43 @@ const {
   setCache,
 } = require("../config/cache");
 
-const getAlertStats = async (req, res) => {
-  try {
-    const { type } = req.query; // daily | weekly | monthly | yearly
-    
-    // Cache Check
-    const cacheKey = `alertStats:${type}`;
-    const cached = await getCache(cacheKey);
-    if (cached) {
-      return res.json(cached);
-    }
+const getAlertStats = catchAsync(async (req, res, next) => {
+  const { type } = req.query; // daily | weekly | monthly | yearly
+  
+  // Cache Check
+  const cacheKey = `alertStats:${type}`;
+  const cached = await getCache(cacheKey);
+  if (cached) {
+    return res.json(cached);
+  }
 
-    const now = dayjs();
-    let startDate, endDate;
+  const now = dayjs();
+  let startDate, endDate;
 
-    switch (type) {
-      case "daily":
-        startDate = now.startOf("day").subtract(6, "day"); // last 7 days
-        endDate = now.endOf("day");
-        break;
+  switch (type) {
+    case "daily":
+      startDate = now.startOf("day").subtract(6, "day"); // last 7 days
+      endDate = now.endOf("day");
+      break;
 
-      case "weekly":
-        startDate = now.startOf("week").subtract(3, "week"); // last 4 weeks
-        endDate = now.endOf("week");
-        break;
+    case "weekly":
+      startDate = now.startOf("week").subtract(3, "week"); // last 4 weeks
+      endDate = now.endOf("week");
+      break;
 
-      case "monthly":
-        startDate = now.startOf("month").subtract(2, "month"); // last 3 months
-        endDate = now.endOf("month");
-        break;
+    case "monthly":
+      startDate = now.startOf("month").subtract(2, "month"); // last 3 months
+      endDate = now.endOf("month");
+      break;
 
-      case "yearly":
-        startDate = now.startOf("year").subtract(11, "month"); // last 12 months
-        endDate = now.endOf("year");
-        break;
+    case "yearly":
+      startDate = now.startOf("year").subtract(11, "month"); // last 12 months
+      endDate = now.endOf("year");
+      break;
 
-      default:
-        return res.status(400).json({ error: "Invalid type parameter" });
-    }
+    default:
+      return next(new BadRequestError("Invalid type parameter"));
+  }
 
     // fetch alerts from DB
     const alerts = await alertRepo.find({
@@ -84,54 +85,49 @@ const getAlertStats = async (req, res) => {
     type === "monthly" ? 120:
     300;
 
-    await setCache(cacheKey, payload, ttlSeconds);
-    return res.json({ type, stats });
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: "Server error" });
-  }
-};
+  await setCache(cacheKey, payload, ttlSeconds);
+  return res.json({ type, stats });
+});
 
 // Get Completed Operations Stats (for admin dashboard charts)
-const getCompletedOperationsStats = async (req, res) => {
-  try {
-    const { type, startDate: customStartDate, endDate: customEndDate } = req.query; // daily | weekly | monthly | yearly
-    
-    // If custom date range is provided, use it directly
-    const now = dayjs();
-    let startDate, endDate;
+const getCompletedOperationsStats = catchAsync(async (req, res, next) => {
+  const { type, startDate: customStartDate, endDate: customEndDate } = req.query; // daily | weekly | monthly | yearly
+  
+  // If custom date range is provided, use it directly
+  const now = dayjs();
+  let startDate, endDate;
 
-    if (customStartDate && customEndDate) {
-      // Use custom date range from query parameters
-      startDate = dayjs(customStartDate).startOf("day");
-      endDate = dayjs(customEndDate).endOf("day");
-    } else {
-      // Fall back to default ranges based on type
-      switch (type) {
-        case "daily":
-          startDate = now.startOf("day").subtract(6, "day"); // last 7 days
-          endDate = now.endOf("day");
-          break;
+  if (customStartDate && customEndDate) {
+    // Use custom date range from query parameters
+    startDate = dayjs(customStartDate).startOf("day");
+    endDate = dayjs(customEndDate).endOf("day");
+  } else {
+    // Fall back to default ranges based on type
+    switch (type) {
+      case "daily":
+        startDate = now.startOf("day").subtract(6, "day"); // last 7 days
+        endDate = now.endOf("day");
+        break;
 
-        case "weekly":
-          startDate = now.startOf("week").subtract(3, "week"); // last 4 weeks
-          endDate = now.endOf("week");
-          break;
+      case "weekly":
+        startDate = now.startOf("week").subtract(3, "week"); // last 4 weeks
+        endDate = now.endOf("week");
+        break;
 
-        case "monthly":
-          startDate = now.startOf("month").subtract(2, "month"); // last 3 months
-          endDate = now.endOf("month");
-          break;
+      case "monthly":
+        startDate = now.startOf("month").subtract(2, "month"); // last 3 months
+        endDate = now.endOf("month");
+        break;
 
-        case "yearly":
-          startDate = now.startOf("year").subtract(11, "month"); // last 12 months
-          endDate = now.endOf("year");
-          break;
+      case "yearly":
+        startDate = now.startOf("year").subtract(11, "month"); // last 12 months
+        endDate = now.endOf("year");
+        break;
 
-        default:
-          return res.status(400).json({ error: "Invalid type parameter" });
-      }
+      default:
+        return next(new BadRequestError("Invalid type parameter"));
     }
+  }
     
     // Cache Check - include date range in cache key for custom ranges
     const cacheKey = customStartDate && customEndDate 
@@ -195,12 +191,8 @@ const getCompletedOperationsStats = async (req, res) => {
       type === "monthly" ? 120 :
       300;
 
-    await setCache(cacheKey, payload, ttlSeconds);
-    return res.json(payload);
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: "Server error" });
-  }
-};
+  await setCache(cacheKey, payload, ttlSeconds);
+  return res.json(payload);
+});
 
 module.exports = { getAlertStats, getCompletedOperationsStats };

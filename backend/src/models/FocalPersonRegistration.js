@@ -37,11 +37,11 @@ module.exports = new EntitySchema({
       nullable: true
     },
     age: {
-      type: Number,
+      type: "int",
       nullable: true
     },
     photo: {
-      type: "blob",
+      type: "bytea",
       nullable: true
     },
     password: {
@@ -70,14 +70,14 @@ module.exports = new EntitySchema({
       nullable: false,
     },
     altPhoto: {
-      type: "blob",
+      type: "bytea",
       nullable: true
     },
 
 
     // Approval Metadata
     approvedAt: {
-      type: "datetime",
+      type: "timestamp",
       nullable: true
     },
     approvedBy: {
@@ -103,15 +103,15 @@ module.exports = new EntitySchema({
 
     // Neighbordhood 
     noOfHouseholds: {
-      type: Number,
+      type: "int",
       nullable: true
     },
     noOfResidents: {
-      type: Number,
+      type: "int",
       nullable: true
     },
     floodSubsideHours: {
-      type: Number,
+      type: "int",
       nullable: true
     },
     hazardsJson: {
@@ -124,12 +124,12 @@ module.exports = new EntitySchema({
     },
 
     createdAt: {
-      type: "datetime",
+      type: "timestamp",
       createDate: true,
       update: false
     },
     updatedAt: {
-      type: "datetime",
+      type: "timestamp",
       createDate: true,
       update: true
     }

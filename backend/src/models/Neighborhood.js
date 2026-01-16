@@ -43,16 +43,16 @@ module.exports = new EntitySchema({
             nullable: true
         },
         archived: {
-            type: Boolean,
+            type: "boolean",
             default: false
         },
         createdAt: {
-            type: "datetime",
+            type: "timestamp",
             createDate: true,
             update: false,
         },
         updatedAt: {
-            type: "datetime",
+            type: "timestamp",
             createDate: true,
             update: true
         },

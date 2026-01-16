@@ -3,13 +3,11 @@ const bcrypt = require("bcrypt");
 const { generateTemporaryPassword, sendTemporaryPasswordEmail } = require("../utils/passwordUtils");
 
 const focalPersonRepo = AppDataSource.getRepository("FocalPerson");
-const {
-    getCache,
-    setCache,
-    deleteCache
-} = require("../config/cache");
+const { getCache, setCache, deleteCache} = require("../config/cache");
 const { diffFields, addLogs } = require("../utils/logs");
 const { addAdminLog } = require("../utils/adminLogs");
+const catchAsync = require("../utils/catchAsync");
+const { BadRequestError, NotFoundError, ForbiddenError, AppError } = require("../exceptions");
 const registrationRepo = AppDataSource.getRepository("FocalPersonRegistration");
 const neighborhoodRepo = AppDataSource.getRepository("Neighborhood");
 const focalRepo = AppDataSource.getRepository("FocalPerson");
@@ -50,86 +48,85 @@ function sanitizeFP(fp) {
 }
 
 // CREATE FocalPerson 
-const createFocalPerson = async (req, res) => {
-    try {
-        console.log("CREATE Focal Person - Request received");
-        console.log("Body keys:", req.body ? Object.keys(req.body) : "no body");
-        console.log("Files:", req.files ? Object.keys(req.files) : "no files");
-        console.log("Body sample:", req.body ? JSON.stringify(req.body, null, 2).substring(0, 500) : "no body");
-        
-        // Check database configuration for debugging
-        await checkDatabaseConfig();
-        
-        const {
-            terminalID,
-            firstName,
-            lastName,
-            email,
-            contactNumber,
-            address,
-            altFirstName,
-            altLastName,
-            altEmail,
-            altContactNumber,
-            noOfHouseholds,
-            noOfResidents,
-            floodSubsideHours,
-            hazards,
-            otherInformation
-        } = req.body;
+const createFocalPerson = catchAsync(async (req, res, next) => {
+    console.log("CREATE Focal Person - Request received");
+    console.log("Body keys:", req.body ? Object.keys(req.body) : "no body");
+    console.log("Files:", req.files ? Object.keys(req.files) : "no files");
+    console.log("Body sample:", req.body ? JSON.stringify(req.body, null, 2).substring(0, 500) : "no body");
+    
+    // Check database configuration for debugging
+    await checkDatabaseConfig();
+    
+    const {
+        terminalID,
+        firstName,
+        lastName,
+        email,
+        contactNumber,
+        address,
+        altFirstName,
+        altLastName,
+        altEmail,
+        altContactNumber,
+        noOfHouseholds,
+        noOfResidents,
+        floodSubsideHours,
+        hazards,
+        otherInformation
+    } = req.body;
 
-        // Basic validation
-        if (!terminalID || !firstName || !lastName || !email || !contactNumber || !address) {
-            return res.status(400).json({ message: "Missing required fields" });
-        }
+    // Basic validation
+    if (!terminalID || !firstName || !lastName || !email || !contactNumber || !address) {
+        return next(new BadRequestError("Missing required fields"));
+    }
 
-        // Validate terminal and availability
-        const terminal = await terminalRepo.findOne({ where: { id: terminalID } });
-        if (!terminal) return res.status(404).json({ message: "Terminal Not Found" });
-        if (String(terminal.availability || "").toLowerCase() === "occupied") {
-            return res.status(400).json({ message: "Terminal already occupied" });
-        }
-        if (terminal.archived) {
-            return res.status(400).json({ message: "Terminal is Archived and cannot be used" });
-        }
+    // Validate terminal and availability
+    const terminal = await terminalRepo.findOne({ where: { id: terminalID } });
+    if (!terminal) return next(new NotFoundError("Terminal Not Found"));
+    if (String(terminal.availability || "").toLowerCase() === "occupied") {
+        return next(new BadRequestError("Terminal already occupied"));
+    }
+    if (terminal.archived) {
+        return next(new BadRequestError("Terminal is Archived and cannot be used"));
+    }
 
         const originalTerminalAvailability = terminal.availability || "Available";
 
-        // Uniqueness checks (email/contact must not exist anywhere in focal persons)
-        // 1) Primary email
-        if (email) {
-            const emailInUse = await focalPersonRepo.findOne({
-                where: [{ email }, { altEmail: email }],
-            });
-            if (emailInUse) return res.status(409).json({ message: "Email already in use" });
+    // Uniqueness checks (email/contact must not exist anywhere in focal persons)
+    // 1) Primary email
+    if (email) {
+        const emailInUse = await focalPersonRepo.findOne({
+            where: [{ email }, { altEmail: email }],
+        });
+        if (emailInUse) return next(new BadRequestError("Email already in use"));
+    }
+    // 2) Primary contact
+    if (contactNumber) {
+        const contactInUse = await focalPersonRepo.findOne({
+            where: [{ contactNumber }, { altContactNumber: contactNumber }],
+        });
+        if (contactInUse) return next(new BadRequestError("Contact number already in use"));
+    }
+    // 3) Alt email
+    if (altEmail) {
+        if (email && altEmail === email) {
+            return next(new BadRequestError("Alt email must be different from email"));
         }
-        // 2) Primary contact
-        if (contactNumber) {
-            const contactInUse = await focalPersonRepo.findOne({
-                where: [{ contactNumber }, { altContactNumber: contactNumber }],
-            });
-            if (contactInUse) return res.status(409).json({ message: "Contact number already in use" });
+        const altEmailInUse = await focalPersonRepo.findOne({
+            where: [{ email: altEmail }, { altEmail }],
+        });
+        if (altEmailInUse) return next(new BadRequestError("Alt email already in use"));
+    }
+    // 4) Alt contact
+    if (altContactNumber) {
+        if (contactNumber && altContactNumber === contactNumber) {
+            return next(new BadRequestError("Alt contact must be different from contact number"));
         }
-        // 3) Alt email
-        if (altEmail) {
-            if (email && altEmail === email) {
-                return res.status(400).json({ message: "Alt email must be different from email" });
-            }
-            const altEmailInUse = await focalPersonRepo.findOne({
-                where: [{ email: altEmail }, { altEmail }],
-            });
-            if (altEmailInUse) return res.status(409).json({ message: "Alt email already in use" });
-        }
-        // 4) Alt contact
-        if (altContactNumber) {
-            if (contactNumber && altContactNumber === contactNumber) {
-                return res.status(400).json({ message: "Alt contact must be different from contact number" });
-            }
-            const altContactInUse = await focalPersonRepo.findOne({
-                where: [{ contactNumber: altContactNumber }, { altContactNumber }],
-            });
-            if (altContactInUse) return res.status(409).json({ message: "Alt contact number already in use" });
-        }
+        const altContactInUse = await focalPersonRepo.findOne({
+            where: [{ contactNumber: altContactNumber }, { altContactNumber }],
+        });
+        if (altContactInUse) return next(new BadRequestError("Alt contact number already in use"));
+    }
 
         // Generate FOCALP ID (robust numeric ordering on the suffix)
         const PREFIX = "FOCALP";
@@ -321,71 +318,42 @@ const createFocalPerson = async (req, res) => {
             return res.status(500).json({ message: "Failed to send temporary password email. Please try again." });
         }
 
-        const response = {
-            message: "Focal Person and Neighborhood Created. Temporary password emailed.",
-            newFocalID,
-            newNeighborhoodID,
-        };
+    const response = {
+        message: "Focal Person and Neighborhood Created. Temporary password emailed.",
+        newFocalID,
+        newNeighborhoodID,
+    };
 
-        return res.status(201).json(response);
-    } catch (err) {
-        console.error("CREATE Focal Person Error:", err);
-        console.error("Error stack:", err.stack);
-        console.error("Request body keys:", req.body ? Object.keys(req.body) : "no body");
-        console.error("Request files:", req.files ? Object.keys(req.files) : "no files");
-        
-        // Handle specific database errors
-        let errorMessage = err.message || "Unknown error occurred";
-        let statusCode = 500;
-        
-        if (err.message && err.message.includes("max_allowed_packet")) {
-            errorMessage = "File upload too large for database. Please try smaller photos (under 1MB each).";
-            statusCode = 413; // Payload Too Large
-            console.error("Database packet size exceeded. Consider increasing max_allowed_packet in MySQL config.");
-        } else if (err.code === 'ER_TOO_BIG_ROWSIZE') {
-            errorMessage = "Data too large for database row. Please use smaller photos.";
-            statusCode = 413;
-        } else if (err.message && err.message.includes("Data too long")) {
-            errorMessage = "Photo data too large for database column.";
-            statusCode = 413;
-        }
-        
-        return res.status(statusCode).json({ 
-            message: "Server Error - CREATE Focal Person", 
-            error: errorMessage,
-            details: process.env.NODE_ENV === 'development' ? err.stack : undefined
-        });
+    return res.status(201).json(response);
+});
+
+
+const approveFocalRegistration = catchAsync(async (req, res, next) => {
+    const registrationID = String(req.params.id || "").trim();
+    const { terminalID } = req.body || {};
+
+    if (!registrationID) {
+        return next(new BadRequestError("Missing registration ID"));
     }
-};
+    if (!terminalID) {
+        return next(new BadRequestError("Missing terminal ID"));
+    }
 
+    // Load Registration (entity, not the repo)
+    const registration = await registrationRepo.findOne({ where: { id: registrationID } });
+    if (!registration) {
+        return next(new NotFoundError("Registration not found"));
+    }
+    if ((registration.status || "").toLowerCase() !== "pending") {
+        return next(new BadRequestError("Registration is not pending"));
+    }
 
-const approveFocalRegistration = async (req, res) => {
-    try {
-        const registrationID = String(req.params.id || "").trim();
-        const { terminalID } = req.body || {};
-
-        if (!registrationID) {
-            return res.status(400).json({ message: "RegistrationID is Required" });
-        }
-        if (!terminalID) {
-            return res.status(400).json({ message: "TerminalID is Required" });
-        }
-
-        // Load Registration (entity, not the repo)
-        const registration = await registrationRepo.findOne({ where: { id: registrationID } });
-        if (!registration) {
-            return res.status(404).json({ message: "Registration not found" });
-        }
-        if ((registration.status || "").toLowerCase() !== "pending") {
-            return res.status(400).json({ message: "Registration is not pending" });
-        }
-
-        // Validate Terminal
-        const terminal = await terminalRepo.findOne({ where: { id: terminalID } });
-        if (!terminal) return res.status(404).json({ message: "Terminal not found" });
-        if (terminal.availability === "occupied") {
-            return res.status(400).json({ message: "Terminal already occupied" });
-        }
+    // Validate Terminal
+    const terminal = await terminalRepo.findOne({ where: { id: terminalID } });
+    if (!terminal) return next(new NotFoundError("Terminal not found"));
+    if (terminal.availability === "occupied") {
+        return next(new BadRequestError("Terminal is already occupied"));
+    }
 
         // Generate Focal Person ID (FP001…)
         const lastFocal = await focalRepo
@@ -480,74 +448,59 @@ const approveFocalRegistration = async (req, res) => {
         // Delete Registration after successful transfer
         await registrationRepo.delete({ id: registration.id });
 
-        return res.json({
-            message: "Registration approved",
-            focalPersonID: savedFocal.id,        // FP001
-            neighborhoodID: savedNeighborhood.id, // N001
-            terminalID,
-            deletedRegistrationID: registrationID,
-        });
-    } catch (err) {
-        console.error(err);
-        return res.status(500).json({ message: "Server Error - APPROVE REGISTRATION" });
-    }
-}
+    return res.json({
+        message: "Registration approved",
+        focalPersonID: savedFocal.id,
+        neighborhoodID: savedNeighborhood.id,
+        terminalID,
+        deletedRegistrationID: registrationID,
+    });
+});
 
 // READ All Focal Person
-const getFocalPersons = async (req, res) => {
-    try {
-        const cacheKey = "focalPersons:all";
-        const cached = await getCache(cacheKey);
-        if (cached) return res.json(cached);
+const getFocalPersons = catchAsync(async (req, res, next) => {
+    const cacheKey = "focalPersons:all";
+    const cached = await getCache(cacheKey);
+    if (cached) return res.json(cached);
 
-        const focalPersons = await focalPersonRepo.find();
-        const sanitized = focalPersons.map(sanitizeFP);
-        await setCache(cacheKey, sanitized, 120);
-        res.json(sanitized);
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ message: "Server Error - READ All FP" });
-    }
-};
+    const focalPersons = await focalPersonRepo.find();
+    const sanitized = focalPersons.map(sanitizeFP);
+    await setCache(cacheKey, sanitized, 120);
+    res.json(sanitized);
+});
 
 // READ One Focal Person
-const getFocalPerson = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const cacheKey = `focalPerson:${id}`;
-        const cached = await getCache(cacheKey);
-        if (cached) return res.json(cached);
+const getFocalPerson = catchAsync(async (req, res, next) => {
+    const { id } = req.params;
+    const cacheKey = `focalPerson:${id}`;
+    const cached = await getCache(cacheKey);
+    if (cached) return res.json(cached);
 
-        const focalPerson = await focalPersonRepo.findOne({ where: { id } });
-        if (!focalPerson) {
-            return res.status(404).json({ message: "Focal Person Not Found" });
-        }
-
-        const sanitized = sanitizeFP(focalPerson);
-        await setCache(cacheKey, sanitized, 100);
-        res.json(sanitized);
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ message: "Server Error - READ One FP" });
+    const focalPerson = await focalPersonRepo.findOne({ where: { id } });
+    if (!focalPerson) {
+        return next(new NotFoundError("Focal Person Not Found"));
     }
-};
 
-const updateFocalPhotos = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const fp = await focalPersonRepo.findOne({ where: { id } });
-        if (!fp) return res.status(404).json({ message: "Focal Person Not Found" });
+    const sanitized = sanitizeFP(focalPerson);
+    await setCache(cacheKey, sanitized, 100);
+    res.json(sanitized);
+});
 
-        const files = req.files || {};
-        const main = files.photo?.[0];
-        const alt = files.alternativeFPImage?.[0];
+const updateFocalPhotos = catchAsync(async (req, res, next) => {
+    const { id } = req.params;
+    const fp = await focalPersonRepo.findOne({ where: { id } });
+    if (!fp) return next(new NotFoundError("Focal Person Not Found"));
 
-        console.log("Files:", req.files);
-        console.log("Body:", req.body);
+    const files = req.files || {};
+    const main = files.photo?.[0];
+    const alt = files.alternativeFPImage?.[0];
 
-        if (!main && !alt) {
-            return res.status(400).json({ message: "No Files Uploaded" });
-        }
+    console.log("Files:", req.files);
+    console.log("Body:", req.body);
+
+    if (!main && !alt) {
+        return next(new BadRequestError("No files provided"));
+    }
 
         // Track changes for logging
         const changes = [];
@@ -594,13 +547,9 @@ const updateFocalPhotos = async (req, res) => {
         await deleteCache(`focalPhoto:${id}`);
         await deleteCache(`focalAltPhoto:${id}`);
 
-        // Do not include raw blobs in JSON response
-        return res.json({ message: "Focal Person Photos Updated", id: fp.id });
-    } catch (err) {
-        console.error(err);
-        return res.status(500).json({ message: "Server Error" })
-    }
-};
+    // Do not include raw blobs in JSON response
+    return res.json({ message: "Focal Person Photos Updated", id: fp.id });
+});
 
 
 // Stream Main Photo (Blob) to Client
@@ -651,11 +600,10 @@ const getAlternativeFocalPhoto = async (req, res) => {
 };
 
 // DELETE Focal Person Photo
-const deleteFocalPhoto = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const fp = await focalPersonRepo.findOne({ where: { id } });
-        if (!fp) return res.status(404).json({ message: "Focal Person Not Found" });
+const deleteFocalPhoto = catchAsync(async (req, res, next) => {
+    const { id } = req.params;
+    const fp = await focalPersonRepo.findOne({ where: { id } });
+    if (!fp) return next(new NotFoundError("Focal Person Not Found"));
 
         // Only log if photo actually exists
         if (fp.photo) {
@@ -684,23 +632,18 @@ const deleteFocalPhoto = async (req, res) => {
         await deleteCache("focalPersons:all");
         await deleteCache(`focalPhoto:${id}`);
 
-        return res.json({ message: "Focal person photo deleted successfully" });
-    } catch (err) {
-        console.error(err);
-        return res.status(500).json({ message: "Server Error - DELETE Photo" });
-    }
-};
+    return res.json({ message: "Focal person photo deleted successfully" });
+});
 
 // UPDATE Focal Person Info
-const updateFocalPerson = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { name, contactNumber, alternativeFP, alternativeFPContactNumber, firstName, lastName, email } = req.body;
+const updateFocalPerson = catchAsync(async (req, res, next) => {
+    const { id } = req.params;
+    const { name, contactNumber, alternativeFP, alternativeFPContactNumber, firstName, lastName, email } = req.body;
 
-        const focalPerson = await focalPersonRepo.findOne({ where: { id } });
-        if (!focalPerson) {
-            return res.status(404).json({ message: "Focal Person Not Found" });
-        }
+    const focalPerson = await focalPersonRepo.findOne({ where: { id } });
+    if (!focalPerson) {
+        return next(new NotFoundError("Focal Person Not Found"));
+    }
 
         // Take snapshot BEFORE changes
         const fpBefore = { ...focalPerson };
@@ -754,16 +697,11 @@ const updateFocalPerson = async (req, res) => {
         await deleteCache("focalPersons:all");
         await deleteCache("adminDashboard:aggregatedMap");
 
-        res.json({ message: "Focal Person Updated", focalPerson });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ message: "Server Error - UPDATE FP" });
-    }
-};
+    res.json({ message: "Focal Person Updated", focalPerson });
+});
 
 // UPDATE Password
-const changePassword = async (req, res) => {
-    try {
+const changePassword = catchAsync(async (req, res, next) => {
         const isSelfRoute = req.path.includes("/me/");
         const actorId = req.user?.id;
         if (!actorId) return res.status(401).json({ message: "Unauthorized" });
@@ -810,11 +748,7 @@ const changePassword = async (req, res) => {
         });
 
         return res.json({ message: "Password updated" });
-    } catch (err) {
-        console.error(err);
-        return res.status(500).json({ message: "Server Error - CHANGE PASSWORD" });
-    }
-}
+});
 
 module.exports = {
     createFocalPerson,

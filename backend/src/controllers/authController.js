@@ -5,6 +5,8 @@ const { AppDataSource } = require("../config/dataSource");
 const { sendLockoutEmail } = require("../utils/lockUtils");
 const SibApiV3Sdk = require("sib-api-v3-sdk");
 const { sendSMS } = require("../utils/textbeeSMS");
+const { BadRequestError, NotFoundError, UnauthorizedError, ForbiddenError } = require("../exceptions");
+const catchAsync = require("../utils/catchAsync");
 require("dotenv").config();
 
 const client = SibApiV3Sdk.ApiClient.instance;
@@ -19,71 +21,59 @@ const loginVerificationRepo = AppDataSource.getRepository("LoginVerification");
 const focalRepo = AppDataSource.getRepository("FocalPerson"); // ensure focalLogin works
 
 // Registration
-const register = async (req, res) => {
-  try {
-    const { name, email, password } = req.body;
+const register = catchAsync(async (req, res, next) => {
+  const { name, email, password } = req.body;
 
-    if (!name || !email || !password) {
-      return res
-        .status(400)
-        .json({ message: "Name, email, and password are required" });
-    }
-
-    // check if already exists
-    const existingAdmin = await adminRepo.findOne({
-      where: [{ name }, { email }],
-    });
-    if (existingAdmin) {
-      return res
-        .status(400)
-        .json({ message: "Admin with this name or email already exists" });
-    }
-
-    // Get the last admin
-    const lastAdmin = await adminRepo
-      .createQueryBuilder("admin")
-      .orderBy("admin.id", "DESC")
-      .getOne();
-
-    let newNumber = 1;
-    if (lastAdmin) {
-      const lastNumber = parseInt(lastAdmin.id.replace("ADM", ""), 10);
-      newNumber = lastNumber + 1;
-    }
-
-    const newID = "ADM" + String(newNumber).padStart(3, "0");
-
-    // Hash Password
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    const newAdmin = adminRepo.create({
-      id: newID,
-      name,
-      email,
-      password: hashedPassword,
-    });
-
-    await adminRepo.save(newAdmin);
-
-    // Return the new admin's id
-    res
-      .status(201)
-      .json({ message: "Admin Registered Successfully", id: newAdmin.id });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Server Error" });
+  if (!name || !email || !password) {
+    return next(new BadRequestError("Name, email, and password are required"));
   }
-};
+
+  // check if already exists
+  const existingAdmin = await adminRepo.findOne({
+    where: [{ name }, { email }],
+  });
+  if (existingAdmin) {
+    return next(new BadRequestError("Admin with this name or email already exists"));
+  }
+
+  // Get the last admin
+  const lastAdmin = await adminRepo
+    .createQueryBuilder("admin")
+    .orderBy("admin.id", "DESC")
+    .getOne();
+
+  let newNumber = 1;
+  if (lastAdmin) {
+    const lastNumber = parseInt(lastAdmin.id.replace("ADM", ""), 10);
+    newNumber = lastNumber + 1;
+  }
+
+  const newID = "ADM" + String(newNumber).padStart(3, "0");
+
+  // Hash Password
+  const hashedPassword = await bcrypt.hash(password, 10);
+
+  const newAdmin = adminRepo.create({
+    id: newID,
+    name,
+    email,
+    password: hashedPassword,
+  });
+
+  await adminRepo.save(newAdmin);
+
+  // Return the new admin's id
+  res
+    .status(201)
+    .json({ message: "Admin Registered Successfully", id: newAdmin.id });
+});
 
 // Focal Person Login
-const focalLogin = async (req, res) => {
-  try {
-    const { emailOrNumber, password } = req.body;
-    if (!emailOrNumber || !password) {
-      return res
-        .status(400)
-        .json({ message: "Username and password are required" });
-    }
+const focalLogin = catchAsync(async (req, res, next) => {
+  const { emailOrNumber, password } = req.body;
+  if (!emailOrNumber || !password) {
+    return next(new BadRequestError("Username and password are required"));
+  }
 
     const focal = await focalRepo.findOne({
       where: [{ email: emailOrNumber }, { contactNumber: emailOrNumber }],
@@ -206,34 +196,27 @@ const focalLogin = async (req, res) => {
       tempToken: focalTempToken,
       otpSent: true,
     });
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ message: "Server Error - LOGIN 2FA" });
-  }
-};
+});
 
 // Focal Person OTP Verification
-const verifyFocalLogin = async (req, res) => {
+const verifyFocalLogin = catchAsync(async (req, res, next) => {
+  const { tempToken, code } = req.body || {};
+  if (!tempToken || !code) {
+    return next(new BadRequestError("tempToken and code are required"));
+  }
+  let decoded;
   try {
-    const { tempToken, code } = req.body || {};
-    if (!tempToken || !code) {
-      return res
-        .status(400)
-        .json({ message: "tempToken and code are required" });
-    }
-    let decoded;
-    try {
-      decoded = jwt.verify(tempToken, process.env.JWT_SECRET);
-    } catch {
-      return res.status(401).json({ message: "Invalid or expired temp token" });
-    }
-    if (decoded.step !== "2fa" || decoded.role !== "focalPerson") {
-      return res.status(400).json({ message: "Invalid token context" });
-    }
-    const focal = await focalRepo.findOne({ where: { id: decoded.id } });
-    if (!focal) {
-      return res.status(404).json({ message: "Focal Person Not Found" });
-    }
+    decoded = jwt.verify(tempToken, process.env.JWT_SECRET);
+  } catch {
+    return next(new UnauthorizedError("Invalid or expired temp token"));
+  }
+  if (decoded.step !== "2fa" || decoded.role !== "focalPerson") {
+    return next(new BadRequestError("Invalid token context"));
+  }
+  const focal = await focalRepo.findOne({ where: { id: decoded.id } });
+  if (!focal) {
+    return next(new NotFoundError("Focal Person Not Found"));
+  }
     // Check if locked
     if (focal.lockUntil && new Date(focal.lockUntil) > new Date()) {
       const remaining = Math.ceil(
@@ -304,22 +287,15 @@ const verifyFocalLogin = async (req, res) => {
         role: "focalPerson",
       },
     });
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ message: "Server Error - VERIFY Focal 2FA" });
+});
+
+const adminDispatcherLogin = catchAsync(async (req, res, next) => {
+  const { userID, password } = req.body || {};
+  const identifier = String(userID || "").trim();
+
+  if (!identifier || !password) {
+    return next(new BadRequestError("User ID and password are required."));
   }
-};
-
-const adminDispatcherLogin = async (req, res) => {
-  try {
-    const { userID, password } = req.body || {};
-    const identifier = String(userID || "").trim();
-
-    if (!identifier || !password) {
-      return res
-        .status(400)
-        .json({ message: "User ID and password are required." });
-    }
 
     let role = null;
     let user = null;
@@ -475,34 +451,27 @@ const adminDispatcherLogin = async (req, res) => {
     );
 
     return res.json({ message: "Verification code sent", tempToken });
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ message: "Server Error - LOGIN 2FA" });
-  }
-};
+});
 
 // COMBINED 2FA VERIFY (Admin | Dispatcher)
-const adminDispatcherVerify = async (req, res) => {
-  try {
-    const { tempToken, code } = req.body || {};
-    if (!tempToken || !code) {
-      return res
-        .status(400)
-        .json({ message: "tempToken and code are required" });
-    }
+const adminDispatcherVerify = catchAsync(async (req, res, next) => {
+  const { tempToken, code } = req.body || {};
+  if (!tempToken || !code) {
+    return next(new BadRequestError("tempToken and code are required"));
+  }
 
-    let decoded;
-    try {
-      decoded = jwt.verify(tempToken, process.env.JWT_SECRET);
-    } catch {
-      return res.status(401).json({ message: "Invalid or expired temp token" });
-    }
-    if (
-      decoded.step !== "2fa" ||
-      !["admin", "dispatcher"].includes(decoded.role)
-    ) {
-      return res.status(400).json({ message: "Invalid token context" });
-    }
+  let decoded;
+  try {
+    decoded = jwt.verify(tempToken, process.env.JWT_SECRET);
+  } catch {
+    return next(new UnauthorizedError("Invalid or expired temp token"));
+  }
+  if (
+    decoded.step !== "2fa" ||
+    !["admin", "dispatcher"].includes(decoded.role)
+  ) {
+    return next(new BadRequestError("Invalid token context"));
+  }
 
     // Validate the OTP code against stored verification
     const otpSession = await loginVerificationRepo.findOne({
@@ -534,9 +503,7 @@ const adminDispatcherVerify = async (req, res) => {
             await dispatcherRepo.save(user);
           }
           await sendLockoutEmail(user.email, user.name);
-          return res.status(403).json({
-            message: "Too many failed attempts. Account locked for 15 minutes.",
-          });
+          return next(new ForbiddenError("Too many failed attempts. Account locked for 15 minutes."));
         }
 
         // Save failed attempt count
@@ -547,11 +514,11 @@ const adminDispatcherVerify = async (req, res) => {
         }
       }
 
-      return res.status(400).json({
-        message: `Invalid or expired verification code. Attempts: ${
+      return next(new BadRequestError(
+        `Invalid or expired verification code. Attempts: ${
           user?.failedAttempts || 0
-        }/5`,
-      });
+        }/5`
+      ));
     }
 
     // Get user for successful login
@@ -563,7 +530,7 @@ const adminDispatcherVerify = async (req, res) => {
     }
 
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      return next(new NotFoundError("User not found"));
     }
 
     // Reset failed attempts on successful verification
@@ -623,135 +590,123 @@ const adminDispatcherVerify = async (req, res) => {
       token,
       user: userData,
     });
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ message: "Server Error - VERIFY 2FA" });
-  }
-};
+});
 
 // Get Current User (Token Validation)
-const getCurrentUser = async (req, res) => {
-  try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader) {
-      return res.status(401).json({ message: "No Token Provided" });
-    }
-
-    const token = authHeader.split(" ")[1];
-    if (!token) {
-      return res.status(401).json({ message: "Invalid Token Format" });
-    }
-
-    let decoded;
-    try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET);
-    } catch {
-      return res.status(401).json({ message: "Invalid or Expired Token" });
-    }
-
-    // Verify session is still active (if sessionID exists)
-    if (decoded.sessionID) {
-      const session = await loginVerificationRepo.findOne({
-        where: { sessionID: decoded.sessionID },
-      });
-
-      if (!session) {
-        return res.status(401).json({ message: "Session Expired" });
-      }
-
-      // Check if session has expired
-      if (session.expiry && new Date() > new Date(session.expiry)) {
-        await loginVerificationRepo.delete({ sessionID: decoded.sessionID });
-        return res.status(401).json({ message: "Session Expired" });
-      }
-    }
-
-    // Get user data based on role
-    let userData = null;
-    if (decoded.role === "admin") {
-      const admin = await adminRepo.findOne({ where: { id: decoded.id } });
-      if (!admin) {
-        return res.status(404).json({ message: "Admin Not Found" });
-      }
-      userData = {
-        id: admin.id,
-        name: admin.name,
-        email: admin.email,
-        role: "admin",
-        passwordLastUpdated: admin.passwordLastUpdated
-      };
-    } else if (decoded.role === "dispatcher") {
-      const dispatcher = await dispatcherRepo.findOne({
-        where: { id: decoded.id },
-      });
-      if (!dispatcher) {
-        return res.status(404).json({ message: "Dispatcher Not Found" });
-      }
-      userData = {
-        id: dispatcher.id,
-        name: dispatcher.name,
-        email: dispatcher.email,
-        contactNumber: dispatcher.contactNumber,
-        role: "dispatcher",
-        passwordLastUpdated: dispatcher.passwordLastUpdated
-      };
-    } else if (decoded.role === "focalPerson") {
-      const focal = await focalRepo.findOne({ where: { id: decoded.id } });
-      if (!focal) {
-        return res.status(404).json({ message: "Focal Person Not Found" });
-      }
-      userData = {
-        id: focal.id,
-        firstName: focal.firstName || focal.name?.split(' ')[0] || '',
-        lastName: focal.lastName || focal.name?.split(' ').slice(1).join(' ') || '',
-        email: focal.email,
-        phone: focal.contactNumber,
-        address: focal.address,
-        photo: focal.photo,
-        lastPasswordChange: focal.passwordLastUpdated,
-        role: "focalPerson",
-      };
-    } else {
-      return res.status(400).json({ message: "Invalid User Role" });
-    }
-
-    res.json({ user: userData });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Server Error" });
+const getCurrentUser = catchAsync(async (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) {
+    return next(new UnauthorizedError("No Token Provided"));
   }
-};
+
+  const token = authHeader.split(" ")[1];
+  if (!token) {
+    return next(new UnauthorizedError("Invalid Token Format"));
+  }
+
+  let decoded;
+  try {
+    decoded = jwt.verify(token, process.env.JWT_SECRET);
+  } catch {
+    return next(new UnauthorizedError("Invalid or Expired Token"));
+  }
+
+  // Verify session is still active (if sessionID exists)
+  if (decoded.sessionID) {
+    const session = await loginVerificationRepo.findOne({
+      where: { sessionID: decoded.sessionID },
+    });
+
+    if (!session) {
+      return next(new UnauthorizedError("Session Expired"));
+    }
+
+    // Check if session has expired
+    if (session.expiry && new Date() > new Date(session.expiry)) {
+      await loginVerificationRepo.delete({ sessionID: decoded.sessionID });
+      return next(new UnauthorizedError("Session Expired"));
+    }
+  }
+
+  // Get user data based on role
+  let userData = null;
+  if (decoded.role === "admin") {
+    const admin = await adminRepo.findOne({ where: { id: decoded.id } });
+    if (!admin) {
+      return next(new NotFoundError("Admin Not Found"));
+    }
+    userData = {
+      id: admin.id,
+      name: admin.name,
+      email: admin.email,
+      role: "admin",
+      passwordLastUpdated: admin.passwordLastUpdated
+    };
+  } else if (decoded.role === "dispatcher") {
+    const dispatcher = await dispatcherRepo.findOne({
+      where: { id: decoded.id },
+    });
+    if (!dispatcher) {
+      return next(new NotFoundError("Dispatcher Not Found"));
+    }
+    userData = {
+      id: dispatcher.id,
+      name: dispatcher.name,
+      email: dispatcher.email,
+      contactNumber: dispatcher.contactNumber,
+      role: "dispatcher",
+      passwordLastUpdated: dispatcher.passwordLastUpdated
+    };
+} else if (decoded.role === "focalPerson") {
+    const focal = await focalRepo.findOne({ where: { id: decoded.id } });
+    if (!focal) {
+      return next(new NotFoundError("Focal Person Not Found"));
+    }
+    userData = {
+      id: focal.id,
+      firstName: focal.firstName || focal.name?.split(' ')[0] || '',
+      lastName: focal.lastName || focal.name?.split(' ').slice(1).join(' ') || '',
+      email: focal.email,
+      phone: focal.contactNumber,
+      address: focal.address,
+      photo: focal.photo,
+      lastPasswordChange: focal.passwordLastUpdated,
+      role: "focalPerson",
+    };
+  } else {
+    return next(new BadRequestError("Invalid User Role"));
+  }
+
+  res.json({ user: userData });
+});
 
 // Resend Focal Login OTP
-const resendFocalLoginCode = async (req, res) => {
-  try {
-    const { tempToken, emailOrNumber } = req.body || {};
+const resendFocalLoginCode = catchAsync(async (req, res, next) => {
+  const { tempToken, emailOrNumber } = req.body || {};
 
-    let focal = null;
+  let focal = null;
 
-    if (tempToken) {
-      try {
-        const decoded = jwt.verify(tempToken, process.env.JWT_SECRET);
-        if (decoded.step !== "2fa" || decoded.role !== "focalPerson") {
-          return res.status(400).json({ message: "Invalid token context" });
-        }
-        focal = await focalRepo.findOne({ where: { id: decoded.id } });
-      } catch {
-        return res
-          .status(401)
-          .json({ message: "Invalid or expired temp token" });
+  if (tempToken) {
+    try {
+      const decoded = jwt.verify(tempToken, process.env.JWT_SECRET);
+      if (decoded.role !== "focalPerson") {
+        return next(new BadRequestError("Invalid temp token"));
       }
-    } else {
-      const identifier = String(emailOrNumber || "").trim();
-      if (!identifier)
-        return res.status(400).json({ message: "emailOrNumber is required" });
-      focal = await focalRepo.findOne({
-        where: [{ email: identifier }, { contactNumber: identifier }],
-      });
+      focal = await focalRepo.findOne({ where: { id: decoded.id } });
+    } catch {
+      return next(new UnauthorizedError("Invalid or expired temp token"));
     }
+  } else {
+    const identifier = String(emailOrNumber || "").trim();
+    if (!identifier)
+      return next(new BadRequestError("emailOrNumber is required"));
+    focal = await focalRepo.findOne({
+      where: [{ email: identifier }, { contactNumber: identifier }],
+    });
+  }
 
-    if (!focal)
-      return res.status(404).json({ message: "Focal Person Not Found" });
+  if (!focal)
+    return next(new NotFoundError("Focal Person Not Found"));
 
     // Generate new code
     const code = crypto.randomInt(100000, 999999).toString();
@@ -813,24 +768,19 @@ const resendFocalLoginCode = async (req, res) => {
       { expiresIn: "5m" }
     );
 
-    return res.json({
-      message: "Verification Resent",
-      tempToken: newTempToken,
-    });
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ message: "Server Error - RESEND Focal 2FA" });
-  }
-};
+  return res.json({
+    message: "Verification Resent",
+    tempToken: newTempToken,
+  });
+});
 
 // Resend Admin/Dispatcher OTP
-const resendAdminDispatcherCode = async (req, res) => {
-  try {
-    const { tempToken, emailOrNumber } = req.body || {};
+const resendAdminDispatcherCode = catchAsync(async (req, res, next) => {
+  const { tempToken, emailOrNumber } = req.body || {};
 
-    let role = null;
-    let user = null;
-    let recipientEmail = null;
+  let role = null;
+  let user = null;
+  let recipientEmail = null;
 
     if (tempToken) {
       let decoded;
@@ -842,27 +792,27 @@ const resendAdminDispatcherCode = async (req, res) => {
         try {
           decoded = jwt.decode(tempToken);
           if (
-            !decoded ||
-            !decoded.id ||
-            !decoded.role ||
-            decoded.step !== "2fa"
-          ) {
-            return res.status(401).json({ message: "Invalid temp token" });
-          }
-          // Token is expired but we can still extract the user info for resend
-          console.log(
-            `Resending code with expired token for user ${decoded.id}`
-          );
-        } catch {
-          return res.status(401).json({ message: "Invalid temp token" });
+          !decoded ||
+          !decoded.id ||
+          !decoded.role ||
+          decoded.step !== "2fa"
+        ) {
+          return next(new UnauthorizedError("Invalid temp token"));
         }
+        // Token is expired but we can still extract the user info for resend
+        console.log(
+          `Resending code with expired token for user ${decoded.id}`
+        );
+      } catch {
+        return next(new UnauthorizedError("Invalid temp token"));
       }
-      if (
-        decoded.step !== "2fa" ||
-        !["admin", "dispatcher"].includes(decoded.role)
-      ) {
-        return res.status(400).json({ message: "Invalid token context" });
-      }
+    }
+    if (
+      decoded.step !== "2fa" ||
+      !["admin", "dispatcher"].includes(decoded.role)
+    ) {
+      return next(new BadRequestError("Invalid token context"));
+    }
       role = decoded.role;
 
       if (role === "admin") {
@@ -875,7 +825,7 @@ const resendAdminDispatcherCode = async (req, res) => {
     } else {
       const identifier = String(emailOrNumber || "").trim();
       if (!identifier)
-        return res.status(400).json({ message: "emailOrNumber is required" });
+        return next(new BadRequestError("emailOrNumber is required"));
 
       // Try Admin by name first (matches your login flow)
       const admin = await adminRepo.findOne({ where: { name: identifier } });
@@ -895,9 +845,9 @@ const resendAdminDispatcherCode = async (req, res) => {
       }
     }
 
-    if (!user || !role) {
-      return res.status(404).json({ message: "User not found for resend" });
-    }
+  if (!user || !role) {
+    return next(new NotFoundError("User not found"));
+  }
 
     const code = crypto.randomInt(100000, 999999).toString();
     const expiry = new Date(Date.now() + 5 * 60 * 1000);
@@ -953,37 +903,26 @@ const resendAdminDispatcherCode = async (req, res) => {
       { expiresIn: "5m" }
     );
 
-    return res.json({
-      message: "Verification Resent",
-      tempToken: newTempToken,
-    });
-  } catch (err) {
-    console.error(err);
-    return res
-      .status(500)
-      .json({ message: "Server Error - RESEND Admin/Dispatcher 2FA" });
-  }
-};
+  return res.json({
+    message: "Verification Resent",
+    tempToken: newTempToken,
+  });
+});
 
 // Logout
-const logout = async (req, res) => {
-  try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader) return res.status(401).json({ message: "No Token" });
+const logout = catchAsync(async (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) return next(new UnauthorizedError("No token"));
 
-    const token = authHeader.split(" ")[1];
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+  const token = authHeader.split(" ")[1];
+  const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    if (decoded.sessionID) {
-      await loginVerificationRepo.delete({ sessionID: decoded.sessionID });
-    }
-
-    res.json({ message: "Logged Out Succesfully" });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Server Error" });
+  if (decoded.sessionID) {
+    await loginVerificationRepo.delete({ sessionID: decoded.sessionID });
   }
-};
+
+  res.json({ message: "Logged Out Succesfully" });
+});
 
 module.exports = {
   register,

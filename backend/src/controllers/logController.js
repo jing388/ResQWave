@@ -1,14 +1,15 @@
 const { AppDataSource } = require("../config/dataSource");
 const { getCache, setCache } = require("../config/cache");
+const { UnauthorizedError } = require("../exceptions");
+const catchAsync = require("../utils/catchAsync");
 
 const logRepo = AppDataSource.getRepository("Log");
 const focalRepo = AppDataSource.getRepository("FocalPerson");
 
 // GET /logs/own -> returns only the logged-in focal person’s logs
-const getOwnLogs = async (req, res) => {
-  try {
-    const actorID = String(req.user?.focalPersonID || req.user?.id || "");
-    if (!actorID) return res.status(401).json({ message: "Unauthorized" });
+const getOwnLogs = catchAsync(async (req, res, next) => {
+  const actorID = String(req.user?.focalPersonID || req.user?.id || "");
+  if (!actorID) return next(new UnauthorizedError("Unauthorized"));
 
     const cacheKey = `logs:own:${actorID}`;
     const cached = await getCache(cacheKey);
@@ -78,13 +79,9 @@ const getOwnLogs = async (req, res) => {
       };
     });
 
-    const payload = { lastUpdated, days, total: rows.length };
-    await setCache(cacheKey, payload, 60);
-    return res.json(payload);
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ message: "Server Error - READ Own Logs" });
-  }
-};
+  const payload = { lastUpdated, days, total: rows.length };
+  await setCache(cacheKey, payload, 60);
+  return res.json(payload);
+});
 
 module.exports = { getOwnLogs };

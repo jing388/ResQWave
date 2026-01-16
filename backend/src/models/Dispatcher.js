@@ -2,7 +2,7 @@
 const { EntitySchema } = require("typeorm");
 
 
-module.exports = new EntitySchema ({
+module.exports = new EntitySchema({
     name: "Dispatcher",
     tableName: "dispatchers",
     columns: {
@@ -35,7 +35,7 @@ module.exports = new EntitySchema ({
             nullable: true
         },
         photo: {
-            type: "longblob",
+            type: "bytea",
             nullable: true,
         },
         createdBy: {
@@ -56,7 +56,7 @@ module.exports = new EntitySchema ({
             default: 0
         },
         lockUntil: {
-            type: "datetime",
+            type: "timestamp",
             nullable: true
         },
         archived: {

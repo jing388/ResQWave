@@ -29,6 +29,8 @@ const { authMiddleware, requireRole } = require("./middleware/authMiddleware");
 const { getTerminalsForMap } = require("./controllers/terminalController");
 const { createCriticalAlert, createUserInitiatedAlert } = require("./controllers/alertController");
 const { testSanityConnection } = require("./services/sanity-chatbot-service");
+const errorHandler = require("./middleware/errorMiddleware");
+const { NotFoundError } = require("./exceptions/index");
 
 // Test For Realtime
 // Remove the comment to test again
@@ -112,6 +114,14 @@ AppDataSource.initialize()
     app.use("/post", postRescueRoutes);
     app.use("/", graphRoutes);
     app.use("/", documentRoutes);
+
+    // Handle 404
+    app.use((req, res, next) => {
+        next(new NotFoundError(`Can't find ${req.originalUrl} on this server!`));
+    });
+
+    // Global Error Handler
+    app.use(errorHandler);
 
     const server = http.createServer(app);
     setupSocket(server, {

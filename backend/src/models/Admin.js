@@ -1,6 +1,6 @@
 const { EntitySchema } = require("typeorm");
 
-module.exports = new EntitySchema ({
+module.exports = new EntitySchema({
     name: "Admin",
     tableName: "admins",
     columns: {
@@ -30,7 +30,7 @@ module.exports = new EntitySchema ({
             default: 0
         },
         lockUntil: {
-            type: "datetime",
+            type: "timestamp",
             nullable: true
         },
         password: {

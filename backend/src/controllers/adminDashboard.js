@@ -1,5 +1,7 @@
 const { AppDataSource } = require("../config/dataSource");
 const { getCache, setCache } = require("../config/cache");
+const catchAsync = require("../utils/catchAsync");
+const { BadRequestError, NotFoundError } = require("../exceptions");
 
 const terminalRepo = AppDataSource.getRepository("Terminal");
 const dispatcherRepo = AppDataSource.getRepository("Dispatcher");
@@ -7,8 +9,7 @@ const neighborhoodRepo = AppDataSource.getRepository("Neighborhood");
 const alertRepo = AppDataSource.getRepository("Alert");
 const postRescueRepo = AppDataSource.getRepository("PostRescueForm");
 
-const getAdminDashboardStats = async (req, res) => {
-    try {
+const getAdminDashboardStats = catchAsync(async (req, res) => {
         const cacheKey = "adminDashboardStats";
         const cached = await getCache(cacheKey);
         if (cached) {
@@ -60,15 +61,9 @@ const getAdminDashboardStats = async (req, res) => {
         await setCache(cacheKey, payload, 300);
 
         return res.json(payload);
+});
 
-    } catch (err) {
-        console.error("Error fetching admin dashboard stats:", err);
-        return res.status(500).json({ message: "Server Error" });
-    }
-};
-
-const getAggregatedMapData = async (req, res) => {
-    try {
+const getAggregatedMapData = catchAsync(async (req, res) => {
         const cacheKey = "adminDashboard:aggregatedMap";
         const cached = await getCache(cacheKey);
         if (cached) return res.json(cached);
@@ -76,15 +71,15 @@ const getAggregatedMapData = async (req, res) => {
         // Subquery for latest alert time per terminal
         const latestAlertSQ = alertRepo
             .createQueryBuilder("a")
-            .select("a.terminalID", "terminalID")
-            .addSelect("MAX(a.dateTimeSent)", "lastTime")
+            .select("a.terminalID", "terminal_id")
+            .addSelect("MAX(a.dateTimeSent)", "last_time")
             .groupBy("a.terminalID");
 
         // Subquery for alert count per terminal
         const alertCountSQ = alertRepo
             .createQueryBuilder("ac")
-            .select("ac.terminalID", "terminalID")
-            .addSelect("COUNT(ac.id)", "totalAlerts")
+            .select("ac.terminalID", "terminal_id")
+            .addSelect("COUNT(ac.id)", "total_alerts")
             .groupBy("ac.terminalID");
 
         const data = await neighborhoodRepo
@@ -93,27 +88,27 @@ const getAggregatedMapData = async (req, res) => {
             .leftJoin("FocalPerson", "fp", "fp.id = n.focalPersonID")
             .leftJoin(
                 "(" + latestAlertSQ.getQuery() + ")",
-                "latestAlert",
-                "latestAlert.terminalID = t.id"
+                "latest_alert",
+                "latest_alert.terminal_id = t.id"
             )
-            .leftJoin("Alert", "alert", "alert.terminalID = t.id AND alert.dateTimeSent = latestAlert.lastTime")
+            .leftJoin("Alert", "alert", "alert.terminalID = t.id AND alert.dateTimeSent = latest_alert.last_time")
             .leftJoin(
                 "(" + alertCountSQ.getQuery() + ")",
-                "alertCounts",
-                "alertCounts.terminalID = t.id"
+                "alert_counts",
+                "alert_counts.terminal_id = t.id"
             )
             .setParameters(latestAlertSQ.getParameters())
             .select([
-                "n.id AS neighborhoodID",
-                "t.id AS terminalID",
-                "t.name AS terminalName",
-                "t.status AS terminalStatus",
-                "alert.dateTimeSent AS latestAlertTime",
-                "fp.firstName AS firstName",
-                "fp.lastName AS lastName",
-                "fp.address AS address",
-                "fp.contactNumber AS contactNumber",
-                "COALESCE(alertCounts.totalAlerts, 0) AS totalAlerts"
+                'n.id AS "neighborhoodID"',
+                't.id AS "terminalID"',
+                't.name AS "terminalName"',
+                't.status AS "terminalStatus"',
+                'alert.dateTimeSent AS "latestAlertTime"',
+                'fp.firstName AS "firstName"',
+                'fp.lastName AS "lastName"',
+                'fp.address AS "address"',
+                'fp.contactNumber AS "contactNumber"',
+                'COALESCE(alert_counts.total_alerts, 0) AS "totalAlerts"'
             ])
             .where("n.archived = :archived", { archived: false })
             .getRawMany();
@@ -144,12 +139,7 @@ const getAggregatedMapData = async (req, res) => {
         await setCache(cacheKey, processedData, 300);
         return res.json(processedData);
 
-    } catch (err) {
-        console.error("Error fetching aggregated map data:", err);
-        return res.status(500).json({ message: "Server Error" });
-    }
-};
-
+})
 module.exports = {
     getAdminDashboardStats,
     getAggregatedMapData

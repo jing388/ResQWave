@@ -1,4 +1,6 @@
 const { AppDataSource } = require("../config/dataSource");
+const { BadRequestError, NotFoundError } = require("../exceptions");
+const catchAsync = require("../utils/catchAsync");
 const alertRepo = AppDataSource.getRepository("Alert");
 const terminalRepo = AppDataSource.getRepository("Terminal");
 const rescueFormRepo = AppDataSource.getRepository("RescueForm");
@@ -26,150 +28,129 @@ async function generateAlertId() {
 }
 
 // Create Critical Alert (sensor-triggered)
-const createCriticalAlert = async (req, res) => {
-	try {
-		const { terminalID, alertType, sentThrough } = req.body;
-		if (!terminalID) return res.status(400).json({ message: "terminalID is required" });
+const createCriticalAlert = catchAsync(async (req, res, next) => {
+	const { terminalID, alertType, sentThrough } = req.body;
+	if (!terminalID) return next(new BadRequestError("terminalID is required"));
 
-		const terminal = await terminalRepo.findOne({ where: { id: terminalID } });
-		if (!terminal) return res.status(404).json({ message: "Terminal Not Found" });
+	const terminal = await terminalRepo.findOne({ where: { id: terminalID } });
+	if (!terminal) return next(new NotFoundError("Terminal Not Found"));
 
-		const id = await generateAlertId();
-		const alert = alertRepo.create({
-			id,
-			terminalID,
-			alertType: alertType || "Critical",
-			sentThrough: sentThrough || "Sensor",
-			status: "Critical",
-			terminal: { id: terminalID },
-		});
+	const id = await generateAlertId();
+	const alert = alertRepo.create({
+		id,
+		terminalID,
+		alertType: alertType || "Critical",
+		sentThrough: sentThrough || "Sensor",
+		status: "Unassigned",
+		terminal: { id: terminalID },
+	});
 
-		await alertRepo.save(alert);
-        await deleteCache("adminDashboardStats");
-        await deleteCache("adminDashboard:aggregatedMap");
-		res.status(201).json({ message: "Critical alert created", alert });
-	} catch (err) {
-		console.error(err);
-		res.status(500).json({ message: "Server Error - CREATE Critical Alert" });
-	}
-};
+	await alertRepo.save(alert);
+	await deleteCache("adminDashboardStats");
+	await deleteCache("adminDashboard:aggregatedMap");
+	res.status(201).json({ message: "Critical alert created", alert });
+});
 
 // Create User-Initiated Alert (button press)
-const createUserInitiatedAlert = async (req, res) => {
-	try {
-		const { terminalID, alertType, sentThrough } = req.body;
-		if (!terminalID) return res.status(400).json({ message: "terminalID is required" });
+const createUserInitiatedAlert = catchAsync(async (req, res, next) => {
+	const { terminalID, alertType, sentThrough } = req.body;
+	if (!terminalID) return next(new BadRequestError("terminalID is required"));
 
-		const terminal = await terminalRepo.findOne({ where: { id: terminalID } });
-		if (!terminal) return res.status(404).json({ message: "Terminal Not Found" });
+	const terminal = await terminalRepo.findOne({ where: { id: terminalID } });
+	if (!terminal) return next(new NotFoundError("Terminal Not Found"));
 
-		const id = await generateAlertId();
-		const alert = alertRepo.create({
-			id,
-			terminalID,
-			alertType: alertType || "User",
-			sentThrough: sentThrough || "Button",
-			status: "User-Initiated",
-			terminal: { id: terminalID },
-		});
+	const id = await generateAlertId();
+	const alert = alertRepo.create({
+		id,
+		terminalID,
+		alertType: alertType || "User-Initiated",
+		sentThrough: sentThrough || "Button",
+		status: "Unassigned",
+		terminal: { id: terminalID },
+	});
 
-		await alertRepo.save(alert);
-        await deleteCache("adminDashboardStats");
-        await deleteCache("adminDashboard:aggregatedMap");
-		res.status(201).json({ message: "User-initiated alert created", alert });
-	} catch (err) {
-		console.error(err);
-		res.status(500).json({ message: "Server Error - CREATE User-Initiated Alert" });
-	}
-};
+	await alertRepo.save(alert);
+	await deleteCache("adminDashboardStats");
+	await deleteCache("adminDashboard:aggregatedMap");
+	res.status(201).json({ message: "User-initiated alert created", alert });
+});
 
   // Map View 
-const getMapAlert = async (req, res) => {
-  try {
-    const cacheKey = "mapAlerts:latestPerTerminal";
-    const cached = await getCache(cacheKey);
-    if (cached) return res.json(cached);
+const getMapAlert = catchAsync(async (req, res, next) => {
+  const cacheKey = "mapAlerts:latestPerTerminal";
+  const cached = await getCache(cacheKey);
+  if (cached) return res.json(cached);
 
-    
-    const latestSQ = alertRepo
-      .createQueryBuilder("a")
-      .select("a.terminalID", "terminalID")
-      .addSelect("MAX(a.dateTimeSent)", "lastTime")
-      .groupBy("a.terminalID");
+  
+  const latestSQ = alertRepo
+    .createQueryBuilder("a")
+    .select("a.terminalID", "terminal_id")
+    .addSelect("MAX(a.dateTimeSent)", "last_time")
+    .groupBy("a.terminalID");
 
-    const rows = await alertRepo
-      .createQueryBuilder("alert")
-      .innerJoin(
-        "(" + latestSQ.getQuery() + ")",
-        "last",
-        "last.terminalID = alert.terminalID AND last.lastTime = alert.dateTimeSent"
-      )
-      .setParameters(latestSQ.getParameters())
-      .leftJoin("Terminal", "t", "t.id = alert.terminalID")
-      .leftJoin("Neighborhood", "n", "n.terminalID = alert.terminalID")
-      .leftJoin("FocalPerson", "fp", "fp.id = n.focalPersonID")
-      .select([
-        "t.name AS terminalName",
-        "alert.alertType AS alertType",
-        "t.status AS terminalStatus",
-        "alert.dateTimeSent AS timeSent",
-        "fp.firstName AS focalFirstName",
-        "fp.lastName AS focalLastName",
-        "fp.address AS focalAddress",
-        "fp.contactNumber AS focalContactNumber",
-      ])
-      .orderBy("alert.dateTimeSent", "DESC")
-      .getRawMany();
+  const rows = await alertRepo
+    .createQueryBuilder("alert")
+    .innerJoin(
+      "(" + latestSQ.getQuery() + ")",
+      "last",
+      "last.terminal_id = alert.terminalID AND last.last_time = alert.dateTimeSent"
+    )
+    .setParameters(latestSQ.getParameters())
+    .leftJoin("Terminal", "t", "t.id = alert.terminalID")
+    .leftJoin("Neighborhood", "n", "n.terminalID = alert.terminalID")
+    .leftJoin("FocalPerson", "fp", "fp.id = n.focalPersonID")
+    .select([
+      "t.name AS terminalName",
+      "alert.alertType AS alertType",
+      "t.status AS terminalStatus",
+      "alert.dateTimeSent AS timeSent",
+      "fp.firstName AS focalFirstName",
+      "fp.lastName AS focalLastName",
+      "fp.address AS focalAddress",
+      "fp.contactNumber AS focalContactNumber",
+    ])
+    .orderBy("alert.dateTimeSent", "DESC")
+    .getRawMany();
 
-    await setCache(cacheKey, rows, 10);
-    return res.json(rows);
-  } catch (err) {
-    console.error("Get Map Alert error:", err);
-    return res.status(500).json({ message: "Server Error - READ Map Alert" });
-  }
-};
+  await setCache(cacheKey, rows, 10);
+  return res.json(rows);
+});
 
 // Get All Alerts
 // Table View
-const getAlerts = async (req, res) => {
-  try {
-	const cacheKey = "alerts:all";
-	const cached = await getCache(cacheKey);
-	if (cached) return res.json(cached);
+const getAlerts = catchAsync(async (req, res, next) => {
+  const cacheKey = "alerts:all";
+  const cached = await getCache(cacheKey);
+  if (cached) return res.json(cached);
 
-    const alerts = await alertRepo
-      .createQueryBuilder("alert")
-	  .leftJoin("Terminal", "t", "t.id = alert.terminalID")
-	  .leftJoin("Neighborhood", "n", "n.terminalID = alert.terminalID")
-	  .leftJoin("FocalPerson", "fp", "fp.id = n.focalPersonID")
-      .select([
-        "alert.id AS alertId",
-        "alert.terminalID AS terminalId",
-        "alert.alertType AS alertType",
-        "alert.status AS status",
-        "alert.dateTimeSent AS lastSignalTime",
-        "t.name AS terminalName",
-        "fp.address AS address",
-      ])
-	  .orderBy(`CASE WHEN alert.alertType = 'Critical' THEN 0 ELSE 1 END`, "DESC")
-	  .addOrderBy("alert.dateTimeSent", "DESC")
-      .getRawMany();
+  const alerts = await alertRepo
+    .createQueryBuilder("alert")
+    .leftJoin("Terminal", "t", "t.id = alert.terminalID")
+    .leftJoin("Neighborhood", "n", "n.terminalID = alert.terminalID")
+    .leftJoin("FocalPerson", "fp", "fp.id = n.focalPersonID")
+    .select([
+      "alert.id AS alertId",
+      "alert.terminalID AS terminalId",
+      "alert.alertType AS alertType",
+      "alert.status AS status",
+      "alert.dateTimeSent AS lastSignalTime",
+      "t.name AS terminalName",
+      "fp.address AS address",
+    ])
+    .orderBy(`CASE WHEN alert.alertType = 'Critical' THEN 0 ELSE 1 END`, "DESC")
+    .addOrderBy("alert.dateTimeSent", "DESC")
+    .getRawMany();
 
-	await setCache(cacheKey, alerts, 10);
-    res.json(alerts);
-  } catch (err) {
-    console.error("[getAlerts] error:", err);
-    res.status(500).json({ message: "Server error" });
-  }
-};
+  await setCache(cacheKey, alerts, 10);
+  res.json(alerts);
+});
 
 // List all alerts with Dispatched Alerts
 // Table View
-const getDispatchedAlerts = async (req, res) => {
-	  try {
-		const cacheKey = "alerts:dispatched";
-		const cached = await getCache(cacheKey);
-		if (cached) return res.json(cached);
+const getDispatchedAlerts = catchAsync(async (req, res, next) => {
+	const cacheKey = "alerts:dispatched";
+	const cached = await getCache(cacheKey);
+	if (cached) return res.json(cached);
 
 	const alerts = await alertRepo
 		.createQueryBuilder("alert")
@@ -191,22 +172,17 @@ const getDispatchedAlerts = async (req, res) => {
 		.getRawMany();
 
 	await setCache(cacheKey, alerts, 10);
-    res.json(alerts);
-  } catch (err) {
-    console.error("[getAlerts] error:", err);
-    res.status(500).json({ message: "Server error" });
-  }
-}
+	res.json(alerts);
+});
 
 // List All Alerts with waitlist status
 // Table View
-const getWaitlistedAlerts = async (req, res) => {
-  try {
-	const cacheKey = "alerts:waitlist";
-	const cached = await getCache(cacheKey);
-	if (cached) return res.json(cached);
+const getWaitlistedAlerts = catchAsync(async (req, res, next) => {
+  const cacheKey = "alerts:waitlist";
+  const cached = await getCache(cacheKey);
+  if (cached) return res.json(cached);
 
-	const alerts = await alertRepo
+  const alerts = await alertRepo
 		.createQueryBuilder("alert")
 		.leftJoin("Terminal", "t", "t.id = alert.terminalID")
 		.leftJoin("Neighborhood", "n", "n.terminalID = alert.terminalID")
@@ -225,23 +201,18 @@ const getWaitlistedAlerts = async (req, res) => {
 		.addOrderBy("alert.dateTimeSent", "DESC")
 		.getRawMany();
 
-	await setCache(cacheKey, alerts, 10);
-    res.json(alerts);
-  } catch (err) {
-    console.error("[getAlerts] error:", err);
-    res.status(500).json({ message: "Server error" });
-  }
-}
+  await setCache(cacheKey, alerts, 10);
+  res.json(alerts);
+});
 
 // List Alerts with Unassigned Status
 // Table View
-const getUnassignedAlerts = async (req, res) => {
-  try {
-	const cacheKey = "alerts:unassigned";
-	const cached = await getCache(cacheKey);
-	if (cached) return res.json(cached);
+const getUnassignedAlerts = catchAsync(async (req, res, next) => {
+  const cacheKey = "alerts:unassigned";
+  const cached = await getCache(cacheKey);
+  if (cached) return res.json(cached);
 
-	const alerts = await alertRepo
+  const alerts = await alertRepo
 		.createQueryBuilder("alert")
 		.leftJoin("Terminal", "t", "t.id = alert.terminalID")
 		.leftJoin("Neighborhood", "n", "n.terminalID = alert.terminalID")
@@ -260,204 +231,168 @@ const getUnassignedAlerts = async (req, res) => {
 		.addOrderBy("alert.dateTimeSent", "DESC")
 		.getRawMany();
 
-	await setCache(cacheKey, alerts, 10);
-    res.json(alerts);
-  } catch (err) {
-    console.error("[getAlerts] error:", err);
-    res.status(500).json({ message: "Server error" });
-  }
-};
+  await setCache(cacheKey, alerts, 10);
+  res.json(alerts);
+});
 
 // Get Unassigned Map Alerts
 // Map View - Display ALL occupied terminals (terminals with neighborhood/focal person)
-const getUnassignedMapAlerts = async (req, res) => {
-  try {
-    const cacheKey = "mapAlerts:allOccupied";
-    const cached = await getCache(cacheKey);
-    if (cached) {
-      console.log('[BACKEND] Returning cached occupied terminals:', cached.length);
-      return res.json(cached);
-    }
-
-    console.log('[BACKEND] Fetching all occupied terminals from database...');
-
-    // FIXED latest alert subquery (NULL-safe)
-    const latestAlertSQ = alertRepo
-      .createQueryBuilder("a")
-      .select("a.terminalID", "terminalID")
-      .addSelect("MAX(a.dateTimeSent)", "lastTime")
-      .where("a.dateTimeSent IS NOT NULL")
-      .groupBy("a.terminalID");
-
-    const terminals = await terminalRepo
-      .createQueryBuilder("t")
-
-      // FIXED: use actual table names
-      .leftJoin("neighborhood", "n", "n.terminalID = t.id")
-      .leftJoin("focalpersons", "fp", "fp.id = n.focalPersonID")
-
-      // FIXED: properly aliased subquery
-      .leftJoin(
-        "(" + latestAlertSQ.getQuery() + ")",
-        "latestAlert",
-        "`latestAlert`.`terminalID` = `t`.`id`"
-      )
-
-      // FIXED: backticked alias usage
-      .leftJoin(
-        "alerts",
-        "alert",
-        "`alert`.`terminalID` = `t`.`id` AND `alert`.`dateTimeSent` = `latestAlert`.`lastTime`"
-      )
-
-      .setParameters(latestAlertSQ.getParameters())
-
-      .select([
-        "t.id AS terminalId",
-        "t.name AS terminalName",
-        "t.status AS terminalStatus",
-
-        "alert.id AS alertId",
-        "alert.alertType AS alertType",
-        "COALESCE(alert.dateTimeSent, t.dateCreated) AS timeSent",
-        "alert.status AS alertStatus",
-
-        "fp.id AS focalPersonId",
-        "fp.firstName AS focalFirstName",
-        "fp.lastName AS focalLastName",
-        "fp.address AS focalAddress",
-        "fp.contactNumber AS focalContactNumber",
-      ])
-
-      .where("n.focalPersonID IS NOT NULL")
-      .getRawMany();
-
-    console.log('[BACKEND] Found occupied terminals:', terminals.length);
-    if (terminals.length > 0) {
-      console.log('[BACKEND] First terminal sample:', {
-        terminalId: terminals[0].terminalId,
-        terminalName: terminals[0].terminalName,
-        terminalStatus: terminals[0].terminalStatus,
-        focalAddress: terminals[0].focalAddress
-      });
-    }
-
-    await setCache(cacheKey, terminals, 10);
-    res.json(terminals);
-  } catch (err) {
-    console.error('[BACKEND] Error in getUnassignedMapAlerts:', err);
-    res.status(500).json({ message: "Server Error" });
+const getUnassignedMapAlerts = catchAsync(async (req, res, next) => {
+  const cacheKey = "mapAlerts:allOccupied";
+  const cached = await getCache(cacheKey);
+  if (cached) {
+    console.log('[BACKEND] Returning cached occupied terminals:', cached.length);
+    return res.json(cached);
   }
-};
 
-// Get Waitlist Map Alerts
-// Map View - Returns empty array since we're showing all terminals in unassigned endpoint
-const getWaitlistedMapAlerts = async (req, res) => {
-  try {
-    // Return empty array since we're now showing all occupied terminals in the unassigned endpoint
-    res.json([]);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({message: "Server Error"});
+  console.log('[BACKEND] Fetching all occupied terminals from database...');
+
+  // FIXED latest alert subquery (NULL-safe)
+  const latestAlertSQ = alertRepo
+    .createQueryBuilder("a")
+    .select("a.terminalID", "terminal_id")
+    .addSelect("MAX(a.dateTimeSent)", "last_time")
+    .where("a.dateTimeSent IS NOT NULL")
+    .groupBy("a.terminalID");
+
+  const terminals = await terminalRepo
+    .createQueryBuilder("t")
+    // ... neighborhood and focalperson joins remain the same ...
+    .leftJoin("neighborhood", "n", "n.terminalID = t.id")
+    .leftJoin("focalpersons", "fp", "fp.id = n.focalPersonID")
+
+    // FIX: Use a callback for the subquery instead of string concatenation
+    .leftJoin(subQuery => {
+      return subQuery
+        .select("a.terminalID", "terminal_id")
+        .addSelect("MAX(a.dateTimeSent)", "last_time")
+        .from("alerts", "a") // Use the actual table name or Alert entity
+        .where("a.dateTimeSent IS NOT NULL")
+        .groupBy("a.terminalID");
+    }, "latest_alert", "latest_alert.terminal_id = t.id")
+
+    // FIX: Now "latestAlert" is properly registered for this join
+    .leftJoin(
+      "alerts",
+      "alert",
+      "alert.terminalID = t.id AND alert.dateTimeSent = latest_alert.last_time"
+    )
+    .select([
+      "t.id AS terminalId",
+      "t.name AS terminalName",
+      "t.status AS terminalStatus",
+      "alert.id AS alertId",
+      "alert.alertType AS alertType",
+      "COALESCE(alert.dateTimeSent, t.dateCreated) AS timeSent",
+      "alert.status AS alertStatus",
+      "fp.id AS focalPersonId",
+      "fp.firstName AS focalFirstName",
+      "fp.lastName AS focalLastName",
+      "fp.address AS focalAddress",
+      "fp.contactNumber AS focalContactNumber",
+    ])
+    .where("n.focalPersonID IS NOT NULL")
+    .getRawMany();
+
+  console.log('[BACKEND] Found occupied terminals:', terminals.length);
+  if (terminals.length > 0) {
+    console.log('[BACKEND] First terminal sample:', {
+      terminalId: terminals[0].terminalId,
+      terminalName: terminals[0].terminalName,
+      terminalStatus: terminals[0].terminalStatus,
+      focalAddress: terminals[0].focalAddress
+    });
   }
-};
 
+  await setCache(cacheKey, terminals, 10);
+  res.json(terminals);
+});
 
 // Read Single Alert
 // Table View More Info
-const getAlert = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const cacheKey = `alert:${id}`;
-    const cached = await getCache(cacheKey);
-    if (cached) return res.json(cached);
+const getAlert = catchAsync(async (req, res, next) => {
+  const { id } = req.params;
+  const cacheKey = `alert:${id}`;
+  const cached = await getCache(cacheKey);
+  if (cached) return res.json(cached);
 
-    const row = await alertRepo
-      .createQueryBuilder("alert")
-      .leftJoin("Terminal", "t", "t.id = alert.terminalID")
-      .leftJoin("Neighborhood", "n", "n.terminalID = alert.terminalID")
-      .leftJoin("FocalPerson", "fp", "fp.id = n.focalPersonID")
-      .select([
-        "alert.id AS alertID",
-        "alert.terminalID AS terminalID",
-        "t.name AS terminalName",
-        "alert.alertType AS alertType",
-        "alert.status AS status",
-        "alert.dateTimeSent AS timeSent",
-        "fp.address AS address",
-      ])
-      .where("alert.id = :id", { id })
-      .getRawOne();
+  const row = await alertRepo
+    .createQueryBuilder("alert")
+    .leftJoin("Terminal", "t", "t.id = alert.terminalID")
+    .leftJoin("Neighborhood", "n", "n.terminalID = alert.terminalID")
+    .leftJoin("FocalPerson", "fp", "fp.id = n.focalPersonID")
+    .select([
+      "alert.id AS alertID",
+      "alert.terminalID AS terminalID",
+      "t.name AS terminalName",
+      "alert.alertType AS alertType",
+      "alert.status AS status",
+      "alert.dateTimeSent AS timeSent",
+      "fp.address AS address",
+    ])
+    .where("alert.id = :id", { id })
+    .getRawOne();
 
-    if (!row) return res.status(404).json({ message: "Alert Not Found" });
+  if (!row) return next(new NotFoundError("Alert Not Found"));
 
-    await setCache(cacheKey, row, 10);
-    return res.json(row);
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ message: "Server Error - READ Alert" });
-  }
-};
+  await setCache(cacheKey, row, 10);
+  return res.json(row);
+});
 
 // UPDATE Alert Status
-const updateAlertStatus = async (req, res) => {
-    try {
-        const { alertID } = req.params;
-        const { action } = req.body; // "waitlist" or "dispatch"
+const updateAlertStatus = catchAsync(async (req, res, next) => {
+    const { alertID } = req.params;
+    const { action } = req.body; // "waitlist" or "dispatch"
 
-        // 1. Find alert
-        const alert = await alertRepo.findOne({
-          where: { id: alertID },
-          relations: ["terminal"],
-        });
+    // 1. Find alert
+    const alert = await alertRepo.findOne({
+      where: { id: alertID },
+      relations: ["terminal"],
+    });
 
-        // 2. Validate that rescue form exists
-        const rescueForm = await rescueFormRepo.findOne({ where: { emergencyID: alertID } });
-        if (!rescueForm) {
-            return res.status(400).json({ message: "Rescue Form must be created before dispatching or waitlisting" });
-        }
-
-        // 3. Update status
-        if (action === "waitlist") {
-            alert.status = "Waitlist";
-        } else if (action === "dispatch") {
-            alert.status = "Dispatched";
-        } else {
-            return res.status(400).json({ message: "Invalid action. Use 'waitlist' or 'dispatch'." });
-        }
-
-        await alertRepo.save(alert);
-
-        // Send Downlink ONLY when DISPATCHED
-        if (alert.status === "Dispatched") {
-          if (!alert.terminal?.devEUI) {
-            console.warn(
-              `[Downlink Skipped] Terminal has no DevEUI for alert ${alert.id}`
-            );
-          } else {
-            await sendDownlink(
-              alert.terminal.devEUI,
-              alert.status
-            );
-          }
-        }
-
-        //  Realtime broadcast
-        getIO().to("alerts:all").emit("alertStatusUpdated", {
-        alertID: alert.id,
-        newStatus: alert.status,
-        });
-
-
-        return res.status(200).json({
-            message: `Alert ${action === "waitlist" ? "added to waitlist" : "dispatched successfully"}`,
-            alert,
-        });
-    } catch (err) {
-        console.error(err);
-        return res.status(500).json({ message: "Server error" });
+    // 2. Validate that rescue form exists
+    const rescueForm = await rescueFormRepo.findOne({ where: { emergencyID: alertID } });
+    if (!rescueForm) {
+        return next(new BadRequestError("Rescue Form must be created before dispatching or waitlisting"));
     }
-};
+
+    // 3. Update status
+    if (action === "waitlist") {
+        alert.status = "Waitlist";
+    } else if (action === "dispatch") {
+        alert.status = "Dispatched";
+    } else {
+        return next(new BadRequestError("Invalid action. Use 'waitlist' or 'dispatch'."));
+    }
+
+    await alertRepo.save(alert);
+
+    // Send Downlink ONLY when DISPATCHED
+    if (alert.status === "Dispatched") {
+      if (!alert.terminal?.devEUI) {
+        console.warn(
+          `[Downlink Skipped] Terminal has no DevEUI for alert ${alert.id}`
+        );
+      } else {
+        await sendDownlink(
+          alert.terminal.devEUI,
+          alert.status
+        );
+      }
+    }
+
+    //  Realtime broadcast
+    getIO().to("alerts:all").emit("alertStatusUpdated", {
+    alertID: alert.id,
+    newStatus: alert.status,
+    });
+
+
+    return res.status(200).json({
+        message: `Alert ${action === "waitlist" ? "added to waitlist" : "dispatched successfully"}`,
+        alert,
+    });
+});
 
 
 
@@ -469,7 +404,6 @@ module.exports = {
 	getDispatchedAlerts,
 	getWaitlistedAlerts,
 	getUnassignedAlerts,
-	getWaitlistedMapAlerts,
 	getUnassignedMapAlerts,
 	getAlert,
 	updateAlertStatus 
