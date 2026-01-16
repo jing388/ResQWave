@@ -13,6 +13,7 @@ const {
     getAlternativeFocalPhoto,
     deleteFocalPhoto,
     changePassword,
+    completeOnboarding,
 } = require("../controllers/focalPersonController");
 
 const { uploadFocalPhotos } = require("../middleware/uploadFocalPhotos");
@@ -30,6 +31,7 @@ router.put("/:id", updateFocalPerson);
 router.put("/me/changePassword", changePassword);
 router.put("/:id/changePassword", changePassword);
 router.put("/:id/photos", uploadFocalPhotos, updateFocalPhotos);
+router.post("/complete-onboarding", completeOnboarding);
 
 
 module.exports = router;

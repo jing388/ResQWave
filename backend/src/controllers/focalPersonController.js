@@ -3,7 +3,7 @@ const bcrypt = require("bcrypt");
 const { generateTemporaryPassword, sendTemporaryPasswordEmail } = require("../utils/passwordUtils");
 
 const focalPersonRepo = AppDataSource.getRepository("FocalPerson");
-const { getCache, setCache, deleteCache} = require("../config/cache");
+const { getCache, setCache, deleteCache } = require("../config/cache");
 const { diffFields, addLogs } = require("../utils/logs");
 const { addAdminLog } = require("../utils/adminLogs");
 const catchAsync = require("../utils/catchAsync");
@@ -19,19 +19,19 @@ const checkDatabaseConfig = async () => {
         const result = await AppDataSource.query("SHOW VARIABLES LIKE 'max_allowed_packet'");
         const maxPacketSize = result[0]?.Value || "unknown";
         console.log("Database max_allowed_packet:", maxPacketSize);
-        
+
         // Convert bytes to MB for easier reading
         if (maxPacketSize !== "unknown") {
             const sizeInMB = (parseInt(maxPacketSize) / (1024 * 1024)).toFixed(2);
             console.log("Database max_allowed_packet in MB:", sizeInMB);
-            
+
             // Warn if packet size is too small for photo uploads
             if (parseInt(maxPacketSize) < 4 * 1024 * 1024) { // Less than 4MB
                 console.warn("WARNING: max_allowed_packet is quite small for photo uploads.");
                 console.warn("Consider increasing it in MySQL config: SET GLOBAL max_allowed_packet=16777216; (16MB)");
             }
         }
-        
+
         return maxPacketSize;
     } catch (err) {
         console.error("Could not check database config:", err.message);
@@ -53,10 +53,10 @@ const createFocalPerson = catchAsync(async (req, res, next) => {
     console.log("Body keys:", req.body ? Object.keys(req.body) : "no body");
     console.log("Files:", req.files ? Object.keys(req.files) : "no files");
     console.log("Body sample:", req.body ? JSON.stringify(req.body, null, 2).substring(0, 500) : "no body");
-    
+
     // Check database configuration for debugging
     await checkDatabaseConfig();
-    
+
     const {
         terminalID,
         firstName,
@@ -90,7 +90,7 @@ const createFocalPerson = catchAsync(async (req, res, next) => {
         return next(new BadRequestError("Terminal is Archived and cannot be used"));
     }
 
-        const originalTerminalAvailability = terminal.availability || "Available";
+    const originalTerminalAvailability = terminal.availability || "Available";
 
     // Uniqueness checks (email/contact must not exist anywhere in focal persons)
     // 1) Primary email
@@ -128,195 +128,195 @@ const createFocalPerson = catchAsync(async (req, res, next) => {
         if (altContactInUse) return next(new BadRequestError("Alt contact number already in use"));
     }
 
-        // Generate FOCALP ID (robust numeric ordering on the suffix)
-        const PREFIX = "FOCALP";
-        const startIndex = PREFIX.length + 1; // SUBSTRING() is 1-based
-        const lastFocalPerson = await focalPersonRepo
-            .createQueryBuilder("fp")
-            .orderBy(`CAST(SUBSTRING(fp.id, ${startIndex}) AS UNSIGNED)`, "DESC")
-            .getOne();
+    // Generate FOCALP ID (robust numeric ordering on the suffix)
+    const PREFIX = "FOCALP";
+    const startIndex = PREFIX.length + 1; // SUBSTRING() is 1-based
+    const lastFocalPerson = await focalPersonRepo
+        .createQueryBuilder("fp")
+        .orderBy(`CAST(SUBSTRING(fp.id, ${startIndex}) AS UNSIGNED)`, "DESC")
+        .getOne();
 
-        let newFocalNum = 1;
-        if (lastFocalPerson?.id) {
-            const lastNum = parseInt(String(lastFocalPerson.id).replace(PREFIX, ""), 10);
-            if (!Number.isNaN(lastNum)) newFocalNum = lastNum + 1;
+    let newFocalNum = 1;
+    if (lastFocalPerson?.id) {
+        const lastNum = parseInt(String(lastFocalPerson.id).replace(PREFIX, ""), 10);
+        if (!Number.isNaN(lastNum)) newFocalNum = lastNum + 1;
+    }
+    const newFocalID = PREFIX + String(newFocalNum).padStart(3, "0");
+
+    // Generate secure temporary password that meets policy
+    const tempPassword = generateTemporaryPassword();
+    const hashedPassword = await bcrypt.hash(tempPassword, 10);
+
+    // Handle file uploads
+    const files = req.files || {};
+    const mainPhoto = files.photo?.[0];
+    const altPhotoFile = files.altPhoto?.[0]; // incoming field name "altPhoto"
+
+    // Log file sizes for debugging
+    if (mainPhoto) {
+        console.log("Main photo size:", mainPhoto.size, "bytes");
+        if (mainPhoto.size > 2 * 1024 * 1024) {
+            console.warn("Main photo exceeds 2MB limit:", mainPhoto.size);
+            return res.status(400).json({ message: "Main photo file too large. Maximum size is 2MB." });
         }
-        const newFocalID = PREFIX + String(newFocalNum).padStart(3, "0");
-
-        // Generate secure temporary password that meets policy
-        const tempPassword = generateTemporaryPassword();
-        const hashedPassword = await bcrypt.hash(tempPassword, 10);
-
-        // Handle file uploads
-        const files = req.files || {};
-        const mainPhoto = files.photo?.[0];
-        const altPhotoFile = files.altPhoto?.[0]; // incoming field name "altPhoto"
-
-        // Log file sizes for debugging
-        if (mainPhoto) {
-            console.log("Main photo size:", mainPhoto.size, "bytes");
-            if (mainPhoto.size > 2 * 1024 * 1024) {
-                console.warn("Main photo exceeds 2MB limit:", mainPhoto.size);
-                return res.status(400).json({ message: "Main photo file too large. Maximum size is 2MB." });
-            }
+    }
+    if (altPhotoFile) {
+        console.log("Alt photo size:", altPhotoFile.size, "bytes");
+        if (altPhotoFile.size > 2 * 1024 * 1024) {
+            console.warn("Alt photo exceeds 2MB limit:", altPhotoFile.size);
+            return res.status(400).json({ message: "Alternative photo file too large. Maximum size is 2MB." });
         }
-        if (altPhotoFile) {
-            console.log("Alt photo size:", altPhotoFile.size, "bytes");
-            if (altPhotoFile.size > 2 * 1024 * 1024) {
-                console.warn("Alt photo exceeds 2MB limit:", altPhotoFile.size);
-                return res.status(400).json({ message: "Alternative photo file too large. Maximum size is 2MB." });
-            }
+    }
+
+    // Always store address as JSON string (prevents [object Object])
+    let addressString;
+    if (typeof address === "object" && address !== null) {
+        addressString = JSON.stringify(address);
+    } else if (typeof address === "string") {
+        addressString = address;
+    } else {
+        addressString = "";
+    }
+
+    // Normalize hazards to JSON string
+    let hazardsString = null;
+    if (Array.isArray(hazards)) {
+        hazardsString = JSON.stringify(hazards);
+    } else if (typeof hazards === "string" && hazards.length) {
+        try { hazardsString = JSON.stringify(JSON.parse(hazards)); }
+        catch { hazardsString = JSON.stringify(hazards.split(",").map(s => s.trim()).filter(Boolean)); }
+    } else {
+        hazardsString = JSON.stringify([]); // default
+    }
+
+    // Create focal person without photos first (smaller packet size)
+    const focalPerson = focalPersonRepo.create({
+        id: newFocalID,
+        terminalID,
+        firstName,
+        lastName,
+        email,
+        contactNumber,
+        password: hashedPassword,
+        address: addressString || null,
+        altFirstName: altFirstName || null,
+        altLastName: altLastName || null,
+        altEmail: altEmail || null,
+        altContactNumber: altContactNumber || null,
+        createdBy: req.user?.id || null,
+    });
+
+    // Save focal person without photos first
+    const savedFocalPerson = await focalPersonRepo.save(focalPerson);
+
+    // Add photos in separate updates to avoid large packet sizes
+    if (mainPhoto?.buffer || altPhotoFile?.buffer) {
+        console.log("Updating with photos separately to avoid packet size issues");
+
+        if (mainPhoto?.buffer) {
+            await focalPersonRepo.update(
+                { id: newFocalID },
+                { photo: mainPhoto.buffer }
+            );
         }
 
-        // Always store address as JSON string (prevents [object Object])
-        let addressString;
-        if (typeof address === "object" && address !== null) {
-            addressString = JSON.stringify(address);
-        } else if (typeof address === "string") {
-            addressString = address;
-        } else {
-            addressString = "";
+        if (altPhotoFile?.buffer) {
+            await focalPersonRepo.update(
+                { id: newFocalID },
+                { alternativeFPImage: altPhotoFile.buffer }
+            );
         }
+    }
 
-        // Normalize hazards to JSON string
-        let hazardsString = null;
-        if (Array.isArray(hazards)) {
-            hazardsString = JSON.stringify(hazards);
-        } else if (typeof hazards === "string" && hazards.length) {
-            try { hazardsString = JSON.stringify(JSON.parse(hazards)); }
-            catch { hazardsString = JSON.stringify(hazards.split(",").map(s => s.trim()).filter(Boolean)); }
-        } else {
-            hazardsString = JSON.stringify([]); // default
-        }
+    // Generate Neighborhood ID (N001, N002, ...) by numeric suffix
+    const lastNeighborhood = await neighborhoodRepo
+        .createQueryBuilder("neighborhood")
+        .orderBy("CAST(SUBSTRING(neighborhood.id, 2) AS UNSIGNED)", "DESC")
+        .getOne();
 
-        // Create focal person without photos first (smaller packet size)
-        const focalPerson = focalPersonRepo.create({
-            id: newFocalID,
-            terminalID,
-            firstName,
-            lastName,
-            email,
-            contactNumber,
-            password: hashedPassword,
-            address: addressString || null,
-            altFirstName: altFirstName || null,
-            altLastName: altLastName || null,
-            altEmail: altEmail || null,
-            altContactNumber: altContactNumber || null,
-            createdBy: req.user?.id || null,
+    let newNeighborhoodNum = 1;
+    if (lastNeighborhood?.id) {
+        const lastNum = parseInt(String(lastNeighborhood.id).replace("N", ""), 10);
+        if (!Number.isNaN(lastNum)) newNeighborhoodNum = lastNum + 1;
+    }
+    const newNeighborhoodID = "N" + String(newNeighborhoodNum).padStart(3, "0");
+
+    // Create Neighborhood record (hazards stored as JSON string)
+    const neighborhood = neighborhoodRepo.create({
+        id: newNeighborhoodID,
+        focalPersonID: newFocalID,
+        terminalID,
+        noOfHouseholds: noOfHouseholds || "",
+        noOfResidents: noOfResidents || "",
+        floodSubsideHours: floodSubsideHours || "",
+        hazards: hazardsString,
+        otherInformation: otherInformation || "",
+        archived: false,
+    });
+
+    await neighborhoodRepo.save(neighborhood);
+
+    // Log focal person creation by dispatcher/admin
+    if (req.user?.role === "dispatcher" || req.user?.role === "admin") {
+        await addAdminLog({
+            action: "create",
+            entityType: "FocalPerson",
+            entityID: newFocalID,
+            entityName: `${firstName} ${lastName}`.trim(),
+            dispatcherID: req.user.id,
+            dispatcherName: req.user.name
         });
 
-        // Save focal person without photos first
-        const savedFocalPerson = await focalPersonRepo.save(focalPerson);
-
-        // Add photos in separate updates to avoid large packet sizes
-        if (mainPhoto?.buffer || altPhotoFile?.buffer) {
-            console.log("Updating with photos separately to avoid packet size issues");
-            
-            if (mainPhoto?.buffer) {
-                await focalPersonRepo.update(
-                    { id: newFocalID },
-                    { photo: mainPhoto.buffer }
-                );
-            }
-            
-            if (altPhotoFile?.buffer) {
-                await focalPersonRepo.update(
-                    { id: newFocalID },
-                    { alternativeFPImage: altPhotoFile.buffer }
-                );
-            }
-        }
-
-        // Generate Neighborhood ID (N001, N002, ...) by numeric suffix
-        const lastNeighborhood = await neighborhoodRepo
-            .createQueryBuilder("neighborhood")
-            .orderBy("CAST(SUBSTRING(neighborhood.id, 2) AS UNSIGNED)", "DESC")
-            .getOne();
-
-        let newNeighborhoodNum = 1;
-        if (lastNeighborhood?.id) {
-            const lastNum = parseInt(String(lastNeighborhood.id).replace("N", ""), 10);
-            if (!Number.isNaN(lastNum)) newNeighborhoodNum = lastNum + 1;
-        }
-        const newNeighborhoodID = "N" + String(newNeighborhoodNum).padStart(3, "0");
-
-        // Create Neighborhood record (hazards stored as JSON string)
-        const neighborhood = neighborhoodRepo.create({
-            id: newNeighborhoodID,
-            focalPersonID: newFocalID,
-            terminalID,
-            noOfHouseholds: noOfHouseholds || "",
-            noOfResidents: noOfResidents || "",
-            floodSubsideHours: floodSubsideHours || "",
-            hazards: hazardsString,
-            otherInformation: otherInformation || "",
-            archived: false,
+        // Also log neighborhood creation
+        await addAdminLog({
+            action: "create",
+            entityType: "Neighborhood",
+            entityID: newNeighborhoodID,
+            entityName: `Neighborhood ${newNeighborhoodID}`,
+            dispatcherID: req.user.id,
+            dispatcherName: req.user.name
         });
+    }
 
-        await neighborhoodRepo.save(neighborhood);
+    // Mark terminal occupied
+    await terminalRepo.update({ id: terminalID }, { availability: "Occupied" });
 
-        // Log focal person creation by dispatcher/admin
-        if (req.user?.role === "dispatcher" || req.user?.role === "admin") {
-            await addAdminLog({
-                action: "create",
-                entityType: "FocalPerson",
-                entityID: newFocalID,
-                entityName: `${firstName} ${lastName}`.trim(),
-                dispatcherID: req.user.id,
-                dispatcherName: req.user.name
-            });
+    // Invalidate caches
+    await deleteCache("focalPersons:all");
+    await deleteCache("neighborhoods:all");
 
-            // Also log neighborhood creation
-            await addAdminLog({
-                action: "create",
-                entityType: "Neighborhood",
-                entityID: newNeighborhoodID,
-                entityName: `Neighborhood ${newNeighborhoodID}`,
-                dispatcherID: req.user.id,
-                dispatcherName: req.user.name
-            });
-        }
+    // Invalidate terminal caches to reflect availability change immediately
+    await deleteCache(`terminal:${terminalID}`);
+    await deleteCache("terminals:active");
+    await deleteCache("onlineTerminals");
+    await deleteCache("offlineTerminals");
+    await deleteCache("adminDashboardStats");
+    await deleteCache("adminDashboard:aggregatedMap");
 
-        // Mark terminal occupied
-        await terminalRepo.update({ id: terminalID }, { availability: "Occupied" });
-
-        // Invalidate caches
+    try {
+        await sendTemporaryPasswordEmail({
+            to: email,
+            name: [firstName, lastName].filter(Boolean).join(" "),
+            role: "focal",
+            focalEmail: email,
+            focalNumber: contactNumber,
+            password: tempPassword,
+        });
+    } catch (emailErr) {
+        console.error('[FocalPerson] Failed sending temporary password via Brevo:', emailErr);
+        await neighborhoodRepo.delete({ id: newNeighborhoodID });
+        await focalPersonRepo.delete({ id: newFocalID });
+        await terminalRepo.update({ id: terminalID }, { availability: originalTerminalAvailability });
         await deleteCache("focalPersons:all");
         await deleteCache("neighborhoods:all");
-
-        // Invalidate terminal caches to reflect availability change immediately
         await deleteCache(`terminal:${terminalID}`);
         await deleteCache("terminals:active");
         await deleteCache("onlineTerminals");
         await deleteCache("offlineTerminals");
         await deleteCache("adminDashboardStats");
         await deleteCache("adminDashboard:aggregatedMap");
-
-        try {
-            await sendTemporaryPasswordEmail({
-                to: email,
-                name: [firstName, lastName].filter(Boolean).join(" "),
-                role: "focal",
-                focalEmail: email,
-                focalNumber: contactNumber,
-                password: tempPassword,
-            });
-        } catch (emailErr) {
-            console.error('[FocalPerson] Failed sending temporary password via Brevo:', emailErr);
-            await neighborhoodRepo.delete({ id: newNeighborhoodID });
-            await focalPersonRepo.delete({ id: newFocalID });
-            await terminalRepo.update({ id: terminalID }, { availability: originalTerminalAvailability });
-            await deleteCache("focalPersons:all");
-            await deleteCache("neighborhoods:all");
-            await deleteCache(`terminal:${terminalID}`);
-            await deleteCache("terminals:active");
-            await deleteCache("onlineTerminals");
-            await deleteCache("offlineTerminals");
-            await deleteCache("adminDashboardStats");
-            await deleteCache("adminDashboard:aggregatedMap");
-            return res.status(500).json({ message: "Failed to send temporary password email. Please try again." });
-        }
+        return res.status(500).json({ message: "Failed to send temporary password email. Please try again." });
+    }
 
     const response = {
         message: "Focal Person and Neighborhood Created. Temporary password emailed.",
@@ -355,98 +355,98 @@ const approveFocalRegistration = catchAsync(async (req, res, next) => {
         return next(new BadRequestError("Terminal is already occupied"));
     }
 
-        // Generate Focal Person ID (FP001…)
-        const lastFocal = await focalRepo
-            .createQueryBuilder("fp")
-            .orderBy("fp.id", "DESC")
-            .getOne();
+    // Generate Focal Person ID (FP001…)
+    const lastFocal = await focalRepo
+        .createQueryBuilder("fp")
+        .orderBy("fp.id", "DESC")
+        .getOne();
 
-        let newFPNumber = 1;
-        if (lastFocal?.id) {
-            const lastNum = parseInt(String(lastFocal.id).replace("FP", ""), 10);
-            if (!Number.isNaN(lastNum)) newFPNumber = lastNum + 1;
-        }
-        const newFocalPersonID = "FP" + String(newFPNumber).padStart(3, "0");
+    let newFPNumber = 1;
+    if (lastFocal?.id) {
+        const lastNum = parseInt(String(lastFocal.id).replace("FP", ""), 10);
+        if (!Number.isNaN(lastNum)) newFPNumber = lastNum + 1;
+    }
+    const newFocalPersonID = "FP" + String(newFPNumber).padStart(3, "0");
 
-        // Create Focal Person from registration
-        const focalEntity = focalRepo.create({
-            id: newFocalPersonID,
-            // keep first/last names separate
-            firstName: registration.firstName,
-            lastName: registration.lastName,
+    // Create Focal Person from registration
+    const focalEntity = focalRepo.create({
+        id: newFocalPersonID,
+        // keep first/last names separate
+        firstName: registration.firstName,
+        lastName: registration.lastName,
 
-            email: registration.email || null,
-            contactNumber: registration.phoneNumber || null,
-            password: registration.password, // already hashed at registration time
+        email: registration.email || null,
+        contactNumber: registration.phoneNumber || null,
+        password: registration.password, // already hashed at registration time
 
-            // store location stringified
-            address: registration.location || null,
+        // store location stringified
+        address: registration.location || null,
 
-            // alternative focal person fields
-            altFirstName: registration.altFirstName || null,
-            altLastName: registration.altLastName || null,
-            altContactNumber: registration.altPhoneNumber || null,
+        // alternative focal person fields
+        altFirstName: registration.altFirstName || null,
+        altLastName: registration.altLastName || null,
+        altContactNumber: registration.altPhoneNumber || null,
 
-            // photos
-            ...(registration.photo ? { photo: registration.photo } : {}),
-            ...(registration.altPhoto ? { alternativeFPImage: registration.altPhoto } : {}),
+        // photos
+        ...(registration.photo ? { photo: registration.photo } : {}),
+        ...(registration.altPhoto ? { alternativeFPImage: registration.altPhoto } : {}),
 
-            archived: false,
-        });
-        const savedFocal = await focalRepo.save(focalEntity);
+        archived: false,
+    });
+    const savedFocal = await focalRepo.save(focalEntity);
 
-        // Generate Neighborhood ID (N001…)
-        const lastNeighborhood = await neighborhoodRepo
-            .createQueryBuilder("n")
-            .orderBy("n.id", "DESC")
-            .getOne();
+    // Generate Neighborhood ID (N001…)
+    const lastNeighborhood = await neighborhoodRepo
+        .createQueryBuilder("n")
+        .orderBy("n.id", "DESC")
+        .getOne();
 
-        let newNbrNumber = 1;
-        if (lastNeighborhood?.id) {
-            const lastNum = parseInt(String(lastNeighborhood.id).replace("N", ""), 10);
-            if (!Number.isNaN(lastNum)) newNbrNumber = lastNum + 1;
-        }
-        const newNeighborhoodID = "N" + String(newNbrNumber).padStart(3, "0");
+    let newNbrNumber = 1;
+    if (lastNeighborhood?.id) {
+        const lastNum = parseInt(String(lastNeighborhood.id).replace("N", ""), 10);
+        if (!Number.isNaN(lastNum)) newNbrNumber = lastNum + 1;
+    }
+    const newNeighborhoodID = "N" + String(newNbrNumber).padStart(3, "0");
 
-        // Hazards JSON (support both hazardsJson and hazards string)
-        let hazardsString = null;
-        if (registration.hazardsJson) {
-            hazardsString = registration.hazardsJson;
-        } else if (registration.hazards) {
-            // if it was stored as CSV or array string earlier
-            try { hazardsString = JSON.stringify(JSON.parse(registration.hazards)); }
-            catch { hazardsString = JSON.stringify(String(registration.hazards).split(",").map(s => s.trim()).filter(Boolean)); }
-        }
+    // Hazards JSON (support both hazardsJson and hazards string)
+    let hazardsString = null;
+    if (registration.hazardsJson) {
+        hazardsString = registration.hazardsJson;
+    } else if (registration.hazards) {
+        // if it was stored as CSV or array string earlier
+        try { hazardsString = JSON.stringify(JSON.parse(registration.hazards)); }
+        catch { hazardsString = JSON.stringify(String(registration.hazards).split(",").map(s => s.trim()).filter(Boolean)); }
+    }
 
-        // Create Neighborhood linked to the focalPersonID (not registrationID)
-        const neighborhoodEntity = neighborhoodRepo.create({
-            id: newNeighborhoodID,
-            focalPersonID: savedFocal.id,
-            terminalID,
+    // Create Neighborhood linked to the focalPersonID (not registrationID)
+    const neighborhoodEntity = neighborhoodRepo.create({
+        id: newNeighborhoodID,
+        focalPersonID: savedFocal.id,
+        terminalID,
 
-            noOfHouseholds: registration.noOfHouseholds ?? null,
-            noOfResidents: registration.noOfResidents ?? null,
-            floodSubsideHours: registration.floodSubsideHours ?? null,
-            hazards: hazardsString,
-            otherInformation: registration.otherInformation ?? null,
+        noOfHouseholds: registration.noOfHouseholds ?? null,
+        noOfResidents: registration.noOfResidents ?? null,
+        floodSubsideHours: registration.floodSubsideHours ?? null,
+        hazards: hazardsString,
+        otherInformation: registration.otherInformation ?? null,
 
-            archived: false,
-        });
-        const savedNeighborhood = await neighborhoodRepo.save(neighborhoodEntity);
+        archived: false,
+    });
+    const savedNeighborhood = await neighborhoodRepo.save(neighborhoodEntity);
 
-        // Mark Terminal occupied
-        await terminalRepo.update({ id: terminalID }, { availability: "Occupied" });
+    // Mark Terminal occupied
+    await terminalRepo.update({ id: terminalID }, { availability: "Occupied" });
 
-        // Invalidate terminal caches to reflect availability change immediately
-        await deleteCache(`terminal:${terminalID}`);
-        await deleteCache("terminals:active");
-        await deleteCache("onlineTerminals");
-        await deleteCache("offlineTerminals");
-        await deleteCache("adminDashboardStats");
-        await deleteCache("adminDashboard:aggregatedMap");
+    // Invalidate terminal caches to reflect availability change immediately
+    await deleteCache(`terminal:${terminalID}`);
+    await deleteCache("terminals:active");
+    await deleteCache("onlineTerminals");
+    await deleteCache("offlineTerminals");
+    await deleteCache("adminDashboardStats");
+    await deleteCache("adminDashboard:aggregatedMap");
 
-        // Delete Registration after successful transfer
-        await registrationRepo.delete({ id: registration.id });
+    // Delete Registration after successful transfer
+    await registrationRepo.delete({ id: registration.id });
 
     return res.json({
         message: "Registration approved",
@@ -502,50 +502,50 @@ const updateFocalPhotos = catchAsync(async (req, res, next) => {
         return next(new BadRequestError("No files provided"));
     }
 
-        // Track changes for logging
-        const changes = [];
+    // Track changes for logging
+    const changes = [];
 
-        // Save Buffers into BLOB 
-        if (main?.buffer) {
-            const hadPhoto = !!fp.photo;
-            fp.photo = main.buffer;
-            changes.push({
-                field: "photo",
-                oldValue: hadPhoto ? "Previous photo" : "No photo",
-                newValue: "Updated new photo"
-            });
-        }
-        if (alt?.buffer) {
-            const hadAltPhoto = !!fp.alternativeFPImage;
-            fp.alternativeFPImage = alt.buffer;
-            changes.push({
-                field: "alternativeFPImage",
-                oldValue: hadAltPhoto ? "Previous photo" : "No photo",
-                newValue: "Updated new photo"
-            });
-        }
+    // Save Buffers into BLOB 
+    if (main?.buffer) {
+        const hadPhoto = !!fp.photo;
+        fp.photo = main.buffer;
+        changes.push({
+            field: "photo",
+            oldValue: hadPhoto ? "Previous photo" : "No photo",
+            newValue: "Updated new photo"
+        });
+    }
+    if (alt?.buffer) {
+        const hadAltPhoto = !!fp.alternativeFPImage;
+        fp.alternativeFPImage = alt.buffer;
+        changes.push({
+            field: "alternativeFPImage",
+            oldValue: hadAltPhoto ? "Previous photo" : "No photo",
+            newValue: "Updated new photo"
+        });
+    }
 
-        await focalPersonRepo.save(fp);
+    await focalPersonRepo.save(fp);
 
-        // Log the photo changes
-        if (changes.length > 0) {
-            const actorID = req.user?.focalPersonID || req.user?.id || id;
-            const actorRole = req.user?.role || "FocalPerson";
+    // Log the photo changes
+    if (changes.length > 0) {
+        const actorID = req.user?.focalPersonID || req.user?.id || id;
+        const actorRole = req.user?.role || "FocalPerson";
 
-            await addLogs({
-                entityType: "FocalPerson",
-                entityID: id,
-                changes,
-                actorID,
-                actorRole,
-            });
-        }
+        await addLogs({
+            entityType: "FocalPerson",
+            entityID: id,
+            changes,
+            actorID,
+            actorRole,
+        });
+    }
 
-        // Invalidate 
-        await deleteCache(`focalPerson:${id}`);
-        await deleteCache("focalPersons:all");
-        await deleteCache(`focalPhoto:${id}`);
-        await deleteCache(`focalAltPhoto:${id}`);
+    // Invalidate 
+    await deleteCache(`focalPerson:${id}`);
+    await deleteCache("focalPersons:all");
+    await deleteCache(`focalPhoto:${id}`);
+    await deleteCache(`focalAltPhoto:${id}`);
 
     // Do not include raw blobs in JSON response
     return res.json({ message: "Focal Person Photos Updated", id: fp.id });
@@ -605,32 +605,32 @@ const deleteFocalPhoto = catchAsync(async (req, res, next) => {
     const fp = await focalPersonRepo.findOne({ where: { id } });
     if (!fp) return next(new NotFoundError("Focal Person Not Found"));
 
-        // Only log if photo actually exists
-        if (fp.photo) {
-            fp.photo = null;
-            await focalPersonRepo.save(fp);
+    // Only log if photo actually exists
+    if (fp.photo) {
+        fp.photo = null;
+        await focalPersonRepo.save(fp);
 
-            // Log the deletion
-            const actorID = req.user?.focalPersonID || req.user?.id || id;
-            const actorRole = req.user?.role || "FocalPerson";
+        // Log the deletion
+        const actorID = req.user?.focalPersonID || req.user?.id || id;
+        const actorRole = req.user?.role || "FocalPerson";
 
-            await addLogs({
-                entityType: "FocalPerson",
-                entityID: id,
-                changes: [{
-                    field: "photo",
-                    oldValue: "Previous photo",
-                    newValue: "Removed photo"
-                }],
-                actorID,
-                actorRole,
-            });
-        }
+        await addLogs({
+            entityType: "FocalPerson",
+            entityID: id,
+            changes: [{
+                field: "photo",
+                oldValue: "Previous photo",
+                newValue: "Removed photo"
+            }],
+            actorID,
+            actorRole,
+        });
+    }
 
-        // Invalidate cache
-        await deleteCache(`focalPerson:${id}`);
-        await deleteCache("focalPersons:all");
-        await deleteCache(`focalPhoto:${id}`);
+    // Invalidate cache
+    await deleteCache(`focalPerson:${id}`);
+    await deleteCache("focalPersons:all");
+    await deleteCache(`focalPhoto:${id}`);
 
     return res.json({ message: "Focal person photo deleted successfully" });
 });
@@ -645,109 +645,139 @@ const updateFocalPerson = catchAsync(async (req, res, next) => {
         return next(new NotFoundError("Focal Person Not Found"));
     }
 
-        // Take snapshot BEFORE changes
-        const fpBefore = { ...focalPerson };
+    // Take snapshot BEFORE changes
+    const fpBefore = { ...focalPerson };
 
-        if (name) focalPerson.name = name;
-        if (contactNumber) focalPerson.contactNumber = contactNumber;
-        if (alternativeFP) focalPerson.alternativeFP = alternativeFP;
-        if (alternativeFPContactNumber) focalPerson.alternativeFPContactNumber = alternativeFPContactNumber;
-        if (firstName !== undefined) focalPerson.firstName = firstName;
-        if (lastName !== undefined) focalPerson.lastName = lastName;
-        if (email !== undefined) focalPerson.email = email;
+    if (name) focalPerson.name = name;
+    if (contactNumber) focalPerson.contactNumber = contactNumber;
+    if (alternativeFP) focalPerson.alternativeFP = alternativeFP;
+    if (alternativeFPContactNumber) focalPerson.alternativeFPContactNumber = alternativeFPContactNumber;
+    if (firstName !== undefined) focalPerson.firstName = firstName;
+    if (lastName !== undefined) focalPerson.lastName = lastName;
+    if (email !== undefined) focalPerson.email = email;
 
-        await focalPersonRepo.save(focalPerson);
+    await focalPersonRepo.save(focalPerson);
 
-        // Take snapshot AFTER changes
-        const fpAfter = { ...focalPerson };
+    // Take snapshot AFTER changes
+    const fpAfter = { ...focalPerson };
 
-        // Log the changes
-        const actorID = req.user?.focalPersonID || req.user?.id || id;
-        const actorRole = req.user?.role || "FocalPerson";
+    // Log the changes
+    const actorID = req.user?.focalPersonID || req.user?.id || id;
+    const actorRole = req.user?.role || "FocalPerson";
 
-        const changes = diffFields(fpBefore, fpAfter, [
-            "firstName", "lastName", "contactNumber", "email"
-        ]);
+    const changes = diffFields(fpBefore, fpAfter, [
+        "firstName", "lastName", "contactNumber", "email"
+    ]);
 
-        if (changes.length > 0) {
-            await addLogs({
+    if (changes.length > 0) {
+        await addLogs({
+            entityType: "FocalPerson",
+            entityID: id,
+            changes,
+            actorID,
+            actorRole,
+        });
+
+        // If dispatcher/admin made changes, also log to admin logs
+        if (req.user?.role === "dispatcher" || req.user?.role === "admin") {
+            await addAdminLog({
+                action: "edit",
                 entityType: "FocalPerson",
                 entityID: id,
+                entityName: `${focalPerson.firstName || ''} ${focalPerson.lastName || ''}`.trim(),
                 changes,
-                actorID,
-                actorRole,
+                dispatcherID: req.user.id,
+                dispatcherName: req.user.name
             });
-
-            // If dispatcher/admin made changes, also log to admin logs
-            if (req.user?.role === "dispatcher" || req.user?.role === "admin") {
-                await addAdminLog({
-                    action: "edit",
-                    entityType: "FocalPerson",
-                    entityID: id,
-                    entityName: `${focalPerson.firstName || ''} ${focalPerson.lastName || ''}`.trim(),
-                    changes,
-                    dispatcherID: req.user.id,
-                    dispatcherName: req.user.name
-                });
-            }
         }
+    }
 
-        // Invalidate
-        await deleteCache(`focalPerson:${id}`);
-        await deleteCache("focalPersons:all");
-        await deleteCache("adminDashboard:aggregatedMap");
+    // Invalidate
+    await deleteCache(`focalPerson:${id}`);
+    await deleteCache("focalPersons:all");
+    await deleteCache("adminDashboard:aggregatedMap");
 
     res.json({ message: "Focal Person Updated", focalPerson });
 });
 
 // UPDATE Password
 const changePassword = catchAsync(async (req, res, next) => {
-        const isSelfRoute = req.path.includes("/me/");
-        const actorId = req.user?.id;
-        if (!actorId) return res.status(401).json({ message: "Unauthorized" });
+    const isSelfRoute = req.path.includes("/me/");
+    const actorId = req.user?.id;
+    if (!actorId) return res.status(401).json({ message: "Unauthorized" });
 
-        const { currentPassword, newPassword } = req.body || {};
-        if (!newPassword) return res.status(400).json({ message: "New password is required" });
+    const { currentPassword, newPassword } = req.body || {};
+    if (!newPassword) return res.status(400).json({ message: "New password is required" });
 
-        let targetId = actorId;
+    let targetId = actorId;
 
-        if (!isSelfRoute && req.params?.id) {
-            const role = req.user?.role || "";
-            const isPrivileged = ["admin", "dispatcher"].includes(role.toLowerCase());
-            if (!isPrivileged) return res.status(403).json({ message: "Forbidden" });
-            targetId = req.params.id;
-        } else {
-            if (!currentPassword) return res.status(400).json({ message: "Current password is required" });
-        }
+    if (!isSelfRoute && req.params?.id) {
+        const role = req.user?.role || "";
+        const isPrivileged = ["admin", "dispatcher"].includes(role.toLowerCase());
+        if (!isPrivileged) return res.status(403).json({ message: "Forbidden" });
+        targetId = req.params.id;
+    } else {
+        if (!currentPassword) return res.status(400).json({ message: "Current password is required" });
+    }
 
-        const focal = await focalPersonRepo.findOne({ where: { id: targetId } });
-        if (!focal) return res.status(404).json({ message: "Focal person not found" });
+    const focal = await focalPersonRepo.findOne({ where: { id: targetId } });
+    if (!focal) return res.status(404).json({ message: "Focal person not found" });
 
-        if (isSelfRoute) {
-            const ok = await bcrypt.compare(String(currentPassword || ""), focal.password || "");
-            if (!ok) return res.status(400).json({ message: "Current password is incorrect" });
-        }
+    if (isSelfRoute) {
+        const ok = await bcrypt.compare(String(currentPassword || ""), focal.password || "");
+        if (!ok) return res.status(400).json({ message: "Current password is incorrect" });
+    }
 
-        const hashed = await bcrypt.hash(String(newPassword), 10);
-        await focalPersonRepo.update({ id: targetId }, { password: hashed });
+    const hashed = await bcrypt.hash(String(newPassword), 10);
+    await focalPersonRepo.update({ id: targetId }, { password: hashed });
 
-        // Log the password change
-        const actorID = req.user?.focalPersonID || req.user?.id || targetId;
-        const actorRole = req.user?.role || "FocalPerson";
+    // Log the password change
+    const actorID = req.user?.focalPersonID || req.user?.id || targetId;
+    const actorRole = req.user?.role || "FocalPerson";
 
-        await addLogs({
-            entityType: "FocalPerson",
-            entityID: targetId,
-            changes: [{
-                field: "password",
-                oldValue: "Previous password",
-                newValue: "Updated password"
-            }],
-            actorID,
-            actorRole,
-        });
+    await addLogs({
+        entityType: "FocalPerson",
+        entityID: targetId,
+        changes: [{
+            field: "password",
+            oldValue: "Previous password",
+            newValue: "Updated password"
+        }],
+        actorID,
+        actorRole,
+    });
 
-        return res.json({ message: "Password updated" });
+    return res.json({ message: "Password updated" });
+});
+
+// Complete onboarding - mark newUser as false
+const completeOnboarding = catchAsync(async (req, res, next) => {
+    const focalPersonId = req.user?.id;
+
+    if (!focalPersonId) {
+        return next(new BadRequestError("User not authenticated"));
+    }
+
+    const focalPerson = await focalPersonRepo.findOne({
+        where: { id: focalPersonId }
+    });
+
+    if (!focalPerson) {
+        return next(new NotFoundError("Focal Person not found"));
+    }
+
+    // Update newUser to false
+    focalPerson.newUser = false;
+    await focalPersonRepo.save(focalPerson);
+
+    // Invalidate cache
+    await deleteCache(`focalPerson:${focalPersonId}`);
+    await deleteCache("focalPersons:all");
+
+    return res.json({
+        message: "Onboarding completed successfully",
+        newUser: false
+    });
 });
 
 module.exports = {
@@ -762,4 +792,5 @@ module.exports = {
     changePassword,
     approveFocalRegistration,
     checkDatabaseConfig,
+    completeOnboarding,
 };

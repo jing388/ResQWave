@@ -19,6 +19,7 @@ const adminRepo = AppDataSource.getRepository("Admin");
 const dispatcherRepo = AppDataSource.getRepository("Dispatcher");
 const loginVerificationRepo = AppDataSource.getRepository("LoginVerification");
 const focalRepo = AppDataSource.getRepository("FocalPerson"); // ensure focalLogin works
+const neighborhoodRepo = AppDataSource.getRepository("Neighborhood");
 
 // Registration
 const register = catchAsync(async (req, res, next) => {
@@ -75,127 +76,127 @@ const focalLogin = catchAsync(async (req, res, next) => {
     return next(new BadRequestError("Username and password are required"));
   }
 
-    const focal = await focalRepo.findOne({
-      where: [{ email: emailOrNumber }, { contactNumber: emailOrNumber }],
-    });
+  const focal = await focalRepo.findOne({
+    where: [{ email: emailOrNumber }, { contactNumber: emailOrNumber }],
+  });
 
-    if (!focal) {
-      // If password is 'dummy', just return not locked
-      if (password === "dummy") {
-        return res.json({ locked: false });
-      }
-      return res
-        .status(400)
-        .json({ message: "Invalid credentials! Please try again." });
-    }
-
-    // Check if focal person is archived
-    if (focal.archived) {
-      return res
-        .status(403)
-        .json({ message: "Account is not active. Please contact dispatcher." });
-    }
-
-    // If password is 'dummy', only return lockout status, do not increment failedAttempts
+  if (!focal) {
+    // If password is 'dummy', just return not locked
     if (password === "dummy") {
-      if (focal.lockUntil && new Date(focal.lockUntil) > new Date()) {
-        return res.json({
-          locked: true,
-          message:
-            "Your account is temporarily locked due to too many failed attempts.",
-          lockUntil: focal.lockUntil,
-        });
-      } else {
-        return res.json({ locked: false });
-      }
+      return res.json({ locked: false });
     }
+    return res
+      .status(400)
+      .json({ message: "Invalid credentials! Please try again." });
+  }
 
-    // Check if the Account is Locked
-    let locked = false;
-    let lockUntil = null;
+  // Check if focal person is archived
+  if (focal.archived) {
+    return res
+      .status(403)
+      .json({ message: "Account is not active. Please contact dispatcher." });
+  }
+
+  // If password is 'dummy', only return lockout status, do not increment failedAttempts
+  if (password === "dummy") {
     if (focal.lockUntil && new Date(focal.lockUntil) > new Date()) {
-      locked = true;
-      lockUntil = focal.lockUntil;
-    }
-
-    // Compare Password
-    const isMatch = await bcrypt.compare(password, focal.password || "");
-    if (!isMatch) {
-      // Do NOT increment failedAttempts on simple login failures per request.
-      // Preserve existing lock status but do not modify attempt counters here.
-      return res.status(400).json({
-        message: locked
-          ? `Account Locked. Try again in 15 Minutes`
-          : `Invalid Credentials`,
-        locked,
-        lockUntil,
+      return res.json({
+        locked: true,
+        message:
+          "Your account is temporarily locked due to too many failed attempts.",
+        lockUntil: focal.lockUntil,
       });
+    } else {
+      return res.json({ locked: false });
     }
+  }
 
-    // Do NOT reset failedAttempts or lockUntil on successful login
-    // Only reset after successful OTP verification
+  // Check if the Account is Locked
+  let locked = false;
+  let lockUntil = null;
+  if (focal.lockUntil && new Date(focal.lockUntil) > new Date()) {
+    locked = true;
+    lockUntil = focal.lockUntil;
+  }
 
-    // Generate Code
-    var focalCode = crypto.randomInt(100000, 999999).toString();
-    var focalExpiry = new Date(Date.now() + 5 * 60 * 1000); // 5 Minutes
-
-    // Save to Login Verification
-    var focalVerification = loginVerificationRepo.create({
-      userID: focal.id,
-      userType: "focalPerson",
-      code: focalCode,
-      expiry: focalExpiry,
+  // Compare Password
+  const isMatch = await bcrypt.compare(password, focal.password || "");
+  if (!isMatch) {
+    // Do NOT increment failedAttempts on simple login failures per request.
+    // Preserve existing lock status but do not modify attempt counters here.
+    return res.status(400).json({
+      message: locked
+        ? `Account Locked. Try again in 15 Minutes`
+        : `Invalid Credentials`,
+      locked,
+      lockUntil,
     });
-    await loginVerificationRepo.save(focalVerification);
+  }
 
-    // Send OTP using Brevo
-    try {
-      const sender = { email: process.env.EMAIL_USER, name: "ResQWave Team" };
-      const receivers = [{ email: focal.email }];
+  // Do NOT reset failedAttempts or lockUntil on successful login
+  // Only reset after successful OTP verification
 
-      await tranEmailApi.sendTransacEmail({
-        sender,
-        to: receivers,
-        subject: "ResQWave 2FA Verification",
-        htmlContent: `
+  // Generate Code
+  var focalCode = crypto.randomInt(100000, 999999).toString();
+  var focalExpiry = new Date(Date.now() + 5 * 60 * 1000); // 5 Minutes
+
+  // Save to Login Verification
+  var focalVerification = loginVerificationRepo.create({
+    userID: focal.id,
+    userType: "focalPerson",
+    code: focalCode,
+    expiry: focalExpiry,
+  });
+  await loginVerificationRepo.save(focalVerification);
+
+  // Send OTP using Brevo
+  try {
+    const sender = { email: process.env.EMAIL_USER, name: "ResQWave Team" };
+    const receivers = [{ email: focal.email }];
+
+    await tranEmailApi.sendTransacEmail({
+      sender,
+      to: receivers,
+      subject: "ResQWave 2FA Verification",
+      htmlContent: `
           <p>Dear ${focal.name || "User"},</p>
           <p>Your login verification code is:</p>
           <h2 style="color:#2E86C1;">${focalCode}</h2>
           <p>This code will expire in 5 minutes.</p>
           <p>Thank you,<br/>ResQWave Team</p>
         `,
-      });
-
-      console.log(`OTP email sent to ${focal.email}`);
-
-      // Send OTP via SMS
-      if (focal.contactNumber) {
-        await sendSMS(
-          focal.contactNumber,
-          `Your ResQWave verification code is: ${focalCode}. Valid for 5 minutes.`
-        );
-      }
-    } catch (err) {
-      console.error("[focalLogin] Failed to send OTP via Brevo:", err);
-      return res
-        .status(500)
-        .json({ message: "Failed to send verification email" });
-    }
-
-    // For dev only, log code
-    console.log(` 2FA code for ${focal.id}: ${focalCode}`);
-    var focalTempToken = jwt.sign(
-      { id: focal.id, role: "focalPerson", step: "2fa" },
-      process.env.JWT_SECRET,
-      { expiresIn: "5m" }
-    );
-
-    // Explicitly indicate OTP was sent so the frontend can safely navigate
-    res.json({
-      message: "Verification Send to Email",
-      tempToken: focalTempToken,
-      otpSent: true,
     });
+
+    console.log(`OTP email sent to ${focal.email}`);
+
+    // Send OTP via SMS
+    if (focal.contactNumber) {
+      await sendSMS(
+        focal.contactNumber,
+        `Your ResQWave verification code is: ${focalCode}. Valid for 5 minutes.`
+      );
+    }
+  } catch (err) {
+    console.error("[focalLogin] Failed to send OTP via Brevo:", err);
+    return res
+      .status(500)
+      .json({ message: "Failed to send verification email" });
+  }
+
+  // For dev only, log code
+  console.log(` 2FA code for ${focal.id}: ${focalCode}`);
+  var focalTempToken = jwt.sign(
+    { id: focal.id, role: "focalPerson", step: "2fa" },
+    process.env.JWT_SECRET,
+    { expiresIn: "5m" }
+  );
+
+  // Explicitly indicate OTP was sent so the frontend can safely navigate
+  res.json({
+    message: "Verification Send to Email",
+    tempToken: focalTempToken,
+    otpSent: true,
+  });
 });
 
 // Focal Person OTP Verification
@@ -217,76 +218,129 @@ const verifyFocalLogin = catchAsync(async (req, res, next) => {
   if (!focal) {
     return next(new NotFoundError("Focal Person Not Found"));
   }
-    // Check if locked
-    if (focal.lockUntil && new Date(focal.lockUntil) > new Date()) {
-      const remaining = Math.ceil(
-        (new Date(focal.lockUntil) - new Date()) / 60000
-      );
+  // Check if locked
+  if (focal.lockUntil && new Date(focal.lockUntil) > new Date()) {
+    const remaining = Math.ceil(
+      (new Date(focal.lockUntil) - new Date()) / 60000
+    );
+    return res.status(400).json({
+      locked: true,
+      message: `Account Locked. Try again in ${remaining} Minutes`,
+      lockUntil: focal.lockUntil,
+    });
+  }
+  // Find OTP session
+  const otpSession = await loginVerificationRepo.findOne({
+    where: { userID: focal.id, userType: "focalPerson", code },
+  });
+  if (
+    !otpSession ||
+    (otpSession.expiry && new Date() > new Date(otpSession.expiry))
+  ) {
+    // Increment failedAttempts
+    focal.failedAttempts = (focal.failedAttempts || 0) + 1;
+    if (focal.failedAttempts >= 5) {
+      focal.lockUntil = new Date(Date.now() + 15 * 60 * 1000);
+      await focalRepo.save(focal);
+      await sendLockoutEmail(focal.email, focal.name);
       return res.status(400).json({
         locked: true,
-        message: `Account Locked. Try again in ${remaining} Minutes`,
+        message: "Too many failed attempts. Account locked.",
         lockUntil: focal.lockUntil,
       });
     }
-    // Find OTP session
-    const otpSession = await loginVerificationRepo.findOne({
-      where: { userID: focal.id, userType: "focalPerson", code },
-    });
-    if (
-      !otpSession ||
-      (otpSession.expiry && new Date() > new Date(otpSession.expiry))
-    ) {
-      // Increment failedAttempts
-      focal.failedAttempts = (focal.failedAttempts || 0) + 1;
-      if (focal.failedAttempts >= 5) {
-        focal.lockUntil = new Date(Date.now() + 15 * 60 * 1000);
-        await focalRepo.save(focal);
-        await sendLockoutEmail(focal.email, focal.name);
-        return res.status(400).json({
-          locked: true,
-          message: "Too many failed attempts. Account locked.",
-          lockUntil: focal.lockUntil,
-        });
-      }
-      await focalRepo.save(focal);
-      return res.status(400).json({
-        message: `Invalid or expired code. Attempts ${focal.failedAttempts}/5`,
-      });
-    }
-    // Success: reset failedAttempts, clear lock, delete OTP session
-    focal.failedAttempts = 0;
-    focal.lockUntil = null;
     await focalRepo.save(focal);
-    await loginVerificationRepo.delete({
-      userID: focal.id,
-      userType: "focalPerson",
-      code,
+    return res.status(400).json({
+      message: `Invalid or expired code. Attempts ${focal.failedAttempts}/5`,
     });
-    // Create session token (optional, for future use)
-    const sessionID = crypto.randomUUID();
-    const sessionExpiry = new Date(Date.now() + 8 * 60 * 60 * 1000);
-    await loginVerificationRepo.save({
-      userID: focal.id,
-      userType: "focalPerson",
-      code: "OK",
-      sessionID,
-      expiry: sessionExpiry,
+  }
+  // Success: reset failedAttempts, clear lock, delete OTP session
+  focal.failedAttempts = 0;
+  focal.lockUntil = null;
+  await focalRepo.save(focal);
+  await loginVerificationRepo.delete({
+    userID: focal.id,
+    userType: "focalPerson",
+    code,
+  });
+  // Create session token (optional, for future use)
+  const sessionID = crypto.randomUUID();
+  const sessionExpiry = new Date(Date.now() + 8 * 60 * 60 * 1000);
+  await loginVerificationRepo.save({
+    userID: focal.id,
+    userType: "focalPerson",
+    code: "OK",
+    sessionID,
+    expiry: sessionExpiry,
+  });
+  const token = jwt.sign(
+    { id: focal.id, role: "focalPerson", name: focal.name, sessionID },
+    process.env.JWT_SECRET,
+    { expiresIn: "8h" }
+  );
+
+  // Fetch neighborhood information for the focal person
+  let neighborhoodInfo = null;
+  try {
+    const neighborhood = await neighborhoodRepo.findOne({
+      where: { focalPersonID: focal.id }
     });
-    const token = jwt.sign(
-      { id: focal.id, role: "focalPerson", name: focal.name, sessionID },
-      process.env.JWT_SECRET,
-      { expiresIn: "8h" }
-    );
-    return res.json({
-      message: "Login successful",
-      token,
-      user: {
-        id: focal.id,
-        name: focal.name,
-        email: focal.email,
-        role: "focalPerson",
-      },
-    });
+
+    if (neighborhood) {
+      // Fetch terminal separately since Neighborhood doesn't have a relation
+      let terminalName = neighborhood.terminalID;
+      if (neighborhood.terminalID) {
+        const terminalRepo = AppDataSource.getRepository("Terminal");
+        const terminal = await terminalRepo.findOne({
+          where: { id: neighborhood.terminalID }
+        });
+        if (terminal) {
+          terminalName = terminal.location || terminal.id;
+        }
+      }
+
+      neighborhoodInfo = {
+        id: neighborhood.id,
+        terminalID: neighborhood.terminalID,
+        terminalName: terminalName,
+      };
+    }
+  } catch (err) {
+    console.error('Failed to fetch neighborhood info:', err);
+    // Continue without neighborhood info
+  }
+
+  // Construct name from firstName and lastName for compatibility
+  const fullName = `${focal.firstName || ''} ${focal.lastName || ''}`.trim() || 'User';
+
+  // Parse address ONLY for addressText field, keep original for backward compatibility
+  let addressText = focal.address || '';
+  try {
+    if (addressText && typeof addressText === 'string' && (addressText.startsWith('{') || addressText.startsWith('['))) {
+      const addressObj = JSON.parse(addressText);
+      addressText = addressObj.address || addressObj.name || addressText;
+    }
+  } catch (e) {
+    // If parsing fails, use the raw address string
+    console.log('Address is not JSON, using as-is');
+  }
+
+  return res.json({
+    message: "Login successful",
+    token,
+    user: {
+      id: focal.id,
+      name: fullName,
+      firstName: focal.firstName,
+      lastName: focal.lastName,
+      email: focal.email,
+      address: focal.address, // Keep original for backward compatibility
+      addressText: addressText, // New field with parsed address text only
+      role: "focalPerson",
+      newUser: focal.newUser || false,
+      neighborhood: neighborhoodInfo,
+    },
+  });
 });
 
 const adminDispatcherLogin = catchAsync(async (req, res, next) => {
@@ -297,160 +351,160 @@ const adminDispatcherLogin = catchAsync(async (req, res, next) => {
     return next(new BadRequestError("User ID and password are required."));
   }
 
-    let role = null;
-    let user = null;
-    let recipientEmail = null;
+  let role = null;
+  let user = null;
+  let recipientEmail = null;
 
-    // Try Admin by ID
-    const admin = await adminRepo.findOne({ where: { id: identifier } });
-    if (admin) {
-      // Check if locked
-      if (admin.lockUntil && new Date(admin.lockUntil) > new Date()) {
-        const remaining = Math.ceil(
-          (new Date(admin.lockUntil) - new Date()) / 60000
-        );
+  // Try Admin by ID
+  const admin = await adminRepo.findOne({ where: { id: identifier } });
+  if (admin) {
+    // Check if locked
+    if (admin.lockUntil && new Date(admin.lockUntil) > new Date()) {
+      const remaining = Math.ceil(
+        (new Date(admin.lockUntil) - new Date()) / 60000
+      );
+      return res.status(403).json({
+        message: `Account Locked. Try again in ${remaining} minutes.`,
+      });
+    }
+    const isMatch = await bcrypt.compare(password, admin.password || "");
+    if (!isMatch) {
+      admin.failedAttempts = (admin.failedAttempts || 0) + 1;
+      if (admin.failedAttempts >= 5) {
+        admin.lockUntil = new Date(Date.now() + 15 * 60 * 1000);
+        await adminRepo.save(admin);
+        await sendLockoutEmail(admin.email, admin.name);
+        return res.status(403).json({ message: "Too Many Failed Attempts" });
+      }
+      await adminRepo.save(admin);
+      return res.status(400).json({
+        message: `Invalid Credentials. Attempts left: ${admin.failedAttempts}/5.`,
+      });
+    }
+    // Reset Attempts on Success
+    admin.failedAttempts = 0;
+    admin.lockUntil = null;
+    await adminRepo.save(admin);
+    role = "admin";
+    user = admin;
+    recipientEmail = admin.email;
+  }
+
+  // If not admin, try Dispatcher
+  if (!user) {
+    const dispatcher = await dispatcherRepo.findOne({
+      where: { id: identifier },
+    });
+    if (dispatcher) {
+      // Check if archived
+      if (dispatcher.archived) {
         return res.status(403).json({
-          message: `Account Locked. Try again in ${remaining} minutes.`,
+          message: "Account is not active. Please contact the admin.",
         });
       }
-      const isMatch = await bcrypt.compare(password, admin.password || "");
+      // Check if locked
+      if (
+        dispatcher.lockUntil &&
+        new Date(dispatcher.lockUntil) > new Date()
+      ) {
+        const remaining = Math.ceil(
+          (new Date(dispatcher.lockUntil) - new Date()) / 60000
+        );
+        return res.status(403).json({
+          message: `Account Locked. Try again in ${remaining} Minutes`,
+        });
+      }
+      const isMatch = await bcrypt.compare(
+        password,
+        dispatcher.password || ""
+      );
       if (!isMatch) {
-        admin.failedAttempts = (admin.failedAttempts || 0) + 1;
-        if (admin.failedAttempts >= 5) {
-          admin.lockUntil = new Date(Date.now() + 15 * 60 * 1000);
-          await adminRepo.save(admin);
-          await sendLockoutEmail(admin.email, admin.name);
-          return res.status(403).json({ message: "Too Many Failed Attempts" });
+        dispatcher.failedAttempts = (dispatcher.failedAttempts || 0) + 1;
+        if (dispatcher.failedAttempts >= 5) {
+          dispatcher.lockUntil = new Date(Date.now() + 15 * 60 * 1000);
+          await dispatcherRepo.save(dispatcher);
+          await sendLockoutEmail(dispatcher.email, dispatcher.name);
+          return res.status(403).json({
+            message: `Too many failed attempts. Please try again after: ${dispatcher.lockUntil}`,
+          });
         }
-        await adminRepo.save(admin);
+        await dispatcherRepo.save(dispatcher);
         return res.status(400).json({
-          message: `Invalid Credentials. Attempts left: ${admin.failedAttempts}/5.`,
+          message: `Invalid Credentials. Attempts left: ${dispatcher.failedAttempts}/5`,
         });
       }
       // Reset Attempts on Success
-      admin.failedAttempts = 0;
-      admin.lockUntil = null;
-      await adminRepo.save(admin);
-      role = "admin";
-      user = admin;
-      recipientEmail = admin.email;
+      dispatcher.failedAttempts = 0;
+      dispatcher.lockUntil = null;
+      await dispatcherRepo.save(dispatcher);
+      role = "dispatcher";
+      user = dispatcher;
+      recipientEmail = dispatcher.email;
     }
+  }
 
-    // If not admin, try Dispatcher
-    if (!user) {
-      const dispatcher = await dispatcherRepo.findOne({
-        where: { id: identifier },
-      });
-      if (dispatcher) {
-        // Check if archived
-        if (dispatcher.archived) {
-          return res.status(403).json({
-            message: "Account is not active. Please contact the admin.",
-          });
-        }
-        // Check if locked
-        if (
-          dispatcher.lockUntil &&
-          new Date(dispatcher.lockUntil) > new Date()
-        ) {
-          const remaining = Math.ceil(
-            (new Date(dispatcher.lockUntil) - new Date()) / 60000
-          );
-          return res.status(403).json({
-            message: `Account Locked. Try again in ${remaining} Minutes`,
-          });
-        }
-        const isMatch = await bcrypt.compare(
-          password,
-          dispatcher.password || ""
-        );
-        if (!isMatch) {
-          dispatcher.failedAttempts = (dispatcher.failedAttempts || 0) + 1;
-          if (dispatcher.failedAttempts >= 5) {
-            dispatcher.lockUntil = new Date(Date.now() + 15 * 60 * 1000);
-            await dispatcherRepo.save(dispatcher);
-            await sendLockoutEmail(dispatcher.email, dispatcher.name);
-            return res.status(403).json({
-              message: `Too many failed attempts. Please try again after: ${dispatcher.lockUntil}`,
-            });
-          }
-          await dispatcherRepo.save(dispatcher);
-          return res.status(400).json({
-            message: `Invalid Credentials. Attempts left: ${dispatcher.failedAttempts}/5`,
-          });
-        }
-        // Reset Attempts on Success
-        dispatcher.failedAttempts = 0;
-        dispatcher.lockUntil = null;
-        await dispatcherRepo.save(dispatcher);
-        role = "dispatcher";
-        user = dispatcher;
-        recipientEmail = dispatcher.email;
-      }
-    }
+  if (!user) {
+    return res
+      .status(400)
+      .json({ message: "Invalid credentials! Please try again." });
+  }
 
-    if (!user) {
-      return res
-        .status(400)
-        .json({ message: "Invalid credentials! Please try again." });
-    }
+  // Clean previous OTPs for this user
+  await loginVerificationRepo.delete({ userID: user.id, userType: role });
 
-    // Clean previous OTPs for this user
-    await loginVerificationRepo.delete({ userID: user.id, userType: role });
+  // Generate and save OTP
+  const code = crypto.randomInt(100000, 999999).toString();
+  const expiry = new Date(Date.now() + 5 * 60 * 1000);
+  await loginVerificationRepo.save({
+    userID: user.id,
+    userType: role,
+    code,
+    expiry,
+  });
 
-    // Generate and save OTP
-    const code = crypto.randomInt(100000, 999999).toString();
-    const expiry = new Date(Date.now() + 5 * 60 * 1000);
-    await loginVerificationRepo.save({
-      userID: user.id,
-      userType: role,
-      code,
-      expiry,
-    });
+  // Send email
+  try {
+    const sender = { email: process.env.EMAIL_USER, name: "ResQWave Team" }; // or your verified Brevo sender
+    const receivers = [{ email: recipientEmail }];
 
-    // Send email
-    try {
-      const sender = { email: process.env.EMAIL_USER, name: "ResQWave Team" }; // or your verified Brevo sender
-      const receivers = [{ email: recipientEmail }];
-
-      await tranEmailApi.sendTransacEmail({
-        sender,
-        to: receivers,
-        subject: "ResQWave Login Verification Code",
-        htmlContent: `
+    await tranEmailApi.sendTransacEmail({
+      sender,
+      to: receivers,
+      subject: "ResQWave Login Verification Code",
+      htmlContent: `
             <p>Dear ${user.name || "User"},</p>
             <p>Your verification code is:</p>
             <h2 style="color:#2E86C1;">${code}</h2>
             <p>This code will expire in 5 minutes.</p>
             <p>Thank you,<br/>ResQWave Team</p>
           `,
-      });
+    });
 
-      console.log(`Verification email sent to ${recipientEmail}`);
+    console.log(`Verification email sent to ${recipientEmail}`);
 
-      // Send OTP via SMS
-      if (user.contactNumber) {
-        await sendSMS(
-          user.contactNumber,
-          `Your ResQWave verification code is: ${code}. Valid for 5 minutes.`
-        );
-      }
-    } catch (err) {
-      console.error("[dispatcherLogin] Failed to send OTP via Brevo:", err);
-      return res
-        .status(500)
-        .json({ message: "Failed to send verification email" });
+    // Send OTP via SMS
+    if (user.contactNumber) {
+      await sendSMS(
+        user.contactNumber,
+        `Your ResQWave verification code is: ${code}. Valid for 5 minutes.`
+      );
     }
+  } catch (err) {
+    console.error("[dispatcherLogin] Failed to send OTP via Brevo:", err);
+    return res
+      .status(500)
+      .json({ message: "Failed to send verification email" });
+  }
 
-    console.log(` 2FA code: ${code}`);
+  console.log(` 2FA code: ${code}`);
 
-    const tempToken = jwt.sign(
-      { id: user.id, role, step: "2fa" },
-      process.env.JWT_SECRET,
-      { expiresIn: "5m" }
-    );
+  const tempToken = jwt.sign(
+    { id: user.id, role, step: "2fa" },
+    process.env.JWT_SECRET,
+    { expiresIn: "5m" }
+  );
 
-    return res.json({ message: "Verification code sent", tempToken });
+  return res.json({ message: "Verification code sent", tempToken });
 });
 
 // COMBINED 2FA VERIFY (Admin | Dispatcher)
@@ -473,55 +527,16 @@ const adminDispatcherVerify = catchAsync(async (req, res, next) => {
     return next(new BadRequestError("Invalid token context"));
   }
 
-    // Validate the OTP code against stored verification
-    const otpSession = await loginVerificationRepo.findOne({
-      where: { userID: decoded.id, userType: decoded.role, code },
-    });
+  // Validate the OTP code against stored verification
+  const otpSession = await loginVerificationRepo.findOne({
+    where: { userID: decoded.id, userType: decoded.role, code },
+  });
 
-    if (
-      !otpSession ||
-      (otpSession.expiry && new Date() > new Date(otpSession.expiry))
-    ) {
-      // Get user for failed attempt tracking
-      let user = null;
-      if (decoded.role === "admin") {
-        user = await adminRepo.findOne({ where: { id: decoded.id } });
-      } else {
-        user = await dispatcherRepo.findOne({ where: { id: decoded.id } });
-      }
-
-      if (user) {
-        // Increment failed attempts
-        user.failedAttempts = (user.failedAttempts || 0) + 1;
-
-        // Lock account after 5 failed attempts
-        if (user.failedAttempts >= 5) {
-          user.lockUntil = new Date(Date.now() + 15 * 60 * 1000); // Lock for 15 minutes
-          if (decoded.role === "admin") {
-            await adminRepo.save(user);
-          } else {
-            await dispatcherRepo.save(user);
-          }
-          await sendLockoutEmail(user.email, user.name);
-          return next(new ForbiddenError("Too many failed attempts. Account locked for 15 minutes."));
-        }
-
-        // Save failed attempt count
-        if (decoded.role === "admin") {
-          await adminRepo.save(user);
-        } else {
-          await dispatcherRepo.save(user);
-        }
-      }
-
-      return next(new BadRequestError(
-        `Invalid or expired verification code. Attempts: ${
-          user?.failedAttempts || 0
-        }/5`
-      ));
-    }
-
-    // Get user for successful login
+  if (
+    !otpSession ||
+    (otpSession.expiry && new Date() > new Date(otpSession.expiry))
+  ) {
+    // Get user for failed attempt tracking
     let user = null;
     if (decoded.role === "admin") {
       user = await adminRepo.findOne({ where: { id: decoded.id } });
@@ -529,67 +544,105 @@ const adminDispatcherVerify = catchAsync(async (req, res, next) => {
       user = await dispatcherRepo.findOne({ where: { id: decoded.id } });
     }
 
-    if (!user) {
-      return next(new NotFoundError("User not found"));
+    if (user) {
+      // Increment failed attempts
+      user.failedAttempts = (user.failedAttempts || 0) + 1;
+
+      // Lock account after 5 failed attempts
+      if (user.failedAttempts >= 5) {
+        user.lockUntil = new Date(Date.now() + 15 * 60 * 1000); // Lock for 15 minutes
+        if (decoded.role === "admin") {
+          await adminRepo.save(user);
+        } else {
+          await dispatcherRepo.save(user);
+        }
+        await sendLockoutEmail(user.email, user.name);
+        return next(new ForbiddenError("Too many failed attempts. Account locked for 15 minutes."));
+      }
+
+      // Save failed attempt count
+      if (decoded.role === "admin") {
+        await adminRepo.save(user);
+      } else {
+        await dispatcherRepo.save(user);
+      }
     }
 
-    // Reset failed attempts on successful verification
-    user.failedAttempts = 0;
-    user.lockUntil = null;
-    if (decoded.role === "admin") {
-      await adminRepo.save(user);
-    } else {
-      await dispatcherRepo.save(user);
-    }
+    return next(new BadRequestError(
+      `Invalid or expired verification code. Attempts: ${user?.failedAttempts || 0
+      }/5`
+    ));
+  }
 
-    // Delete the used OTP
-    await loginVerificationRepo.delete({
-      userID: decoded.id,
-      userType: decoded.role,
-      code,
-    });
+  // Get user for successful login
+  let user = null;
+  if (decoded.role === "admin") {
+    user = await adminRepo.findOne({ where: { id: decoded.id } });
+  } else {
+    user = await dispatcherRepo.findOne({ where: { id: decoded.id } });
+  }
 
-    // Create session (so logout can invalidate)
-    const sessionID = crypto.randomUUID();
-    const sessionExpiry = new Date(Date.now() + 8 * 60 * 60 * 1000);
-    await loginVerificationRepo.save({
-      userID: decoded.id,
-      userType: decoded.role,
-      code: "OK",
-      sessionID,
-      expiry: sessionExpiry,
-    });
+  if (!user) {
+    return next(new NotFoundError("User not found"));
+  }
 
-    // Get user data for response
-    let userData = null;
-    if (decoded.role === "admin") {
-      userData = {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: "admin",
-      };
-    } else {
-      userData = {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        phoneNumber: user.phoneNumber,
-        role: "dispatcher",
-      };
-    }
+  // Reset failed attempts on successful verification
+  user.failedAttempts = 0;
+  user.lockUntil = null;
+  if (decoded.role === "admin") {
+    await adminRepo.save(user);
+  } else {
+    await dispatcherRepo.save(user);
+  }
 
-    const token = jwt.sign(
-      { id: decoded.id, role: decoded.role, name: userData.name, sessionID },
-      process.env.JWT_SECRET,
-      { expiresIn: "8h" }
-    );
+  // Delete the used OTP
+  await loginVerificationRepo.delete({
+    userID: decoded.id,
+    userType: decoded.role,
+    code,
+  });
 
-    return res.json({
-      message: "Login successful",
-      token,
-      user: userData,
-    });
+  // Create session (so logout can invalidate)
+  const sessionID = crypto.randomUUID();
+  const sessionExpiry = new Date(Date.now() + 8 * 60 * 60 * 1000);
+  await loginVerificationRepo.save({
+    userID: decoded.id,
+    userType: decoded.role,
+    code: "OK",
+    sessionID,
+    expiry: sessionExpiry,
+  });
+
+  // Get user data for response
+  let userData = null;
+  if (decoded.role === "admin") {
+    userData = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: "admin",
+    };
+  } else {
+    userData = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      phoneNumber: user.phoneNumber,
+      role: "dispatcher",
+    };
+  }
+
+  const token = jwt.sign(
+    { id: decoded.id, role: decoded.role, name: userData.name, sessionID },
+    process.env.JWT_SECRET,
+    { expiresIn: "8h" }
+  );
+
+  return res.json({
+    message: "Login successful",
+    token,
+    user: userData,
+  });
 });
 
 // Get Current User (Token Validation)
@@ -657,7 +710,7 @@ const getCurrentUser = catchAsync(async (req, res, next) => {
       role: "dispatcher",
       passwordLastUpdated: dispatcher.passwordLastUpdated
     };
-} else if (decoded.role === "focalPerson") {
+  } else if (decoded.role === "focalPerson") {
     const focal = await focalRepo.findOne({ where: { id: decoded.id } });
     if (!focal) {
       return next(new NotFoundError("Focal Person Not Found"));
@@ -708,65 +761,65 @@ const resendFocalLoginCode = catchAsync(async (req, res, next) => {
   if (!focal)
     return next(new NotFoundError("Focal Person Not Found"));
 
-    // Generate new code
-    const code = crypto.randomInt(100000, 999999).toString();
-    const expiry = new Date(Date.now() + 5 * 60 * 1000);
+  // Generate new code
+  const code = crypto.randomInt(100000, 999999).toString();
+  const expiry = new Date(Date.now() + 5 * 60 * 1000);
 
-    // Replace any pending OTP for this user
-    await loginVerificationRepo.delete({
-      userID: focal.id,
-      userType: "focalPerson",
-    });
-    await loginVerificationRepo.save({
-      userID: focal.id,
-      userType: "focalPerson",
-      code,
-      expiry,
-    });
+  // Replace any pending OTP for this user
+  await loginVerificationRepo.delete({
+    userID: focal.id,
+    userType: "focalPerson",
+  });
+  await loginVerificationRepo.save({
+    userID: focal.id,
+    userType: "focalPerson",
+    code,
+    expiry,
+  });
 
-    // Send email
-    try {
-      const sender = { email: process.env.EMAIL_USER, name: "ResQWave Team" };
-      const receivers = [{ email: focal.email }];
+  // Send email
+  try {
+    const sender = { email: process.env.EMAIL_USER, name: "ResQWave Team" };
+    const receivers = [{ email: focal.email }];
 
-      await tranEmailApi.sendTransacEmail({
-        sender,
-        to: receivers,
-        subject: "ResQWave 2FA Verification (Resend)",
-        htmlContent: `
+    await tranEmailApi.sendTransacEmail({
+      sender,
+      to: receivers,
+      subject: "ResQWave 2FA Verification (Resend)",
+      htmlContent: `
           <p>Dear ${focal.name || "Focal Person"},</p>
           <p>Your login verification code is:</p>
           <h2 style="color:#2E86C1;">${code}</h2>
           <p>This code will expire in 5 minutes.</p>
           <p>Thank you,<br/>ResQWave Team</p>
         `,
-      });
+    });
 
-      console.log(` Resent verification code to ${focal.email}`);
+    console.log(` Resent verification code to ${focal.email}`);
 
-      // Send OTP via SMS
-      if (focal.contactNumber) {
-        await sendSMS(
-          focal.contactNumber,
-          `Your ResQWave verification code is: ${code}. Valid for 5 minutes.`
-        );
-      }
-    } catch (emailErr) {
-      console.error(
-        " Failed to send Brevo email:",
-        emailErr.response?.text || emailErr
+    // Send OTP via SMS
+    if (focal.contactNumber) {
+      await sendSMS(
+        focal.contactNumber,
+        `Your ResQWave verification code is: ${code}. Valid for 5 minutes.`
       );
-      return res
-        .status(500)
-        .json({ message: "Failed to send verification email" });
     }
-
-    // Return a fresh temp token for the new code window
-    const newTempToken = jwt.sign(
-      { id: focal.id, role: "focalPerson", step: "2fa" },
-      process.env.JWT_SECRET,
-      { expiresIn: "5m" }
+  } catch (emailErr) {
+    console.error(
+      " Failed to send Brevo email:",
+      emailErr.response?.text || emailErr
     );
+    return res
+      .status(500)
+      .json({ message: "Failed to send verification email" });
+  }
+
+  // Return a fresh temp token for the new code window
+  const newTempToken = jwt.sign(
+    { id: focal.id, role: "focalPerson", step: "2fa" },
+    process.env.JWT_SECRET,
+    { expiresIn: "5m" }
+  );
 
   return res.json({
     message: "Verification Resent",
@@ -782,16 +835,16 @@ const resendAdminDispatcherCode = catchAsync(async (req, res, next) => {
   let user = null;
   let recipientEmail = null;
 
-    if (tempToken) {
-      let decoded;
+  if (tempToken) {
+    let decoded;
+    try {
+      decoded = jwt.verify(tempToken, process.env.JWT_SECRET);
+    } catch (err) {
+      // If token is expired, decode it without verification to get the user ID
+      console.log('Token expired, attempting to decode without verification:', err.message);
       try {
-        decoded = jwt.verify(tempToken, process.env.JWT_SECRET);
-      } catch (err) {
-        // If token is expired, decode it without verification to get the user ID
-        console.log('Token expired, attempting to decode without verification:', err.message);
-        try {
-          decoded = jwt.decode(tempToken);
-          if (
+        decoded = jwt.decode(tempToken);
+        if (
           !decoded ||
           !decoded.id ||
           !decoded.role ||
@@ -813,95 +866,95 @@ const resendAdminDispatcherCode = catchAsync(async (req, res, next) => {
     ) {
       return next(new BadRequestError("Invalid token context"));
     }
-      role = decoded.role;
+    role = decoded.role;
 
-      if (role === "admin") {
-        user = await adminRepo.findOne({ where: { id: decoded.id } });
-        recipientEmail = user?.email || null;
-      } else {
-        user = await dispatcherRepo.findOne({ where: { id: decoded.id } });
-        recipientEmail = user?.email || null;
-      }
+    if (role === "admin") {
+      user = await adminRepo.findOne({ where: { id: decoded.id } });
+      recipientEmail = user?.email || null;
     } else {
-      const identifier = String(emailOrNumber || "").trim();
-      if (!identifier)
-        return next(new BadRequestError("emailOrNumber is required"));
+      user = await dispatcherRepo.findOne({ where: { id: decoded.id } });
+      recipientEmail = user?.email || null;
+    }
+  } else {
+    const identifier = String(emailOrNumber || "").trim();
+    if (!identifier)
+      return next(new BadRequestError("emailOrNumber is required"));
 
-      // Try Admin by name first (matches your login flow)
-      const admin = await adminRepo.findOne({ where: { name: identifier } });
-      if (admin) {
-        role = "admin";
-        user = admin;
-        recipientEmail = admin.email;
-      } else {
-        const dispatcher = await dispatcherRepo.findOne({
-          where: [{ email: identifier }, { contactNumber: identifier }],
-        });
-        if (dispatcher) {
-          role = "dispatcher";
-          user = dispatcher;
-          recipientEmail = dispatcher.email;
-        }
+    // Try Admin by name first (matches your login flow)
+    const admin = await adminRepo.findOne({ where: { name: identifier } });
+    if (admin) {
+      role = "admin";
+      user = admin;
+      recipientEmail = admin.email;
+    } else {
+      const dispatcher = await dispatcherRepo.findOne({
+        where: [{ email: identifier }, { contactNumber: identifier }],
+      });
+      if (dispatcher) {
+        role = "dispatcher";
+        user = dispatcher;
+        recipientEmail = dispatcher.email;
       }
     }
+  }
 
   if (!user || !role) {
     return next(new NotFoundError("User not found"));
   }
 
-    const code = crypto.randomInt(100000, 999999).toString();
-    const expiry = new Date(Date.now() + 5 * 60 * 1000);
+  const code = crypto.randomInt(100000, 999999).toString();
+  const expiry = new Date(Date.now() + 5 * 60 * 1000);
 
-    await loginVerificationRepo.delete({ userID: user.id, userType: role });
-    await loginVerificationRepo.save({
-      userID: user.id,
-      userType: role,
-      code,
-      expiry,
-    });
+  await loginVerificationRepo.delete({ userID: user.id, userType: role });
+  await loginVerificationRepo.save({
+    userID: user.id,
+    userType: role,
+    code,
+    expiry,
+  });
 
-    // Send Email
-    try {
-      const sender = { email: process.env.EMAIL_USER, name: "ResQWave Team" }; // must be verified in Brevo
-      const receivers = [{ email: recipientEmail }];
+  // Send Email
+  try {
+    const sender = { email: process.env.EMAIL_USER, name: "ResQWave Team" }; // must be verified in Brevo
+    const receivers = [{ email: recipientEmail }];
 
-      await tranEmailApi.sendTransacEmail({
-        sender,
-        to: receivers,
-        subject: "ResQWave Login Verification Code (Resend)",
-        htmlContent: `
+    await tranEmailApi.sendTransacEmail({
+      sender,
+      to: receivers,
+      subject: "ResQWave Login Verification Code (Resend)",
+      htmlContent: `
           <p>Dear ${user.name || role},</p>
           <p>Your login verification code is:</p>
           <h2 style="color:#2E86C1;">${code}</h2>
           <p>This code will expire in 5 minutes.</p>
           <p>Thank you,<br/>ResQWave Team</p>
         `,
-      });
+    });
 
-      console.log(`Verification code sent to ${recipientEmail}`);
+    console.log(`Verification code sent to ${recipientEmail}`);
 
-      // Send OTP via SMS
-      if (user.contactNumber) {
-        await sendSMS(
-          user.contactNumber,
-          `Your ResQWave verification code is: ${code}. Valid for 5 minutes.`
-        );
-      }
-    } catch (emailErr) {
-      console.error(
-        "Failed to send Brevo email:",
-        emailErr.response?.text || emailErr
+    // Send OTP via SMS
+    if (user.contactNumber) {
+      await sendSMS(
+        user.contactNumber,
+        `Your ResQWave verification code is: ${code}. Valid for 5 minutes.`
       );
-      return res
-        .status(500)
-        .json({ message: "Failed to send verification email" });
     }
-
-    const newTempToken = jwt.sign(
-      { id: user.id, role, step: "2fa" },
-      process.env.JWT_SECRET,
-      { expiresIn: "5m" }
+  } catch (emailErr) {
+    console.error(
+      "Failed to send Brevo email:",
+      emailErr.response?.text || emailErr
     );
+    return res
+      .status(500)
+      .json({ message: "Failed to send verification email" });
+  }
+
+  const newTempToken = jwt.sign(
+    { id: user.id, role, step: "2fa" },
+    process.env.JWT_SECRET,
+    { expiresIn: "5m" }
+  );
 
   return res.json({
     message: "Verification Resent",
