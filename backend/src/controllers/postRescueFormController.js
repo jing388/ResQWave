@@ -103,14 +103,14 @@ const getCompletedReports = catchAsync(async (req, res, next) => {
       .where("rescueForm.status = :status", { status: "Completed" })
       .andWhere("(prf.archived IS NULL OR prf.archived = :archived)", { archived: false })
       .select([
-        "alert.id AS alertId",
-        "terminal.name AS terminalName",
-        "rescueForm.originalAlertType AS alertType", // Use original alert type from rescue form
-        "dispatcher.name AS dispatcherName",
-        "rescueForm.status AS rescueStatus",
-        "alert.dateTimeSent AS createdAt",
-        "prf.completedAt AS completedAt",
-        "fp.address AS address",
+        "alert.id AS \"alertId\"",
+        "terminal.name AS \"terminalName\"",
+        "rescueForm.originalAlertType AS \"alertType\"", // Use original alert type from rescue form
+        "dispatcher.name AS \"dispatcherName\"",
+        "rescueForm.status AS \"rescueStatus\"",
+        "alert.dateTimeSent AS \"createdAt\"",
+        "prf.completedAt AS \"completedAt\"",
+        "fp.address AS \"address\"",
       ])
       .orderBy("alert.dateTimeSent", "ASC")
       .getRawMany();
@@ -146,16 +146,16 @@ const getPendingReports = catchAsync(async (req, res, next) => {
       .andWhere("rescueForm.status = :status", { status: "Dispatched" })
       .andWhere("prf.id IS NULL")
       .select([
-        "alert.id AS alertId",
-        "terminal.name AS terminalName",
-        "rescueForm.originalAlertType AS alertType", // Use original alert type from rescue form
-        "dispatcher.name AS dispatcherName",
-        "rescueForm.status AS rescueStatus",
-        "alert.dateTimeSent AS createdAt",
-        "fp.address AS address",
-        "n.id AS neighborhoodId",
-        "fp.firstName AS focalFirstName",
-        "fp.lastName AS focalLastName",
+        "alert.id AS \"alertId\"",
+        "terminal.name AS \"terminalName\"",
+        "rescueForm.originalAlertType AS \"alertType\"", // Use original alert type from rescue form
+        "dispatcher.name AS \"dispatcherName\"",
+        "rescueForm.status AS \"rescueStatus\"",
+        "alert.dateTimeSent AS \"createdAt\"",
+        "fp.address AS \"address\"",
+        "n.id AS \"neighborhoodId\"",
+        "fp.firstName AS \"focalFirstName\"",
+        "fp.lastName AS \"focalLastName\"",
       ])
       .orderBy("alert.dateTimeSent", "ASC")
       .getRawMany();
@@ -227,25 +227,25 @@ const getAggregatedRescueReports = catchAsync(async (req, res, next) => {
 
     const rows = await qb
       .select([
-        "n.id AS neighborhoodId",
-        "fp.firstName AS fpFirstName",
-        "fp.lastName AS fpLastName",
-        "fp.address AS fpAddress",
-        "fp.contactNumber AS fpContactNumber",
-        "alert.id AS alertId",
-        "rf.emergencyID AS emergencyId",
-        "rf.waterLevel AS waterLevel",
-        "rf.urgencyOfEvacuation AS urgencyOfEvacuation",
-        "rf.hazardPresent AS hazardPresent",
-        "rf.accessibility AS accessibility",
-        "rf.resourceNeeds AS resourceNeeds",
-        "rf.otherInformation AS otherInformation",
-        "rf.originalAlertType AS alertType", // Use original alert type from rescue form
-        "prf.createdAt AS prfCreatedAt",
-        "prf.completedAt AS prfCompletedAt",
-        "prf.noOfPersonnelDeployed AS noOfPersonnel",
-        "prf.resourcesUsed AS resourcesUsed",
-        "prf.actionTaken AS actionsTaken",
+        "n.id AS \"neighborhoodId\"",
+        "fp.firstName AS \"fpFirstName\"",
+        "fp.lastName AS \"fpLastName\"",
+        "fp.address AS \"fpAddress\"",
+        "fp.contactNumber AS \"fpContactNumber\"",
+        "alert.id AS \"alertId\"",
+        "rf.emergencyID AS \"emergencyId\"",
+        "rf.waterLevel AS \"waterLevel\"",
+        "rf.urgencyOfEvacuation AS \"urgencyOfEvacuation\"",
+        "rf.hazardPresent AS \"hazardPresent\"",
+        "rf.accessibility AS \"accessibility\"",
+        "rf.resourceNeeds AS \"resourceNeeds\"",
+        "rf.otherInformation AS \"otherInformation\"",
+        "rf.originalAlertType AS \"alertType\"", // Use original alert type from rescue form
+        "prf.createdAt AS \"prfCreatedAt\"",
+        "prf.completedAt AS \"prfCompletedAt\"",
+        "prf.noOfPersonnelDeployed AS \"noOfPersonnel\"",
+        "prf.resourcesUsed AS \"resourcesUsed\"",
+        "prf.actionTaken AS \"actionsTaken\"",
       ])
       .orderBy("alert.dateTimeSent", "DESC")
       .getRawMany();
@@ -334,15 +334,15 @@ const getAggregatedPostRescueForm = catchAsync(async (req, res, next) => {
 
     const rows = await qb
         .select([
-            "rf.emergencyID AS emergencyId",
-            "alert.terminalID AS terminalId",
-            "fp.firstName AS focalFirstName",
-            "fp.lastName AS focalLastName",
-            "alert.dateTimeSent AS dateTimeOccurred",
-            "rf.originalAlertType AS alertType", // Use original alert type from rescue form
-            "fp.address AS houseAddress",
-            "dispatcher.name AS dispatchedName",
-            "prf.completedAt AS completionDate",
+            "rf.emergencyID AS \"emergencyId\"",
+            "alert.terminalID AS \"terminalId\"",
+            "fp.firstName AS \"focalFirstName\"",
+            "fp.lastName AS \"focalLastName\"",
+            "alert.dateTimeSent AS \"dateTimeOccurred\"",
+            "rf.originalAlertType AS \"alertType\"", // Use original alert type from rescue form
+            "fp.address AS \"houseAddress\"",
+            "dispatcher.name AS \"dispatchedName\"",
+            "prf.completedAt AS \"completionDate\"",
         ])
         .orderBy("prf.completedAt", "DESC")
         .getRawMany();

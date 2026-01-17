@@ -9,7 +9,7 @@ export function LandingHeader({ navOpen, setNavOpen, isScrolled, showHeader }: {
 
   return (
     <header
-      className={`flex items-center justify-between px-8 md:px-16 py-5 w-full fixed top-0 left-0 right-0`}
+      className={`flex items-center justify-between px-6 md:px-12 py-3 w-full fixed top-0 left-0 right-0`}
       style={{
         background: isScrolled ? 'rgba(24, 24, 27, 0.5)' : 'transparent',
         backdropFilter: isScrolled ? 'blur(16px) saturate(180%)' : 'none',
@@ -21,36 +21,36 @@ export function LandingHeader({ navOpen, setNavOpen, isScrolled, showHeader }: {
       }}
     >
       {/* Left side: logo and name */}
-      <a href="/" className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity">
-        <img src={resqwave_logo} alt="ResQWave Logo" className="h-auto w-7" />
-        <span className="font-medium text-base ">ResQWave</span>
+      <a href="/" className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity">
+        <img src={resqwave_logo} alt="ResQWave Logo" className="h-auto w-6" />
+        <span className="font-medium text-sm ">ResQWave</span>
       </a>
       <div className="hidden md:block">
         <nav className="header-navs">
-          <a href="#importance" className="importance-link font-semibold">
+          <a href="#importance" className="importance-link font-medium">
             Importance
             <span className="underline-effect" />
           </a>
-          <a href="#how" className="importance-link font-semibold">
+          <a href="#how" className="importance-link font-medium">
             How it works
             <span className="underline-effect" />
           </a>
-          <a href="#impact" className="importance-link font-semibold">
+          <a href="#impact" className="importance-link font-medium">
             Impact
             <span className="underline-effect" />
           </a>
-          <a href="#faqs" className="importance-link font-semibold">
+          <a href="#faqs" className="importance-link font-medium">
             FAQs
             <span className="underline-effect" />
           </a>
         </nav>
       </div>
       {/* Desktop nav and button */}
-      <div className="hidden md:flex  items-center justify-end gap-3">
-        <Button className="bg-[#5B9EFF] hover:bg-[#4A8EEE] transition-colors duration-300 cursor-pointer text-white text-[13px] px-5 py-1.5 rounded-[5px] ml-1 font-medium flex items-center gap-1" onClick={() => {}}>
+      <div className="hidden md:flex  items-center justify-end gap-2">
+        <Button className="bg-[#5B9EFF] hover:bg-[#4A8EEE] transition-colors duration-300 cursor-pointer text-white text-xs px-4 py-1 rounded-[5px] font-medium flex items-center gap-1" onClick={() => {}}>
           Get the App
-          <img src={androidIcon} alt="Android" className="h-5 w-5" />
-          <img src={iosIcon} alt="iOS" className="h-5 w-5" />
+          <img src={androidIcon} alt="Android" className="h-4 w-4" />
+          <img src={iosIcon} alt="iOS" className="h-4 w-4" />
         </Button>
         {/* <Button className="bg-gradient-to-t from-[#3B82F6] to-[#5898FF] hover:from-[#2563eb] hover:to-[#60a5fa] transition-colors
             duration-300 cursor-pointer text-white text-[14px] px-6 py-2 rounded ml-1 font-medium" onClick={() => navigate('/register-focal')}>

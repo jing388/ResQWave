@@ -419,14 +419,14 @@ const getAggregatedRescueForm = catchAsync(async (req, res, next) => {
 
     const rows = await qb
         .select([
-            "rf.emergencyID AS emergencyId",
-            "alert.terminalID AS terminalId",
-            "fp.firstName AS focalFirstName",
-            "fp.lastName AS focalLastName",
-            "alert.dateTimeSent AS dateTimeOccurred",
-            "alert.alertType AS alertType",
-            "fp.address AS houseAddress",
-            "dispatcher.name AS dispatchedName",
+            "rf.emergencyID AS \"emergencyId\"",
+            "alert.terminalID AS \"terminalId\"",
+            "fp.firstName AS \"focalFirstName\"",
+            "fp.lastName AS \"focalLastName\"",
+            "alert.dateTimeSent AS \"dateTimeOccurred\"",
+            "alert.alertType AS \"alertType\"",
+            "fp.address AS \"houseAddress\"",
+            "dispatcher.name AS \"dispatchedName\"",
         ])
         .orderBy("rf.id", "DESC")
         .getRawMany();

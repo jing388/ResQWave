@@ -100,14 +100,14 @@ const getMapAlert = catchAsync(async (req, res, next) => {
     .leftJoin("Neighborhood", "n", "n.terminalID = alert.terminalID")
     .leftJoin("FocalPerson", "fp", "fp.id = n.focalPersonID")
     .select([
-      "t.name AS terminalName",
-      "alert.alertType AS alertType",
-      "t.status AS terminalStatus",
-      "alert.dateTimeSent AS timeSent",
-      "fp.firstName AS focalFirstName",
-      "fp.lastName AS focalLastName",
-      "fp.address AS focalAddress",
-      "fp.contactNumber AS focalContactNumber",
+      "t.name AS \"terminalName\"",
+      "alert.alertType AS \"alertType\"",
+      "t.status AS \"terminalStatus\"",
+      "alert.dateTimeSent AS \"timeSent\"",
+      "fp.firstName AS \"focalFirstName\"",
+      "fp.lastName AS \"focalLastName\"",
+      "fp.address AS \"focalAddress\"",
+      "fp.contactNumber AS \"focalContactNumber\"",
     ])
     .orderBy("alert.dateTimeSent", "DESC")
     .getRawMany();
@@ -129,13 +129,13 @@ const getAlerts = catchAsync(async (req, res, next) => {
     .leftJoin("Neighborhood", "n", "n.terminalID = alert.terminalID")
     .leftJoin("FocalPerson", "fp", "fp.id = n.focalPersonID")
     .select([
-      "alert.id AS alertId",
-      "alert.terminalID AS terminalId",
-      "alert.alertType AS alertType",
-      "alert.status AS status",
-      "alert.dateTimeSent AS lastSignalTime",
-      "t.name AS terminalName",
-      "fp.address AS address",
+      "alert.id AS \"alertId\"",
+      "alert.terminalID AS \"terminalId\"",
+      "alert.alertType AS \"alertType\"",
+      "alert.status AS \"status\"",
+      "alert.dateTimeSent AS \"lastSignalTime\"",
+      "t.name AS \"terminalName\"",
+      "fp.address AS \"address\"",
     ])
     .orderBy(`CASE WHEN alert.alertType = 'Critical' THEN 0 ELSE 1 END`, "DESC")
     .addOrderBy("alert.dateTimeSent", "DESC")
@@ -158,13 +158,13 @@ const getDispatchedAlerts = catchAsync(async (req, res, next) => {
 		.leftJoin("Neighborhood", "n", "n.terminalID = alert.terminalID")
 		.leftJoin("FocalPerson", "fp", "fp.id = n.focalPersonID")
 		.select([
-			"alert.id AS alertId",
-			"alert.terminalID AS terminalId",
-			"alert.alertType AS alertType",
-			"alert.status AS status",
-			"alert.dateTimeSent AS lastSignalTime",
-			"t.name AS terminalName",
-			"fp.address AS address",
+			"alert.id AS \"alertId\"",
+			"alert.terminalID AS \"terminalId\"",
+			"alert.alertType AS \"alertType\"",
+			"alert.status AS \"status\"",
+			"alert.dateTimeSent AS \"lastSignalTime\"",
+			"t.name AS \"terminalName\"",
+			"fp.address AS \"address\"",
 		])
 		.where("alert.status = :status", { status: "Dispatched" })
 		.orderBy(`CASE WHEN alert.alertType = 'Critical' THEN 0 ELSE 1 END`, "DESC")
@@ -188,13 +188,13 @@ const getWaitlistedAlerts = catchAsync(async (req, res, next) => {
 		.leftJoin("Neighborhood", "n", "n.terminalID = alert.terminalID")
 		.leftJoin("FocalPerson", "fp", "fp.id = n.focalPersonID")
 		.select([
-			"alert.id AS alertId",
-			"alert.terminalID AS terminalId",
-			"alert.alertType AS alertType",
-			"alert.status AS status",
-			"alert.dateTimeSent AS lastSignalTime",
-			"t.name AS terminalName",
-			"fp.address AS address",
+			"alert.id AS \"alertId\"",
+			"alert.terminalID AS \"terminalId\"",
+			"alert.alertType AS \"alertType\"",
+			"alert.status AS \"status\"",
+			"alert.dateTimeSent AS \"lastSignalTime\"",
+			"t.name AS \"terminalName\"",
+			"fp.address AS \"address\"",
 		])
 		.where("alert.status = :status", { status: "Waitlist" })
 		.orderBy(`CASE WHEN alert.alertType = 'Critical' THEN 0 ELSE 1 END`, "DESC")
@@ -218,13 +218,13 @@ const getUnassignedAlerts = catchAsync(async (req, res, next) => {
 		.leftJoin("Neighborhood", "n", "n.terminalID = alert.terminalID")
 		.leftJoin("FocalPerson", "fp", "fp.id = n.focalPersonID")
 		.select([
-			"alert.id AS alertId",
-			"alert.terminalID AS terminalId",
-			"alert.alertType AS alertType",
-			"alert.status AS status",
-			"alert.dateTimeSent AS lastSignalTime",
-			"t.name AS terminalName",
-			"fp.address AS address",
+			"alert.id AS \"alertId\"",
+			"alert.terminalID AS \"terminalId\"",
+			"alert.alertType AS \"alertType\"",
+			"alert.status AS \"status\"",
+			"alert.dateTimeSent AS \"lastSignalTime\"",
+			"t.name AS \"terminalName\"",
+			"fp.address AS \"address\"",
 		])
 		.where("alert.status = :status", { status: "Unassigned" })
 		.orderBy(`CASE WHEN alert.alertType = 'Critical' THEN 0 ELSE 1 END`, "DESC")
@@ -278,18 +278,18 @@ const getUnassignedMapAlerts = catchAsync(async (req, res, next) => {
       "alert.terminalID = t.id AND alert.dateTimeSent = latest_alert.last_time"
     )
     .select([
-      "t.id AS terminalId",
-      "t.name AS terminalName",
-      "t.status AS terminalStatus",
-      "alert.id AS alertId",
-      "alert.alertType AS alertType",
-      "COALESCE(alert.dateTimeSent, t.dateCreated) AS timeSent",
-      "alert.status AS alertStatus",
-      "fp.id AS focalPersonId",
-      "fp.firstName AS focalFirstName",
-      "fp.lastName AS focalLastName",
-      "fp.address AS focalAddress",
-      "fp.contactNumber AS focalContactNumber",
+      "t.id AS \"terminalId\"",
+      "t.name AS \"terminalName\"",
+      "t.status AS \"terminalStatus\"",
+      "alert.id AS \"alertId\"",
+      "alert.alertType AS \"alertType\"",
+      "COALESCE(alert.dateTimeSent, t.dateCreated) AS \"timeSent\"",
+      "alert.status AS \"alertStatus\"",
+      "fp.id AS \"focalPersonId\"",
+      "fp.firstName AS \"focalFirstName\"",
+      "fp.lastName AS \"focalLastName\"",
+      "fp.address AS \"focalAddress\"",
+      "fp.contactNumber AS \"focalContactNumber\"",
     ])
     .where("n.focalPersonID IS NOT NULL")
     .getRawMany();
@@ -308,6 +308,15 @@ const getUnassignedMapAlerts = catchAsync(async (req, res, next) => {
   res.json(terminals);
 });
 
+const getWaitlistedMapAlerts = async (req, res) => {
+  try {
+    // Return empty array since we're now showing all occupied terminals in the unassigned endpoint
+    res.json([]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({message: "Server Error"});
+  }
+};
 // Read Single Alert
 // Table View More Info
 const getAlert = catchAsync(async (req, res, next) => {
@@ -322,13 +331,13 @@ const getAlert = catchAsync(async (req, res, next) => {
     .leftJoin("Neighborhood", "n", "n.terminalID = alert.terminalID")
     .leftJoin("FocalPerson", "fp", "fp.id = n.focalPersonID")
     .select([
-      "alert.id AS alertID",
-      "alert.terminalID AS terminalID",
-      "t.name AS terminalName",
-      "alert.alertType AS alertType",
-      "alert.status AS status",
-      "alert.dateTimeSent AS timeSent",
-      "fp.address AS address",
+      "alert.id AS \"alertID\"",
+      "alert.terminalID AS \"terminalID\"",
+      "t.name AS \"terminalName\"",
+      "alert.alertType AS \"alertType\"",
+      "alert.status AS \"status\"",
+      "alert.dateTimeSent AS \"timeSent\"",
+      "fp.address AS \"address\"",
     ])
     .where("alert.id = :id", { id })
     .getRawOne();
@@ -405,6 +414,7 @@ module.exports = {
 	getWaitlistedAlerts,
 	getUnassignedAlerts,
 	getUnassignedMapAlerts,
+  getWaitlistedMapAlerts,
 	getAlert,
 	updateAlertStatus 
 };

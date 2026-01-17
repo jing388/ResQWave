@@ -54,15 +54,15 @@ export function Landing() {
   }, [lastScrollY]);
 
   return (
-    <div className="min-h-screen text-white flex flex-col primary-background" style={{ position: 'relative', overflow: 'hidden' }}>
+    <div className="min-h-screen text-white flex flex-col primary-background" style={{ position: 'relative', overflow: 'hidden', maxWidth: '100vw', width: '100%' }}>
       {/* Global Radial Gradient Backgrounds with animation */}
       <div
         className="global-radial-gradient"
         style={{
           right: '-8%',
           top: '90%',
-          width: '900px',
-          height: '900px',
+          width: 'min(900px, 80vw)',
+          height: 'min(900px, 80vw)',
           background: 'radial-gradient(circle, rgba(0, 65, 161, 0.1) 0%, rgba(0, 97, 255, 0.1) 50%, rgba(23, 23, 23, 0.1) 100%)',
         }}
       />
@@ -71,8 +71,8 @@ export function Landing() {
         style={{
           left: '-11%',
           top: '-35%',
-          width: '950px',
-          height: '950px',
+          width: 'min(950px, 85vw)',
+          height: 'min(950px, 85vw)',
           background: 'radial-gradient(circle, rgba(0, 65, 161, 0.1) 0%, rgba(0, 97, 255, 0.1) 40%, rgba(23, 23, 23, 0.1) 100%)',
         }}
       />
