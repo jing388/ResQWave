@@ -10,14 +10,16 @@ module.exports = new EntitySchema({
             generated: "increment"
         },
         action: {
-            type: "enum",
-            enum: ["create", "edit", "archive", "unarchive", "delete"],
+            type: "varchar",
+            length: 50,
             nullable: false,
+            comment: "Valid values: create, edit, archive, unarchive, delete"
         },
         entityType: {
-            type: "enum",
-            enum: ["Dispatcher", "FocalPerson", "Neighborhood", "Terminal"],
+            type: "varchar",
+            length: 50,
             nullable: false,
+            comment: "Valid values: Dispatcher, FocalPerson, Neighborhood, Terminal"
         },
         entityID: {
             type: "varchar",

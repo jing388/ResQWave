@@ -7,6 +7,7 @@ const focalPersonRepo = AppDataSource.getRepository("FocalPerson");
 const { getCache, setCache, deleteCache } = require("../config/cache");
 const { getIO } = require("../realtime/socket");
 const catchAsync = require("../utils/catchAsync");
+const { sendDownlink } = require("../lms/downlink");
 const { NotFoundError, BadRequestError, ForbiddenError, UnauthorizedError } = require("../exceptions");
 
 // CREATE Rescue Form
@@ -17,7 +18,10 @@ const createRescueForm = catchAsync(async (req, res, next) => {
     console.log('[RescueForm] Request body:', JSON.stringify(req.body, null, 2));
 
     // Check if the Alert exists
-    const alert = await alertRepo.findOne({ where: { id: alertID } });
+    const alert = await alertRepo.findOne({ 
+        where: { id: alertID },
+        relations: ["terminal"] 
+    });
     if (!alert) {
         console.log('[RescueForm] Alert not found:', alertID);
         return next(new NotFoundError("Alert Not Found"));
@@ -143,6 +147,18 @@ const createRescueForm = catchAsync(async (req, res, next) => {
         console.log('[RescueForm] About to save form:', JSON.stringify(newForm, null, 2));
         await rescueFormRepo.save(newForm);
         console.log('[RescueForm] Form saved successfully:', newForm.id);
+
+        // TRIGGER LORAWAN DOWNLINK
+        if (!alert.terminal?.devEUI) {
+            console.warn(`[Downlink Skipped] Terminal has no DevEUI for alert ${alert.id}`);
+        } else {
+            try {
+                await sendDownlink(alert.terminal.devEUI, status);
+                console.log(`[RescueForm] Downlink sent successfully for status: ${status}`);
+            } catch (downlinkError) {
+                console.error('[Downlink] LoRaWAN queuing failed:', downlinkError.message);
+            }
+        }
 
         // Update alert and terminal when dispatched
         if (status === 'Dispatched') {
@@ -321,10 +337,13 @@ const updateRescueFormStatus = catchAsync(async (req, res, next) => {
 
         // 4. TRIGGER LORAWAN DOWNLINK
         // This queues the message in ThingPark for the physical device
-        if (alert.terminal && alert.terminal.devEUI) {
+        if (!alert.terminal?.devEUI) {
+            console.warn(`[Downlink Skipped] Terminal has no DevEUI for alert ${alert.id}`);
+        } else {
             try {
                 // This sends 01 for Dispatched, 02 for Waitlisted, 03 for others
                 await sendDownlink(alert.terminal.devEUI, status);
+                console.log(`[RescueForm] Downlink sent successfully for status: ${status}`);
             } catch (downlinkError) {
                 console.error('[Downlink] LoRaWAN queuing failed:', downlinkError.message);
                 // We don't block the HTTP response if LoRaWAN fails, 

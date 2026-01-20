@@ -20,18 +20,21 @@ module.exports = new EntitySchema ({
             nullable: true,
         },
         name: {
-            type: "enum",
-            enum: ["Critical Battery Level", "Extended Downtime"]
+            type: "varchar",
+            length: 100,
+            comment: "Valid values: Critical Battery Level, Extended Downtime"
         },
         status: {
-            type: "enum",
-            enum: ["Active", "Cleared"],
-            nullable: false
+            type: "varchar",
+            length: 50,
+            nullable: false,
+            comment: "Valid values: Active, Cleared"
         },
         severity: {
-            type: "enum",
-            enum: ["Major", "Minor"],
+            type: "varchar",
+            length: 50,
             nullable: false,
+            comment: "Valid values: Major, Minor"
         },
         createdAt: {
             type: "timestamp",

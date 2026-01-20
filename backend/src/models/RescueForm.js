@@ -64,9 +64,10 @@ module.exports = new EntitySchema ({
             nullable: true,
         },
         status: {
-            type: "enum",
-            enum: ["Waitlisted", "Dispatched", "Completed"],
-            default: "Waitlisted"
+            type: "varchar",
+            length: 50,
+            default: "Waitlisted",
+            comment: "Valid values: Waitlisted, Dispatched, Completed"
         }
     },
 

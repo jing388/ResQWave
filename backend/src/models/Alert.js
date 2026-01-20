@@ -14,9 +14,10 @@ module.exports = new EntitySchema ({
             nullable: false,
         },
         alertType: {
-            type: "enum",
-            enum: ["Critical", "User-Initiated"],
+            type: "varchar",
+            length: 50,
             nullable: true, // Allow null when rescue is completed
+            comment: "Valid values: Critical, User-Initiated"
         },
         sentThrough: {
             type: "varchar",
@@ -33,10 +34,11 @@ module.exports = new EntitySchema ({
             updateDate: true,
         },
         status: {
-            type: "enum",
-            enum: ["Waitlist", "Unassigned", "Dispatched"],
+            type: "varchar",
+            length: 50,
             default: "Unassigned",
             nullable: false,
+            comment: "Valid values: Waitlist, Unassigned, Dispatched"
         },
     },
 

@@ -29,18 +29,20 @@ module.exports = new EntitySchema ({
             updateDate: true,
         },
         status: {
-            type: "enum",
-            enum: ["Online", "Offline"],
+            type: "varchar",
+            length: 50,
             default: "Offline",
+            comment: "Valid values: Online, Offline"
         },
         archived: {
             type: "boolean",
             default: false,
         },
         availability: {
-            type: "enum",
-            enum: ["Available", "Occupied"],
+            type: "varchar",
+            length: 50,
             default: "Available",
+            comment: "Valid values: Available, Occupied"
         }
     },
 

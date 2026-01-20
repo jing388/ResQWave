@@ -326,12 +326,27 @@ const getNeighborhoods = catchAsync(async (req, res, next) => {
 // READ One Neighborhood + Cache
 const getNeighborhood = catchAsync(async (req, res, next) => {
   const { id } = req.params;
+  
+  console.log('[getNeighborhood] Requested ID:', id);
+  console.log('[getNeighborhood] ID type:', typeof id);
+  
+  // Handle invalid IDs
+  if (!id || id === 'undefined' || id === 'null' || id === 'N/A') {
+    console.log('[getNeighborhood] Invalid ID provided:', id);
+    return next(new BadRequestError("Valid Neighborhood ID is required"));
+  }
+  
   const cacheKey = `neighborhood:${id}`;
   const cached = await getCache(cacheKey);
   if (cached) return res.json(cached);
 
   const neighborhood = await neighborhoodRepo.findOne({ where: { id } });
-  if (!neighborhood) return next(new NotFoundError("Neighborhood not found"));
+  console.log('[getNeighborhood] Found neighborhood:', !!neighborhood);
+  
+  if (!neighborhood) {
+    console.log('[getNeighborhood] Neighborhood not found for ID:', id);
+    return next(new NotFoundError(`Neighborhood not found for ID: ${id}`));
+  }
 
     // Load focal person info (if linked)
     let focal = null;

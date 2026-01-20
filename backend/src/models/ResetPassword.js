@@ -14,9 +14,10 @@ module.exports = new EntitySchema({
             nullable: false
         },
         userType: {
-            type: "enum",
-            enum: ["admin", "dispatcher", "focal"],
-            nullable: false
+            type: "varchar",
+            length: 50,
+            nullable: false,
+            comment: "Valid values: admin, dispatcher, focal"
         },
         code: {
             type: "varchar",

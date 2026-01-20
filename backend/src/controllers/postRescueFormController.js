@@ -6,6 +6,7 @@ const dispatcherRepo = AppDataSource.getRepository("Dispatcher");
 const { getCache, setCache, deleteCache } = require("../config/cache");
 const { getIO } = require("../realtime/socket");
 const catchAsync = require("../utils/catchAsync");
+const { sendDownlink } = require("../lms/downlink");
 const { NotFoundError, BadRequestError } = require("../exceptions");
 
 // CREATE POST RESCUE FORM
@@ -14,7 +15,10 @@ const createPostRescueForm = catchAsync(async (req, res, next) => {
     const { noOfPersonnelDeployed, resourcesUsed, actionTaken} = req.body;
 
     // Check if the Alert Exist
-    const alert = await alertRepo.findOne({where: {id: alertID} });
+    const alert = await alertRepo.findOne({
+        where: {id: alertID},
+        relations: ["terminal"]
+    });
     if (!alert) return next(new NotFoundError("Alert Not Found"));
 
     // Only Allowed if the Alert is "Dispatched"
@@ -46,6 +50,18 @@ const createPostRescueForm = catchAsync(async (req, res, next) => {
     // Update Rescue Form Status -> Completed (marks the rescue as finished)
     rescueForm.status = "Completed";
     await rescueFormRepo.save(rescueForm);
+
+    // Trigger LoRaWAN Downlink for Completed status
+    if (!alert.terminal?.devEUI) {
+        console.warn(`[Downlink Skipped] Terminal has no DevEUI for alert ${alert.id}`);
+    } else {
+        try {
+            await sendDownlink(alert.terminal.devEUI, "Completed");
+            console.log(`[PostRescue] Downlink sent successfully for status: Completed`);
+        } catch (downlinkError) {
+            console.error('[PostRescue] LoRaWAN queuing failed:', downlinkError.message);
+        }
+    }
 
     // Emit socket event for real-time updates
     try {
@@ -660,20 +676,24 @@ const getDetailedReportData = catchAsync(async (req, res, next) => {
     const { alertId } = req.params;
     
     console.log('[DetailedReport] Fetching data for alertId:', alertId);
+    console.log('[DetailedReport] AlertId type:', typeof alertId);
     
-    if (!alertId) {
+    if (!alertId || alertId === 'undefined' || alertId === 'null') {
         return next(new BadRequestError("Alert ID is required"));
     }
 
     // First, let's check if the alert exists
     const alertExists = await alertRepo.findOne({ where: { id: alertId } });
     console.log('[DetailedReport] Alert exists:', !!alertExists);
+    console.log('[DetailedReport] Alert data:', alertExists);
     
     if (!alertExists) {
-        return next(new NotFoundError("Alert not found"));
+        console.log('[DetailedReport] Alert not found in database for ID:', alertId);
+        return next(new NotFoundError(`Alert not found for ID: ${alertId}`));
     }
 
     // Get detailed report data using complex join query
+    console.log('[DetailedReport] Building query for alertId:', alertId);
     const reportData = await alertRepo
             .createQueryBuilder("alert")
             .leftJoin("alert.terminal", "terminal")
@@ -725,13 +745,17 @@ const getDetailedReportData = catchAsync(async (req, res, next) => {
             .getRawOne();
 
     console.log('[DetailedReport] Query result:', reportData);
+    console.log('[DetailedReport] Query result keys:', reportData ? Object.keys(reportData) : 'null');
+    console.log('[DetailedReport] Has rescue form:', !!reportData?.rescueformid);
+    console.log('[DetailedReport] Has post rescue form:', !!reportData?.postrescueformid);
 
     if (!reportData) {
         console.log('[DetailedReport] No data found for alertId:', alertId);
-        return next(new NotFoundError("Report data not found for the given Alert ID"));
+        return next(new NotFoundError(`Report data not found for Alert ID: ${alertId}`));
     }
 
-    let resourcesUsed = reportData.resourcesUsed;
+    // PostgreSQL returns lowercase column names, so access them accordingly
+    let resourcesUsed = reportData.resourcesused;
     if (typeof resourcesUsed === 'string') {
         try {
             resourcesUsed = JSON.parse(resourcesUsed);
@@ -740,52 +764,52 @@ const getDetailedReportData = catchAsync(async (req, res, next) => {
         }
     }
 
-    // Format the response data
+    // Format the response data (accessing lowercase property names from PostgreSQL)
     const formattedData = {
-            alertId: reportData.alertId,
-            emergencyId: reportData.alertId, // Using alertId as emergencyId for compatibility
+            alertId: reportData.alertid,
+            emergencyId: reportData.alertid, // Using alertId as emergencyId for compatibility
             
             // Community & Terminal Information
-            neighborhoodId: reportData.neighborhoodId || 'N/A',
-            terminalName: reportData.terminalName || 'N/A',
-            focalPersonName: `${reportData.focalFirstName || ''} ${reportData.focalLastName || ''}`.trim() || 'N/A',
+            neighborhoodId: reportData.neighborhoodid || 'N/A',
+            terminalName: reportData.terminalname || 'N/A',
+            focalPersonName: `${reportData.focalfirstname || ''} ${reportData.focallastname || ''}`.trim() || 'N/A',
             focalPersonAddress: (() => {
                 // Parse the JSON address and extract just the address field
                 try {
-                    if (reportData.focalAddress && typeof reportData.focalAddress === 'string') {
-                        const parsed = JSON.parse(reportData.focalAddress);
-                        return parsed.address || reportData.focalAddress;
+                    if (reportData.focaladdress && typeof reportData.focaladdress === 'string') {
+                        const parsed = JSON.parse(reportData.focaladdress);
+                        return parsed.address || reportData.focaladdress;
                     }
-                    return reportData.focalAddress || 'N/A';
+                    return reportData.focaladdress || 'N/A';
                 } catch (e) {
                     // If parsing fails, return the original string
-                    return reportData.focalAddress || 'N/A';
+                    return reportData.focaladdress || 'N/A';
                 }
             })(),
-            focalPersonContactNumber: reportData.focalContactNumber || 'N/A',
+            focalPersonContactNumber: reportData.focalcontactnumber || 'N/A',
             
             // Emergency Context
-            waterLevel: reportData.waterLevel || 'N/A',
-            urgencyOfEvacuation: reportData.urgencyOfEvacuation || 'N/A',
-            hazardPresent: reportData.hazardPresent || 'N/A',
+            waterLevel: reportData.waterlevel || 'N/A',
+            urgencyOfEvacuation: reportData.urgencyofevacuation || 'N/A',
+            hazardPresent: reportData.hazardpresent || 'N/A',
             accessibility: reportData.accessibility || 'N/A',
-            resourceNeeds: reportData.resourceNeeds || 'N/A',
-            otherInformation: reportData.otherInformation || 'N/A',
-            alertType: reportData.rescueFormAlertType || reportData.originalAlertType || 'N/A',
-            timeOfRescue: reportData.prfCreatedAt ? new Date(reportData.prfCreatedAt).toLocaleTimeString() : 'N/A',
-            dateTimeOccurred: reportData.dateTimeSent ? new Date(reportData.dateTimeSent).toLocaleString() : 'N/A',
+            resourceNeeds: reportData.resourceneeds || 'N/A',
+            otherInformation: reportData.otherinformation || 'N/A',
+            alertType: reportData.rescueformalerttype || reportData.originalalerttype || 'N/A',
+            timeOfRescue: reportData.prfcreatedat ? new Date(reportData.prfcreatedat).toLocaleTimeString() : 'N/A',
+            dateTimeOccurred: reportData.datetimesent ? new Date(reportData.datetimesent).toLocaleString() : 'N/A',
             
             // Dispatcher Information
-            dispatcherName: reportData.dispatcherName || 'N/A',
+            dispatcherName: reportData.dispatchername || 'N/A',
             
             // Rescue Completion Details
-            rescueFormId: reportData.rescueFormId || 'N/A',
-            postRescueFormId: reportData.postRescueFormId || 'N/A',
-            noOfPersonnelDeployed: reportData.noOfPersonnelDeployed || 'N/A',
+            rescueFormId: reportData.rescueformid || 'N/A',
+            postRescueFormId: reportData.postrescueformid || 'N/A',
+            noOfPersonnelDeployed: reportData.noofpersonneldeployed || 'N/A',
             resourcesUsed: resourcesUsed || 'N/A',
-            actionTaken: reportData.actionTaken || 'N/A',
-            completedAt: reportData.completedAt ? new Date(reportData.completedAt).toLocaleString() : 'N/A',
-        rescueCompletionTime: reportData.completedAt ? new Date(reportData.completedAt).toLocaleTimeString() : 'N/A'
+            actionTaken: reportData.actiontaken || 'N/A',
+            completedAt: reportData.completedat ? new Date(reportData.completedat).toLocaleString() : 'N/A',
+        rescueCompletionTime: reportData.completedat ? new Date(reportData.completedat).toLocaleTimeString() : 'N/A'
     };
 
     console.log('[DetailedReport] Formatted response:', formattedData);
@@ -860,31 +884,32 @@ const getArchivedPostRescueForm = catchAsync(async (req, res, next) => {
     const cached = await getCache(cacheKey);
     if (cached) return res.json(cached);
 
-    let qb = postRescueRepo
-        .createQueryBuilder("prf")
-        .leftJoin("prf.alerts", "alert")
+    let qb = alertRepo
+        .createQueryBuilder("alert")
         .leftJoin("alert.terminal", "terminal")
-        .leftJoin("rescueforms", "rf", "rf.emergencyID = alert.id")
-        .leftJoin("focalpersons", "fp", "fp.id = rf.focalPersonID")
-        .leftJoin("dispatchers", "dispatcher", "dispatcher.id = rf.dispatcherID")
+        .leftJoin("Neighborhood", "n", "n.terminalID = terminal.id")
+        .leftJoin("FocalPerson", "fp", "fp.id = n.focalPersonID")
+        .leftJoin("RescueForm", "rescueForm", "rescueForm.emergencyID = alert.id")
+        .leftJoin("Dispatcher", "dispatcher", "dispatcher.id = rescueForm.dispatcherID")
+        .leftJoin("PostRescueForm", "prf", "prf.alertID = alert.id")
         .where("prf.archived = :archived", { archived: true });
 
     if (alertID) {
-        qb = qb.andWhere("prf.alertID = :alertID", { alertID });
+        qb = qb.andWhere("alert.id = :alertID", { alertID });
     }
 
     const rows = await qb
         .select([
-            "rf.emergencyID AS emergencyId",
-            "terminal.name AS terminalName",
-            "alert.terminalID AS terminalId",
-            "fp.firstName AS focalFirstName",
-            "fp.lastName AS focalLastName",
-            "alert.dateTimeSent AS dateTimeOccurred",
-            "rf.originalAlertType AS alertType",
-            "fp.address AS houseAddress",
-            "dispatcher.name AS dispatchedName",
-            "prf.completedAt AS completionDate",
+            "rescueForm.emergencyID AS \"emergencyId\"",
+            "terminal.name AS \"terminalName\"",
+            "alert.terminalID AS \"terminalId\"",
+            "fp.firstName AS \"focalFirstName\"",
+            "fp.lastName AS \"focalLastName\"",
+            "alert.dateTimeSent AS \"dateTimeOccurred\"",
+            "rescueForm.originalAlertType AS \"alertType\"",
+            "fp.address AS \"houseAddress\"",
+            "dispatcher.name AS \"dispatchedName\"",
+            "prf.completedAt AS \"completionDate\"",
         ])
         .orderBy("prf.completedAt", "DESC")
         .getRawMany();
