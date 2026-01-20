@@ -6,6 +6,7 @@ const dispatcherRepo = AppDataSource.getRepository("Dispatcher");
 const { getCache, setCache, deleteCache } = require("../config/cache");
 const { getIO } = require("../realtime/socket");
 const catchAsync = require("../utils/catchAsync");
+const { sendDownlink } = require("../lms/downlink");
 const { NotFoundError, BadRequestError } = require("../exceptions");
 
 // CREATE POST RESCUE FORM
@@ -14,7 +15,10 @@ const createPostRescueForm = catchAsync(async (req, res, next) => {
     const { noOfPersonnelDeployed, resourcesUsed, actionTaken} = req.body;
 
     // Check if the Alert Exist
-    const alert = await alertRepo.findOne({where: {id: alertID} });
+    const alert = await alertRepo.findOne({
+        where: {id: alertID},
+        relations: ["terminal"]
+    });
     if (!alert) return next(new NotFoundError("Alert Not Found"));
 
     // Only Allowed if the Alert is "Dispatched"
@@ -46,6 +50,18 @@ const createPostRescueForm = catchAsync(async (req, res, next) => {
     // Update Rescue Form Status -> Completed (marks the rescue as finished)
     rescueForm.status = "Completed";
     await rescueFormRepo.save(rescueForm);
+
+    // Trigger LoRaWAN Downlink for Completed status
+    if (!alert.terminal?.devEUI) {
+        console.warn(`[Downlink Skipped] Terminal has no DevEUI for alert ${alert.id}`);
+    } else {
+        try {
+            await sendDownlink(alert.terminal.devEUI, "Completed");
+            console.log(`[PostRescue] Downlink sent successfully for status: Completed`);
+        } catch (downlinkError) {
+            console.error('[PostRescue] LoRaWAN queuing failed:', downlinkError.message);
+        }
+    }
 
     // Emit socket event for real-time updates
     try {
