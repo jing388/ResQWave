@@ -308,11 +308,10 @@ export default function SignalPopover({
                   }
                 }}
                 disabled={!isRescueNeeded}
-                className={`flex-1 px-4 py-2 rounded text-sm font-medium transition-colors ${
-                  isRescueNeeded
+                className={`flex-1 px-4 py-2 rounded text-sm font-medium transition-colors ${isRescueNeeded
                     ? "bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
                     : "bg-gray-600 text-gray-400 cursor-not-allowed opacity-50"
-                }`}
+                  }`}
                 title={
                   !isRescueNeeded
                     ? "Rescue form only available for Critical and User-Initiated alerts"

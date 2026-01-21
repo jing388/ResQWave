@@ -7,6 +7,8 @@ import { useMapPins } from "../hooks/useMapPins";
 import { AdminPinPopover } from "./AdminPinPopover";
 import MapControls from "./MapControls";
 import { MapPins } from "./MapPins";
+import { TerminalInsightsPanel } from "./TerminalInsightsPanel";
+import { Sparkle } from "lucide-react";
 
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN;
 
@@ -36,6 +38,20 @@ export function MapView() {
     contactNumber: string;
     totalAlerts: number;
   } | null>(null);
+
+  // Terminal Insights Panel state
+  const [insightsPanelOpen, setInsightsPanelOpen] = useState(false);
+  const [selectedTerminal, setSelectedTerminal] = useState<{
+    terminalID: string;
+    terminalName: string;
+  } | null>(null);
+
+  // For AI floating button (Gemini)
+  const handleAIFloatClick = () => {
+    // Open insights panel with a generic "AI" terminal
+    setSelectedTerminal({ terminalID: "ai-gemini", terminalName: "AI Gemini" });
+    setInsightsPanelOpen(true);
+  };
 
   // Ref to track popover for map move event
   const popoverRef = useRef(popover);
@@ -251,7 +267,7 @@ export function MapView() {
       mapRef.current = null;
       map.remove();
     };
-     
+
   }, []);
 
   // Update map layers when signals change
@@ -351,10 +367,45 @@ export function MapView() {
         popover={popover}
         onClose={() => setPopover(null)}
         onMoreInfo={() => {
-          console.log("[MapView] More info clicked for:", popover?.terminalID);
-          // TODO: Implement more info functionality
+          console.log("[MapView] More Info clicked for:", popover?.terminalID);
+          // TODO: Implement More Info functionality
+        }}
+        onOpenInsights={(terminalID: string, terminalName: string) => {
+          setSelectedTerminal({ terminalID, terminalName });
+          setInsightsPanelOpen(true);
         }}
       />
+
+
+      {/* AI Floating Button - Bottom Left */}
+      <div
+        style={{
+          position: "absolute",
+          left: 21,
+          bottom: 21,
+          zIndex: 50,
+        }}
+      >
+        <button
+          aria-label="AI Decision Support"
+          onClick={handleAIFloatClick}
+          style={{
+            width: 56,
+            height: 56,
+            borderRadius: 14,
+            background: "linear-gradient(135deg, #38bdf8 0%, #6366f1 100%)",
+            boxShadow: "0 6px 24px rgba(56,189,248,0.18)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            border: "none",
+            cursor: "pointer",
+            transition: "background 0.18s, box-shadow 0.18s",
+          }}
+        >
+          <Sparkle size={32} color="#fff" />
+        </button>
+      </div>
 
       {/* Map Controls */}
       <MapControls
@@ -371,6 +422,16 @@ export function MapView() {
           onPinClick={(popoverData) => {
             setPopover(popoverData);
           }}
+        />
+      )}
+
+      {/* Terminal Insights Panel - slides up from bottom */}
+      {selectedTerminal && (
+        <TerminalInsightsPanel
+          isOpen={insightsPanelOpen}
+          onClose={() => setInsightsPanelOpen(false)}
+          terminalID={selectedTerminal.terminalID}
+          terminalName={selectedTerminal.terminalName}
         />
       )}
     </div>
