@@ -8,7 +8,7 @@ import { AdminPinPopover } from "./AdminPinPopover";
 import MapControls from "./MapControls";
 import { MapPins } from "./MapPins";
 import { TerminalInsightsPanel } from "./TerminalInsightsPanel";
-import { Sparkle } from "lucide-react";
+import { Gemini } from '@lobehub/icons';
 
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN;
 
@@ -389,23 +389,48 @@ export function MapView() {
         <button
           aria-label="AI Decision Support"
           onClick={handleAIFloatClick}
+          className="gemini-button"
           style={{
             width: 56,
             height: 56,
-            borderRadius: 14,
-            background: "linear-gradient(135deg, #38bdf8 0%, #6366f1 100%)",
-            boxShadow: "0 6px 24px rgba(56,189,248,0.18)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             border: "none",
+            background: "transparent",
             cursor: "pointer",
-            transition: "background 0.18s, box-shadow 0.18s",
+            padding: 0,
+            perspective: "1000px",
           }}
         >
-          <Sparkle size={32} color="#fff" />
+            <div
+            className="gemini-icon"
+            style={{
+              transformStyle: "preserve-3d",
+              transition: "transform 0.6s ease-in-out",
+              cursor: "pointer",
+            }}
+            >
+            <Gemini.Color size={56} />
+            </div>
         </button>
       </div>
+
+      {/* 3D flip animation on hover */}
+      <style>{`
+        .gemini-button:hover .gemini-icon {
+          animation: flip3d 1.2s ease-in-out;
+        }
+        
+        @keyframes flip3d {
+          0% {
+            transform: rotateY(0deg);
+          }
+          100% {
+            transform: rotateY(360deg);
+          }
+        }
+      `}</style>
 
       {/* Map Controls */}
       <MapControls

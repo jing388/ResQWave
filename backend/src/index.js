@@ -6,6 +6,7 @@ const http = require("http");
 const { setupSocket } = require("./realtime/socket");
 const authRoutes = require("./routes/authRoutes");
 const chatbotRoutes = require("./routes/chatbotRoutes");
+const aiPredictionRoutes = require("./routes/aiPredictionRoutes");
 const resetPasswordRoutes = require("./routes/resetPasswordRoutes");
 const dispatcherRoutes = require("./routes/dispatcherRoutes");
 const terminalRoutes = require("./routes/terminalRoutes");
@@ -116,6 +117,7 @@ AppDataSource.initialize()
     app.use("/profile", profileRoutes);
     app.use("/forms", rescueFormRoutes);
     app.use("/post", postRescueRoutes);
+    app.use("/ai/prediction", aiPredictionRoutes);
     app.use("/", graphRoutes);
     app.use("/", documentRoutes);
 
