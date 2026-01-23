@@ -231,6 +231,7 @@ export function TerminalInsightsPanel({
 
     const fetchWeatherData = async () => {
         console.log('🌐 Starting weather API call...');
+        const startTime = Date.now();
         setIsLoading(true);
         setError(null);
         setNoCoordinates(false);
@@ -270,7 +271,7 @@ export function TerminalInsightsPanel({
             if (foundCoordinates && lat && lon) {
                 queryParams = `?lat=${lat}&lon=${lon}`;
                 console.log('📍 Using terminal coordinates:', { lat, lon });
-                
+
                 // Only fetch weather if we have coordinates
                 const response = await apiFetch<{ status: string; data: WeatherData }>(`/api/weather/complete${queryParams}`);
                 console.log('✅ Weather data received:', response);
@@ -282,9 +283,23 @@ export function TerminalInsightsPanel({
                 setWeatherData(null); // Clear any previous weather data
                 console.log('⚠️ No coordinates found - not fetching weather data');
             }
+
+            // Ensure minimum loading time of 1.5 seconds for better UX
+            const elapsedTime = Date.now() - startTime;
+            const remainingTime = 1500 - elapsedTime;
+            if (remainingTime > 0) {
+                await new Promise(resolve => setTimeout(resolve, remainingTime));
+            }
         } catch (err) {
             console.error('❌ Error fetching weather data:', err);
             setError('Failed to load weather data');
+
+            // Ensure minimum loading time even on error
+            const elapsedTime = Date.now() - startTime;
+            const remainingTime = 1500 - elapsedTime;
+            if (remainingTime > 0) {
+                await new Promise(resolve => setTimeout(resolve, remainingTime));
+            }
         } finally {
             setIsLoading(false);
         }
@@ -481,8 +496,40 @@ export function TerminalInsightsPanel({
                 {/* Content - Scrollable */}
                 <div className="overflow-y-auto h-[calc(60vh-64px)] p-4 bg-[#171717]">
                     {isLoading ? (
-                        <div className="flex items-center justify-center h-full">
-                            <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+                        <div className="flex flex-col items-center justify-center h-full gap-6">
+                            <div className="relative">
+                                {/* Outer rotating ring */}
+                                <div className="absolute inset-0 rounded-full border-4 border-blue-500/20 animate-spin" style={{ width: '120px', height: '120px', animationDuration: '3s' }}></div>
+
+                                {/* Middle pulsing ring */}
+                                <div className="absolute inset-0 rounded-full border-4 border-cyan-400/30 animate-pulse" style={{ width: '120px', height: '120px', animationDuration: '2s' }}></div>
+
+                                {/* Weather icons rotating */}
+                                <div className="relative flex items-center justify-center" style={{ width: '120px', height: '120px' }}>
+                                    <div className="absolute animate-spin" style={{ animationDuration: '4s' }}>
+                                        <Sun className="w-10 h-10 text-yellow-400" />
+                                    </div>
+                                    <div className="absolute animate-spin" style={{ animationDuration: '4s', animationDelay: '-1s' }}>
+                                        <Cloud className="w-10 h-10 text-blue-300" />
+                                    </div>
+                                    <div className="absolute animate-spin" style={{ animationDuration: '4s', animationDelay: '-2s' }}>
+                                        <CloudRain className="w-10 h-10 text-cyan-400" />
+                                    </div>
+                                    <div className="absolute animate-spin" style={{ animationDuration: '4s', animationDelay: '-3s' }}>
+                                        <Wind className="w-10 h-10 text-emerald-400" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="text-center space-y-2">
+                                <p className="text-lg font-semibold text-white flex items-center gap-2 justify-center">
+                                    <Loader2 className="w-5 h-5 animate-spin" />
+                                    Analyzing Weather Patterns
+                                </p>
+                                <p className="text-sm text-muted-foreground">
+                                    Fetching forecast data and rescue analytics...
+                                </p>
+                            </div>
                         </div>
                     ) : error ? (
                         <div className="flex items-center justify-center h-full text-muted-foreground">
@@ -496,7 +543,7 @@ export function TerminalInsightsPanel({
                                     <div className="flex-1">
                                         <p className="text-lg font-semibold text-yellow-500 mb-2">No Location Coordinates</p>
                                         <p className="text-sm text-yellow-200/70">
-                                            This terminal does not have GPS coordinates configured. 
+                                            This terminal does not have GPS coordinates configured.
                                             Weather data cannot be displayed without location information.
                                         </p>
                                         <p className="text-sm text-yellow-200/70 mt-3">
