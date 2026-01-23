@@ -413,7 +413,7 @@ export function TerminalInsightsPanel({
                     <div>
                         <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
                             <Thermometer className="w-5 h-5 text-muted-foreground" />
-                            AI Decision Support - {terminalName}
+                            Predictive AI Rescue Command System - {terminalName}
                         </h2>
                         <p className="text-xs text-muted-foreground mt-0.5">
                             Terminal ID: {terminalID}
@@ -528,8 +528,8 @@ export function TerminalInsightsPanel({
                                                 <button
                                                     onClick={() => setRainfallPeriod('24h')}
                                                     className={`px-2.5 py-1 rounded text-xs font-medium transition-all ${rainfallPeriod === '24h'
-                                                            ? 'bg-[#38bdf8] text-white shadow-sm'
-                                                            : 'text-muted-foreground hover:text-foreground'
+                                                        ? 'bg-[#38bdf8] text-white shadow-sm'
+                                                        : 'text-muted-foreground hover:text-foreground'
                                                         }`}
                                                 >
                                                     24h
@@ -537,8 +537,8 @@ export function TerminalInsightsPanel({
                                                 <button
                                                     onClick={() => setRainfallPeriod('48h')}
                                                     className={`px-2.5 py-1 rounded text-xs font-medium transition-all ${rainfallPeriod === '48h'
-                                                            ? 'bg-[#38bdf8] text-white shadow-sm'
-                                                            : 'text-muted-foreground hover:text-foreground'
+                                                        ? 'bg-[#38bdf8] text-white shadow-sm'
+                                                        : 'text-muted-foreground hover:text-foreground'
                                                         }`}
                                                 >
                                                     48h
