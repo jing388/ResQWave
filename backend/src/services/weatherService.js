@@ -4,7 +4,7 @@ const OPENWEATHER_API_KEY = process.env.OPENWEATHER_API_KEY;
 const BASE_URL = 'https://api.openweathermap.org/data/2.5';
 const GEO_URL = 'https://api.openweathermap.org/geo/1.0';
 
-// Hardcoded location for Caloocan City Bagong Silang
+// Default location for Caloocan City Bagong Silang (fallback)
 const DEFAULT_LOCATION = {
     name: 'Caloocan City Bagong Silang',
     lat: 14.7565,
@@ -12,14 +12,16 @@ const DEFAULT_LOCATION = {
 };
 
 /**
- * Get current weather data for the default location
+ * Get current weather data for a specific location
+ * @param {number} lat - Latitude
+ * @param {number} lon - Longitude
  */
-const getCurrentWeather = async () => {
+const getCurrentWeather = async (lat = DEFAULT_LOCATION.lat, lon = DEFAULT_LOCATION.lon) => {
     try {
         const response = await axios.get(`${BASE_URL}/weather`, {
             params: {
-                lat: DEFAULT_LOCATION.lat,
-                lon: DEFAULT_LOCATION.lon,
+                lat,
+                lon,
                 appid: OPENWEATHER_API_KEY,
                 units: 'metric'
             }
@@ -35,7 +37,7 @@ const getCurrentWeather = async () => {
             windSpeed: Math.round(data.wind.speed * 3.6), // Convert m/s to km/h
             description: data.weather[0].description,
             icon: data.weather[0].icon,
-            location: DEFAULT_LOCATION.name
+            location: data.name || DEFAULT_LOCATION.name
         };
     } catch (error) {
         console.error('Error fetching current weather:', error.message);
@@ -45,13 +47,15 @@ const getCurrentWeather = async () => {
 
 /**
  * Get hourly forecast (OpenWeather provides 3-hour intervals in free tier)
+ * @param {number} lat - Latitude
+ * @param {number} lon - Longitude
  */
-const getHourlyForecast = async () => {
+const getHourlyForecast = async (lat = DEFAULT_LOCATION.lat, lon = DEFAULT_LOCATION.lon) => {
     try {
         const response = await axios.get(`${BASE_URL}/forecast`, {
             params: {
-                lat: DEFAULT_LOCATION.lat,
-                lon: DEFAULT_LOCATION.lon,
+                lat,
+                lon,
                 appid: OPENWEATHER_API_KEY,
                 units: 'metric',
                 cnt: 16 // Get next 16 intervals (48 hours)
@@ -82,15 +86,17 @@ const getHourlyForecast = async () => {
 
 /**
  * Get 7-day weather forecast
+ * @param {number} lat - Latitude
+ * @param {number} lon - Longitude
  */
-const getWeeklyForecast = async () => {
+const getWeeklyForecast = async (lat = DEFAULT_LOCATION.lat, lon = DEFAULT_LOCATION.lon) => {
     try {
         // OpenWeather free tier only provides 5-day forecast with 3-hour intervals
         // We'll process this to get daily forecasts
         const response = await axios.get(`${BASE_URL}/forecast`, {
             params: {
-                lat: DEFAULT_LOCATION.lat,
-                lon: DEFAULT_LOCATION.lon,
+                lat,
+                lon,
                 appid: OPENWEATHER_API_KEY,
                 units: 'metric'
             }
@@ -163,20 +169,22 @@ const getWeeklyForecast = async () => {
 
 /**
  * Get comprehensive weather data including current, hourly, and weekly forecasts
+ * @param {number} lat - Latitude
+ * @param {number} lon - Longitude
  */
-const getCompleteWeatherData = async () => {
+const getCompleteWeatherData = async (lat = DEFAULT_LOCATION.lat, lon = DEFAULT_LOCATION.lon) => {
     try {
         const [current, hourly, weekly] = await Promise.all([
-            getCurrentWeather(),
-            getHourlyForecast(),
-            getWeeklyForecast()
+            getCurrentWeather(lat, lon),
+            getHourlyForecast(lat, lon),
+            getWeeklyForecast(lat, lon)
         ]);
 
         return {
             current,
             hourly,
             weekly,
-            location: DEFAULT_LOCATION
+            location: { lat, lon }
         };
     } catch (error) {
         console.error('Error fetching complete weather data:', error.message);

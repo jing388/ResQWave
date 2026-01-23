@@ -5,6 +5,11 @@ import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { useEffect, useRef, useState } from "react";
 import { CommunityGroupInfoSheet } from "../CommunityGroups/components/CommunityGroupInfoSheet";
+import { useMapPins } from "../Dashboard/hooks/useMapPins";
+import { TerminalInsightsPanel } from "../Dashboard/components/TerminalInsightsPanel";
+import { MapPins } from "../Dashboard/components/MapPins";
+import { AdminPinPopover } from "../Dashboard/components/AdminPinPopover";
+import { Gemini } from '@lobehub/icons';
 
 import DistressSignalAlert, {
   type DistressSignalAlertHandle,
@@ -46,6 +51,32 @@ function VisualizationContent() {
   const { selectedWaitlistForm, setSelectedWaitlistForm, removeFromWaitlist } =
     useRescueWaitlist();
   const [showWaitlistPreview, setShowWaitlistPreview] = useState(false);
+
+  // Terminal pins data and state
+  const { pins: terminalPins, loading: pinsLoading } = useMapPins();
+  const [insightsPanelOpen, setInsightsPanelOpen] = useState(false);
+  const [selectedTerminal, setSelectedTerminal] = useState<{
+    terminalID: string;
+    terminalName: string;
+  } | null>(null);
+  const [terminalPopover, setTerminalPopover] = useState<{
+    lng: number;
+    lat: number;
+    screen: { x: number; y: number };
+    terminalID: string;
+    terminalName: string;
+    terminalStatus: string;
+    timeSent: string;
+    focalPerson: string;
+    contactNumber: string;
+    totalAlerts: number;
+  } | null>(null);
+
+  // AI floating button handler
+  const handleAIFloatClick = () => {
+    setSelectedTerminal({ terminalID: "ai-gemini", terminalName: "AI Gemini" });
+    setInsightsPanelOpen(true);
+  };
 
   // Rescue Form Alerts ref
   const rescueFormAlertsRef = useRef<RescueFormAlertsHandle>(null);
@@ -640,6 +671,10 @@ function VisualizationContent() {
         onShowDispatchAlert={handleShowDispatchAlert}
         onShowErrorAlert={handleShowErrorAlert}
         onShowDispatchConfirmation={handleShowDispatchConfirmation}
+        onOpenInsights={(terminalID, terminalName) => {
+          setSelectedTerminal({ terminalID, terminalName });
+          setInsightsPanelOpen(true);
+        }}
       />
 
       <MapControls
@@ -714,7 +749,7 @@ function VisualizationContent() {
       {/* Community Group Info Sheet */}
       <CommunityGroupInfoSheet
         open={infoSheetOpen}
-        onOpenChange={() => {}}
+        onOpenChange={() => { }}
         communityData={undefined}
       />
 
@@ -805,6 +840,97 @@ function VisualizationContent() {
 
       {/* Signal Status Legend */}
       <SignalStatusLegend />
+
+      {/* Terminal Pins - rendered when data is loaded */}
+      {!pinsLoading && (
+        <MapPins
+          map={mapRef.current}
+          pins={terminalPins}
+          mapContainer={mapContainer}
+          onPinClick={(popoverData) => {
+            setTerminalPopover(popoverData);
+          }}
+        />
+      )}
+
+      {/* Terminal Pin Popover */}
+      <AdminPinPopover
+        popover={terminalPopover}
+        onClose={() => setTerminalPopover(null)}
+        onOpenInsights={(terminalID, terminalName) => {
+          setSelectedTerminal({ terminalID, terminalName });
+          setInsightsPanelOpen(true);
+          setTerminalPopover(null);
+        }}
+      />
+
+      {/* AI Floating Button - Bottom Left */}
+      <div
+        style={{
+          position: "absolute",
+          left: 21,
+          bottom: 85,
+          zIndex: 50,
+        }}
+      >
+        <button
+          aria-label="AI Decision Support"
+          onClick={handleAIFloatClick}
+          className="gemini-button"
+          style={{
+            width: 56,
+            height: 56,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            border: "none",
+            background: "transparent",
+            cursor: "pointer",
+            padding: 0,
+            perspective: "1000px",
+          }}
+        >
+          <div
+            className="gemini-icon"
+            style={{
+              transformStyle: "preserve-3d",
+              transition: "transform 0.6s ease-in-out",
+              cursor: "pointer",
+            }}
+          >
+            <Gemini.Color size={56} />
+          </div>
+        </button>
+      </div>
+
+      {/* 3D flip animation on hover */}
+      <style>{`
+        .gemini-button:hover .gemini-icon {
+          animation: flip3d 1.2s ease-in-out;
+        }
+        
+        @keyframes flip3d {
+          0% {
+            transform: rotateY(0deg);
+          }
+          100% {
+            transform: rotateY(360deg);
+          }
+        }
+      `}</style>
+
+      {/* Terminal Insights Panel */}
+      {selectedTerminal && (
+        <TerminalInsightsPanel
+          isOpen={insightsPanelOpen}
+          onClose={() => {
+            setInsightsPanelOpen(false);
+            setSelectedTerminal(null);
+          }}
+          terminalID={selectedTerminal.terminalID}
+          terminalName={selectedTerminal.terminalName}
+        />
+      )}
     </div>
   );
 }

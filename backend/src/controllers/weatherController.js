@@ -42,11 +42,17 @@ const getWeeklyForecast = catchAsync(async (req, res) => {
 
 /**
  * Get complete weather data (current + hourly + weekly)
- * GET /api/weather/complete
+ * GET /api/weather/complete?lat=14.7565&lon=121.0174
  */
 const getCompleteWeather = catchAsync(async (req, res) => {
-    console.log('🌤️ Weather API called - fetching complete weather data...');
-    const weatherData = await weatherService.getCompleteWeatherData();
+    const { lat, lon } = req.query;
+    console.log('🌤️ Weather API called - lat:', lat, 'lon:', lon);
+
+    // Convert to numbers if provided, otherwise use defaults
+    const latitude = lat ? parseFloat(lat) : undefined;
+    const longitude = lon ? parseFloat(lon) : undefined;
+
+    const weatherData = await weatherService.getCompleteWeatherData(latitude, longitude);
     console.log('✅ Weather data fetched successfully');
 
     res.status(200).json({
