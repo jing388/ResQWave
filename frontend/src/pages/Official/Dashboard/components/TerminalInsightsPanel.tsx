@@ -23,6 +23,7 @@ import {
     ChevronDown,
     MessageSquarePlus,
 } from "lucide-react";
+import { Gemini } from '@lobehub/icons';
 import { useEffect, useState, type ReactElement, useRef } from "react";
 import { apiFetch } from "@/lib/api";
 import { getRescueRecordsByTerminal, calculateRescueStats, type RescueRecord } from "../api/rescueRecordsApi";
@@ -504,22 +505,34 @@ export function TerminalInsightsPanel({
                                 {/* Middle pulsing ring */}
                                 <div className="absolute inset-0 rounded-full border-4 border-cyan-400/30 animate-pulse" style={{ width: '120px', height: '120px', animationDuration: '2s' }}></div>
 
-                                {/* Weather icons rotating */}
+                                {/* Gemini icon flipping */}
                                 <div className="relative flex items-center justify-center" style={{ width: '120px', height: '120px' }}>
-                                    <div className="absolute animate-spin" style={{ animationDuration: '4s' }}>
-                                        <Sun className="w-10 h-10 text-yellow-400" />
-                                    </div>
-                                    <div className="absolute animate-spin" style={{ animationDuration: '4s', animationDelay: '-1s' }}>
-                                        <Cloud className="w-10 h-10 text-blue-300" />
-                                    </div>
-                                    <div className="absolute animate-spin" style={{ animationDuration: '4s', animationDelay: '-2s' }}>
-                                        <CloudRain className="w-10 h-10 text-cyan-400" />
-                                    </div>
-                                    <div className="absolute animate-spin" style={{ animationDuration: '4s', animationDelay: '-3s' }}>
-                                        <Wind className="w-10 h-10 text-emerald-400" />
+                                    <div
+                                        className="gemini-flip-animation"
+                                        style={{
+                                            transformStyle: 'preserve-3d',
+                                        }}
+                                    >
+                                        <Gemini.Color size={64} />
                                     </div>
                                 </div>
                             </div>
+
+                            {/* 3D flip animation */}
+                            <style>{`
+                                .gemini-flip-animation {
+                                    animation: flip3d 2s ease-in-out infinite;
+                                }
+                                
+                                @keyframes flip3d {
+                                    0% {
+                                        transform: rotateY(0deg);
+                                    }
+                                    100% {
+                                        transform: rotateY(360deg);
+                                    }
+                                }
+                            `}</style>
 
                             <div className="text-center space-y-2">
                                 <p className="text-lg font-semibold text-white flex items-center gap-2 justify-center">
@@ -919,11 +932,27 @@ export function TerminalInsightsPanel({
                                                                                 </div>
                                                                                 <div className="col-span-2">
                                                                                     <span style={{ color: '#a1a1aa' }}>Resources Used:</span>
-                                                                                    <p style={{ color: '#fff', marginTop: '2px' }}>{record.resourcesUsed || 'N/A'}</p>
+                                                                                    <p style={{ color: '#fff', marginTop: '2px' }}>
+                                                                                        {Array.isArray(record.resourcesUsed)
+                                                                                            ? record.resourcesUsed.map((r: any) =>
+                                                                                                typeof r === 'object' ? `${r.name} (${r.quantity})` : r
+                                                                                            ).join(', ')
+                                                                                            : typeof record.resourcesUsed === 'object' && record.resourcesUsed !== null
+                                                                                                ? JSON.stringify(record.resourcesUsed)
+                                                                                                : record.resourcesUsed || 'N/A'}
+                                                                                    </p>
                                                                                 </div>
                                                                                 <div className="col-span-2">
                                                                                     <span style={{ color: '#a1a1aa' }}>Actions Taken:</span>
-                                                                                    <p style={{ color: '#fff', marginTop: '2px' }}>{record.actionsTaken || 'N/A'}</p>
+                                                                                    <p style={{ color: '#fff', marginTop: '2px' }}>
+                                                                                        {Array.isArray(record.actionsTaken)
+                                                                                            ? record.actionsTaken.map((a: any) =>
+                                                                                                typeof a === 'object' ? `${a.name} (${a.quantity})` : a
+                                                                                            ).join(', ')
+                                                                                            : typeof record.actionsTaken === 'object' && record.actionsTaken !== null
+                                                                                                ? JSON.stringify(record.actionsTaken)
+                                                                                                : record.actionsTaken || 'N/A'}
+                                                                                    </p>
                                                                                 </div>
                                                                                 <div>
                                                                                     <span style={{ color: '#a1a1aa' }}>Started:</span>

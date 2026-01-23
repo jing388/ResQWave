@@ -72,12 +72,6 @@ function VisualizationContent() {
     totalAlerts: number;
   } | null>(null);
 
-  // AI floating button handler
-  const handleAIFloatClick = () => {
-    setSelectedTerminal({ terminalID: "ai-gemini", terminalName: "AI Gemini" });
-    setInsightsPanelOpen(true);
-  };
-
   // Rescue Form Alerts ref
   const rescueFormAlertsRef = useRef<RescueFormAlertsHandle>(null);
 
@@ -863,61 +857,6 @@ function VisualizationContent() {
           setTerminalPopover(null);
         }}
       />
-
-      {/* AI Floating Button - Bottom Left */}
-      <div
-        style={{
-          position: "absolute",
-          left: 21,
-          bottom: 85,
-          zIndex: 50,
-        }}
-      >
-        <button
-          aria-label="AI Decision Support"
-          onClick={handleAIFloatClick}
-          className="gemini-button"
-          style={{
-            width: 56,
-            height: 56,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            border: "none",
-            background: "transparent",
-            cursor: "pointer",
-            padding: 0,
-            perspective: "1000px",
-          }}
-        >
-          <div
-            className="gemini-icon"
-            style={{
-              transformStyle: "preserve-3d",
-              transition: "transform 0.6s ease-in-out",
-              cursor: "pointer",
-            }}
-          >
-            <Gemini.Color size={56} />
-          </div>
-        </button>
-      </div>
-
-      {/* 3D flip animation on hover */}
-      <style>{`
-        .gemini-button:hover .gemini-icon {
-          animation: flip3d 1.2s ease-in-out;
-        }
-        
-        @keyframes flip3d {
-          0% {
-            transform: rotateY(0deg);
-          }
-          100% {
-            transform: rotateY(360deg);
-          }
-        }
-      `}</style>
 
       {/* Terminal Insights Panel */}
       {selectedTerminal && (
