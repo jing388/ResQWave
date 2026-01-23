@@ -270,15 +270,17 @@ export function TerminalInsightsPanel({
             if (foundCoordinates && lat && lon) {
                 queryParams = `?lat=${lat}&lon=${lon}`;
                 console.log('📍 Using terminal coordinates:', { lat, lon });
+                
+                // Only fetch weather if we have coordinates
+                const response = await apiFetch<{ status: string; data: WeatherData }>(`/api/weather/complete${queryParams}`);
+                console.log('✅ Weather data received:', response);
+                if (response.status === 'success') {
+                    setWeatherData(response.data);
+                }
             } else {
                 setNoCoordinates(true);
-                console.log('⚠️ No coordinates found - using default location');
-            }
-
-            const response = await apiFetch<{ status: string; data: WeatherData }>(`/api/weather/complete${queryParams}`);
-            console.log('✅ Weather data received:', response);
-            if (response.status === 'success') {
-                setWeatherData(response.data);
+                setWeatherData(null); // Clear any previous weather data
+                console.log('⚠️ No coordinates found - not fetching weather data');
             }
         } catch (err) {
             console.error('❌ Error fetching weather data:', err);
@@ -486,22 +488,26 @@ export function TerminalInsightsPanel({
                         <div className="flex items-center justify-center h-full text-muted-foreground">
                             <p>{error}</p>
                         </div>
-                    ) : weatherData ? (
-                        <>
-                            {/* Warning message if no coordinates */}
-                            {noCoordinates && (
-                                <div className="mb-4 bg-yellow-900/20 border border-yellow-700/50 rounded-lg p-3 flex items-start gap-3">
-                                    <AlertTriangle className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" />
+                    ) : noCoordinates ? (
+                        <div className="flex items-center justify-center h-full">
+                            <div className="bg-yellow-900/20 border border-yellow-700/50 rounded-lg p-6 max-w-md">
+                                <div className="flex items-start gap-4">
+                                    <AlertTriangle className="w-8 h-8 text-yellow-500 flex-shrink-0" />
                                     <div className="flex-1">
-                                        <p className="text-sm font-medium text-yellow-500">No Location Coordinates</p>
-                                        <p className="text-xs text-yellow-200/70 mt-1">
-                                            This terminal has no GPS coordinates. Showing weather for default location (Caloocan City Bagong Silang).
-                                            Please update the terminal's address with coordinates for accurate weather data.
+                                        <p className="text-lg font-semibold text-yellow-500 mb-2">No Location Coordinates</p>
+                                        <p className="text-sm text-yellow-200/70">
+                                            This terminal does not have GPS coordinates configured. 
+                                            Weather data cannot be displayed without location information.
+                                        </p>
+                                        <p className="text-sm text-yellow-200/70 mt-3">
+                                            Please update the terminal's address with valid coordinates to enable weather forecasting.
                                         </p>
                                     </div>
                                 </div>
-                            )}
-
+                            </div>
+                        </div>
+                    ) : weatherData ? (
+                        <>
                             <div className="flex flex-row gap-4">
                                 {/* Left: Stats, Hourly, Temp Trend stacked */}
                                 <div className="flex flex-row gap-4">
