@@ -224,9 +224,9 @@ export function ChatbotDrawer({ isOpen, onClose }: ChatbotDrawerProps) {
           console.error("Quick actions error:", err);
         }
       })();
-    } catch (error: any) {
+    } catch (error: unknown) {
       // If user aborted, just stop typing without error message
-      if (error.name === 'AbortError') {
+      if (error instanceof Error && error.name === 'AbortError') {
         setIsTyping(false);
         return;
       }

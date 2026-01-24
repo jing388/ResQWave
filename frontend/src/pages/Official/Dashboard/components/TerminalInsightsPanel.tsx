@@ -24,10 +24,11 @@ import {
     MessageSquarePlus,
 } from "lucide-react";
 import { Gemini } from '@lobehub/icons';
-import { useEffect, useState, type ReactElement, useRef } from "react";
+import { useEffect, useState, useCallback, type ReactElement, useRef } from "react";
 import { apiFetch } from "@/lib/api";
-import { getRescueRecordsByTerminal, calculateRescueStats, type RescueRecord } from "../api/rescueRecordsApi";
+import { getRescueRecordsByTerminal, type RescueRecord } from "../api/rescueRecordsApi";
 import { getNeighborhoodByTerminalId } from "@/pages/Official/CommunityGroups/api/communityGroupApi";
+import type { CommunityGroupDetails } from "@/pages/Official/CommunityGroups/types";
 import { Area, AreaChart, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import {
     Select,
@@ -65,10 +66,6 @@ interface AIPrediction {
         equipmentSuggestions: string[];
         evacuationReadiness: string;
     };
-}
-
-interface WeatherIcon {
-    icon: string;
 }
 
 interface HourlyForecast {
@@ -204,7 +201,6 @@ export function TerminalInsightsPanel({
     const [error, setError] = useState<string | null>(null);
     const [noCoordinates, setNoCoordinates] = useState(false);
     const [rescueRecords, setRescueRecords] = useState<RescueRecord[]>([]);
-    const [rescueStats, setRescueStats] = useState({ totalRescues: 0, activityChange: 0 });
     const [loadingRescues, setLoadingRescues] = useState(false);
     const [timePeriod, setTimePeriod] = useState<'7days' | '2weeks' | '1month' | '3months' | 'all'>('7days');
     const [expandedRecord, setExpandedRecord] = useState<string | null>(null);
@@ -215,22 +211,47 @@ export function TerminalInsightsPanel({
     const [isGeneratingAI, setIsGeneratingAI] = useState(false);
     const [aiError, setAiError] = useState<string | null>(null);
     const [hasDataChanged, setHasDataChanged] = useState(false);
-    const [communityData, setCommunityData] = useState<any>(null);
+    const [communityData, setCommunityData] = useState<CommunityGroupDetails | null>(null);
     const [additionalContext, setAdditionalContext] = useState<string>('');
     const [showContextModal, setShowContextModal] = useState(false);
     const previousRescueRecordsRef = useRef<string>('');
 
     console.log('🎯 TerminalInsightsPanel rendered - isOpen:', isOpen, 'terminalID:', terminalID);
 
-    // Fetch rescue records when panel opens
-    useEffect(() => {
-        if (isOpen && terminalID) {
-            console.log('🌤️ Panel opened, fetching data...');
-            fetchRescueRecords();
-        }
-    }, [isOpen, terminalID]);
+    // Define fetch functions before they're used in useEffects
+    const fetchRescueRecords = useCallback(async () => {
+        console.log('📋 Fetching rescue records for terminal:', terminalID);
+        setLoadingRescues(true);
+        try {
+            const records = await getRescueRecordsByTerminal(terminalID);
+            console.log('✅ Rescue records received:', records);
+            console.log('🔍 First record data:', records[0]);
+            console.log('🔍 Personnel counts:', records.map(r => ({ id: r.emergencyId, personnel: r.noOfPersonnel })));
+            setRescueRecords(records);
 
-    const fetchWeatherData = async () => {
+            // Detect data changes for orange blinking dot
+            const newDataHash = JSON.stringify(records.map(r => r.emergencyId));
+            if (previousRescueRecordsRef.current && previousRescueRecordsRef.current !== newDataHash) {
+                setHasDataChanged(true);
+            }
+            previousRescueRecordsRef.current = newDataHash;
+        } catch (err) {
+            console.error('❌ Error fetching rescue records:', err);
+        } finally {
+            setLoadingRescues(false);
+        }
+    }, [terminalID]);
+
+    const fetchCommunityData = useCallback(async () => {
+        try {
+            const data = await getNeighborhoodByTerminalId(terminalID);
+            setCommunityData(data);
+        } catch (err) {
+            console.error('❌ Error fetching community data:', err);
+        }
+    }, [terminalID]);
+
+    const fetchWeatherData = useCallback(async () => {
         console.log('🌐 Starting weather API call...');
         const startTime = Date.now();
         setIsLoading(true);
@@ -264,7 +285,7 @@ export function TerminalInsightsPanel({
                             foundCoordinates = true;
                         }
                     }
-                } catch (e) {
+                } catch {
                     console.log('Could not parse houseAddress JSON');
                 }
             }
@@ -304,7 +325,29 @@ export function TerminalInsightsPanel({
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [communityData]);
+
+    // Fetch rescue records when panel opens
+    useEffect(() => {
+        if (isOpen && terminalID) {
+            console.log('🌤️ Panel opened, fetching data...');
+            fetchRescueRecords();
+        }
+    }, [isOpen, terminalID, fetchRescueRecords]);
+
+    // Fetch community data when terminal opens
+    useEffect(() => {
+        if (isOpen && terminalID) {
+            fetchCommunityData();
+        }
+    }, [isOpen, terminalID, fetchCommunityData]);
+
+    // Fetch weather when community data is available
+    useEffect(() => {
+        if (communityData) {
+            fetchWeatherData();
+        }
+    }, [communityData, fetchWeatherData]);
 
     const getDaysFromPeriod = (period: typeof timePeriod): number | null => {
         switch (period) {
@@ -323,54 +366,6 @@ export function TerminalInsightsPanel({
             case '1month': return 'Past Month';
             case '3months': return 'Past 3 Months';
             case 'all': return 'All Time';
-        }
-    };
-
-    const fetchRescueRecords = async () => {
-        console.log('📋 Fetching rescue records for terminal:', terminalID);
-        setLoadingRescues(true);
-        try {
-            const records = await getRescueRecordsByTerminal(terminalID);
-            console.log('✅ Rescue records received:', records);
-            console.log('🔍 First record data:', records[0]);
-            console.log('🔍 Personnel counts:', records.map(r => ({ id: r.emergencyId, personnel: r.noOfPersonnel })));
-            setRescueRecords(records);
-            const stats = calculateRescueStats(records);
-            setRescueStats(stats);
-
-            // Detect data changes for orange blinking dot
-            const newDataHash = JSON.stringify(records.map(r => r.emergencyId));
-            if (previousRescueRecordsRef.current && previousRescueRecordsRef.current !== newDataHash) {
-                setHasDataChanged(true);
-            }
-            previousRescueRecordsRef.current = newDataHash;
-        } catch (err) {
-            console.error('❌ Error fetching rescue records:', err);
-        } finally {
-            setLoadingRescues(false);
-        }
-    };
-
-    // Fetch community data when terminal opens
-    useEffect(() => {
-        if (isOpen && terminalID) {
-            fetchCommunityData();
-        }
-    }, [isOpen, terminalID]);
-
-    // Fetch weather when community data is available
-    useEffect(() => {
-        if (communityData) {
-            fetchWeatherData();
-        }
-    }, [communityData]);
-
-    const fetchCommunityData = async () => {
-        try {
-            const data = await getNeighborhoodByTerminalId(terminalID);
-            setCommunityData(data);
-        } catch (err) {
-            console.error('❌ Error fetching community data:', err);
         }
     };
 
@@ -397,17 +392,17 @@ export function TerminalInsightsPanel({
             });
 
             setAiPrediction(response.prediction);
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('❌ AI Prediction error:', err);
 
             // User-friendly error messages
             let errorMessage = 'Failed to generate prediction';
 
-            if (err.message.includes('overloaded') || err.message.includes('503')) {
+            if (err instanceof Error && (err.message.includes('overloaded') || err.message.includes('503'))) {
                 errorMessage = 'AI service is busy. Please wait 1-2 minutes and try again.';
-            } else if (err.message.includes('429') || err.message.includes('wait')) {
+            } else if (err instanceof Error && (err.message.includes('429') || err.message.includes('wait'))) {
                 errorMessage = 'Please wait a few seconds before generating another prediction.';
-            } else if (err.message) {
+            } else if (err instanceof Error && err.message) {
                 errorMessage = err.message;
             }
 
@@ -746,7 +741,7 @@ export function TerminalInsightsPanel({
                                                             stroke="url(#lineGradient)"
                                                             strokeWidth={2.5}
                                                             fill="url(#rainfallGradient)"
-                                                            dot={(props: any) => {
+                                                            dot={(props: { cx: number; cy: number; payload: { rainfall?: number } }) => {
                                                                 const { cx, cy, payload } = props;
                                                                 const rainfall = payload.rainfall || 0;
                                                                 const color = rainfall >= 67 ? '#ef4444' : rainfall >= 34 ? '#eab308' : '#22c55e';
@@ -761,7 +756,7 @@ export function TerminalInsightsPanel({
                                                                     />
                                                                 );
                                                             }}
-                                                            activeDot={(props: any) => {
+                                                            activeDot={(props: { cx: number; cy: number; payload: { rainfall?: number } }) => {
                                                                 const { cx, cy, payload } = props;
                                                                 const rainfall = payload.rainfall || 0;
                                                                 const color = rainfall >= 67 ? '#ef4444' : rainfall >= 34 ? '#eab308' : '#22c55e';
@@ -934,7 +929,7 @@ export function TerminalInsightsPanel({
                                                                                     <span style={{ color: '#a1a1aa' }}>Resources Used:</span>
                                                                                     <p style={{ color: '#fff', marginTop: '2px' }}>
                                                                                         {Array.isArray(record.resourcesUsed)
-                                                                                            ? record.resourcesUsed.map((r: any) =>
+                                                                                            ? record.resourcesUsed.map((r: { name?: string; quantity?: number } | string) =>
                                                                                                 typeof r === 'object' ? `${r.name} (${r.quantity})` : r
                                                                                             ).join(', ')
                                                                                             : typeof record.resourcesUsed === 'object' && record.resourcesUsed !== null
@@ -946,7 +941,7 @@ export function TerminalInsightsPanel({
                                                                                     <span style={{ color: '#a1a1aa' }}>Actions Taken:</span>
                                                                                     <p style={{ color: '#fff', marginTop: '2px' }}>
                                                                                         {Array.isArray(record.actionsTaken)
-                                                                                            ? record.actionsTaken.map((a: any) =>
+                                                                                            ? record.actionsTaken.map((a: { name?: string; quantity?: number } | string) =>
                                                                                                 typeof a === 'object' ? `${a.name} (${a.quantity})` : a
                                                                                             ).join(', ')
                                                                                             : typeof record.actionsTaken === 'object' && record.actionsTaken !== null

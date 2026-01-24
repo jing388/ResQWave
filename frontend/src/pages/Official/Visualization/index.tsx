@@ -9,7 +9,6 @@ import { useMapPins } from "../Dashboard/hooks/useMapPins";
 import { TerminalInsightsPanel } from "../Dashboard/components/TerminalInsightsPanel";
 import { MapPins } from "../Dashboard/components/MapPins";
 import { AdminPinPopover } from "../Dashboard/components/AdminPinPopover";
-import { Gemini } from '@lobehub/icons';
 
 import DistressSignalAlert, {
   type DistressSignalAlertHandle,

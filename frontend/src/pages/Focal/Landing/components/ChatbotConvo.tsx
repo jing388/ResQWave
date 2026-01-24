@@ -219,9 +219,9 @@ export function ChatbotConvo() {
           console.error("Quick actions error:", err);
         }
       })();
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Check if error was due to abort
-      if (error.name === 'AbortError') {
+      if (error instanceof Error && error.name === 'AbortError') {
         console.log("Request was aborted by user");
         setIsTyping(false);
         abortControllerRef.current = null;

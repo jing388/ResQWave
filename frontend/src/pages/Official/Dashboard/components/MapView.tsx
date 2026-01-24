@@ -8,7 +8,6 @@ import { AdminPinPopover } from "./AdminPinPopover";
 import MapControls from "./MapControls";
 import { MapPins } from "./MapPins";
 import { TerminalInsightsPanel } from "./TerminalInsightsPanel";
-import { Gemini } from '@lobehub/icons';
 
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN;
 
