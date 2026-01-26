@@ -687,28 +687,107 @@ export function ReportsTable({
             </Select>
           </div>
           <div className="flex items-center space-x-1">
-            {Array.from(
-              { length: Math.min(3, table.getPageCount()) },
-              (_, i) => {
-                const pageNumber = i + 1;
-                const isCurrentPage =
-                  table.getState().pagination.pageIndex + 1 === pageNumber;
-                return (
+            {(() => {
+              const totalPages = table.getPageCount();
+              const currentPage = table.getState().pagination.pageIndex + 1;
+              const pageButtons = [];
+
+              if (totalPages <= 7) {
+                // Show all pages if 7 or fewer
+                for (let i = 1; i <= totalPages; i++) {
+                  const isCurrentPage = currentPage === i;
+                  pageButtons.push(
+                    <Button
+                      key={i}
+                      variant={isCurrentPage ? "default" : "outline"}
+                      className={
+                        isCurrentPage
+                          ? "h-8 w-8 bg-[#4285f4] text-white hover:bg-[#3367d6]"
+                          : "h-8 w-8 bg-transparent border-[#404040] text-[#a1a1a1] hover:bg-[#262626] hover:text-white"
+                      }
+                      onClick={() => table.setPageIndex(i - 1)}
+                    >
+                      {i}
+                    </Button>
+                  );
+                }
+              } else {
+                // Show smart pagination with ellipsis for more than 7 pages
+                // Always show first page
+                pageButtons.push(
                   <Button
-                    key={pageNumber}
-                    variant={isCurrentPage ? "default" : "outline"}
+                    key={1}
+                    variant={currentPage === 1 ? "default" : "outline"}
                     className={
-                      isCurrentPage
+                      currentPage === 1
                         ? "h-8 w-8 bg-[#4285f4] text-white hover:bg-[#3367d6]"
                         : "h-8 w-8 bg-transparent border-[#404040] text-[#a1a1a1] hover:bg-[#262626] hover:text-white"
                     }
-                    onClick={() => table.setPageIndex(pageNumber - 1)}
+                    onClick={() => table.setPageIndex(0)}
                   >
-                    {pageNumber}
+                    1
                   </Button>
                 );
-              },
-            )}
+
+                // Show ellipsis if current page is far from start
+                if (currentPage > 3) {
+                  pageButtons.push(
+                    <span key="ellipsis-start" className="px-2 text-[#a1a1a1]">
+                      ...
+                    </span>
+                  );
+                }
+
+                // Show pages around current page
+                const startPage = Math.max(2, currentPage - 1);
+                const endPage = Math.min(totalPages - 1, currentPage + 1);
+
+                for (let i = startPage; i <= endPage; i++) {
+                  const isCurrentPage = currentPage === i;
+                  pageButtons.push(
+                    <Button
+                      key={i}
+                      variant={isCurrentPage ? "default" : "outline"}
+                      className={
+                        isCurrentPage
+                          ? "h-8 w-8 bg-[#4285f4] text-white hover:bg-[#3367d6]"
+                          : "h-8 w-8 bg-transparent border-[#404040] text-[#a1a1a1] hover:bg-[#262626] hover:text-white"
+                      }
+                      onClick={() => table.setPageIndex(i - 1)}
+                    >
+                      {i}
+                    </Button>
+                  );
+                }
+
+                // Show ellipsis if current page is far from end
+                if (currentPage < totalPages - 2) {
+                  pageButtons.push(
+                    <span key="ellipsis-end" className="px-2 text-[#a1a1a1]">
+                      ...
+                    </span>
+                  );
+                }
+
+                // Always show last page
+                pageButtons.push(
+                  <Button
+                    key={totalPages}
+                    variant={currentPage === totalPages ? "default" : "outline"}
+                    className={
+                      currentPage === totalPages
+                        ? "h-8 w-8 bg-[#4285f4] text-white hover:bg-[#3367d6]"
+                        : "h-8 w-8 bg-transparent border-[#404040] text-[#a1a1a1] hover:bg-[#262626] hover:text-white"
+                    }
+                    onClick={() => table.setPageIndex(totalPages - 1)}
+                  >
+                    {totalPages}
+                  </Button>
+                );
+              }
+
+              return pageButtons;
+            })()}
           </div>
           <Button
             variant="outline"

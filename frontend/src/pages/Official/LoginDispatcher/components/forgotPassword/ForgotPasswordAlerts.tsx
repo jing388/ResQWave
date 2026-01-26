@@ -1,5 +1,5 @@
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { CheckCircle2Icon, KeyRound, Mail, ShieldCheck } from "lucide-react";
+import { AlertCircle, CheckCircle2Icon, KeyRound, Mail, ShieldCheck } from "lucide-react";
 import {
   forwardRef,
   useEffect,
@@ -201,10 +201,11 @@ export default forwardRef<ForgotPasswordAlertsHandle>(
         >
           <Alert className="min-w-[280px] max-w-[600px] bg-[#171717] border border-red-600/50 text-white rounded-[5px] !items-center !grid-cols-[auto_1fr] !gap-x-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-[5px] bg-red-600/25">
-              <AlertDescription className="text-[13px] leading-tight text-red-200">
-                <span className="font-medium">Error:</span> {errorMessage}
-              </AlertDescription>
+              <AlertCircle className="size-5 text-red-400" />
             </div>
+            <AlertDescription className="text-[13px] leading-tight text-red-200">
+              <span className="font-medium">Error:</span> {errorMessage}
+            </AlertDescription>
           </Alert>
         </div>
       </>

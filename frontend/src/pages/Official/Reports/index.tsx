@@ -8,7 +8,7 @@ import { useReports } from "./hooks/useReports";
 
 export function Reports() {
   const { isAdmin } = useAuth();
-  const [activeTab, setActiveTab] = useState("completed");
+  const [activeTab, setActiveTab] = useState(isAdmin() ? "archive" : "pending");
   const alertsRef = useRef<ReportAlertsHandle>(null);
   const {
     pendingReports,
@@ -139,19 +139,10 @@ export function Reports() {
               <div className="flex items-center gap-3">
                 <Tabs
                   value={activeTab}
-                  defaultValue="completed"
+                  defaultValue={isAdmin() ? "archive" : "pending"}
                   onValueChange={setActiveTab}
                 >
                   <TabsList>
-                    <TabsTrigger
-                      value="completed"
-                      className="text-white text-base px-6 py-2 rounded transition-colors cursor-pointer hover:bg-[#333333]"
-                    >
-                      Completed
-                      <span className="ml-2 px-2 py-0.5 bg-[#707070] rounded text-xs">
-                        {completedReports.length}
-                      </span>
-                    </TabsTrigger>
                     <TabsTrigger
                       value={isAdmin() ? "archive" : "pending"}
                       className="text-white text-base px-6 py-2 rounded transition-colors cursor-pointer hover:bg-[#333333]"
@@ -161,6 +152,15 @@ export function Reports() {
                         {isAdmin()
                           ? archivedReports.length
                           : pendingReports.length}
+                      </span>
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="completed"
+                      className="text-white text-base px-6 py-2 rounded transition-colors cursor-pointer hover:bg-[#333333]"
+                    >
+                      Completed
+                      <span className="ml-2 px-2 py-0.5 bg-[#707070] rounded text-xs">
+                        {completedReports.length}
                       </span>
                     </TabsTrigger>
                   </TabsList>
