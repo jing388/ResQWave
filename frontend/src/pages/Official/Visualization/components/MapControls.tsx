@@ -1,12 +1,12 @@
 import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
 } from "@/components/ui/popover-focal";
 import {
-    Tooltip,
-    TooltipContent,
-    TooltipTrigger,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
 } from "@/components/ui/tooltip-white";
 import { Layers, Minus, PanelRight, Plus, Waves } from "lucide-react";
 import { useState } from "react";
@@ -31,7 +31,9 @@ export default function MapControls({
     if (!map) return;
 
     const newVisibility = !heatmapVisible;
-    setHeatmapVisible(newVisibility);
+    if (setHeatmapVisible) {
+      setHeatmapVisible(newVisibility);
+    }
 
     // Toggle visibility of flood polygon layers
     const floodLayerIds = ["flood-polygons-metro-manila"];
