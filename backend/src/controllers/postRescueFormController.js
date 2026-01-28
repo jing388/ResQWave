@@ -11,12 +11,12 @@ const { NotFoundError, BadRequestError } = require("../exceptions");
 
 // CREATE POST RESCUE FORM
 const createPostRescueForm = catchAsync(async (req, res, next) => {
-    const {alertID} = req.params;
-    const { noOfPersonnelDeployed, resourcesUsed, actionTaken} = req.body;
+    const { alertID } = req.params;
+    const { noOfPersonnelDeployed, resourcesUsed, actionTaken } = req.body;
 
     // Check if the Alert Exist
     const alert = await alertRepo.findOne({
-        where: {id: alertID},
+        where: { id: alertID },
         relations: ["terminal"]
     });
     if (!alert) return next(new NotFoundError("Alert Not Found"));
@@ -26,13 +26,13 @@ const createPostRescueForm = catchAsync(async (req, res, next) => {
         return next(new BadRequestError("Please Dispatched a Rescue Team First"));
     }
 
-    const rescueForm = await rescueFormRepo.findOne({ where: {emergencyID: alertID} });
+    const rescueForm = await rescueFormRepo.findOne({ where: { emergencyID: alertID } });
     if (!rescueForm) {
         return next(new BadRequestError("Rescue Form Not Found"));
     }
-        
+
     // Prevent Duplication
-    const existing = await postRescueRepo.findOne({where: {alertID} });
+    const existing = await postRescueRepo.findOne({ where: { alertID } });
     if (existing) return next(new BadRequestError("Post Rescue Form Already Exists"));
 
     // Create the Post Rescue Form
@@ -91,45 +91,45 @@ const createPostRescueForm = catchAsync(async (req, res, next) => {
     await deleteCache(`aggregatedPRF:${alertID}`);
     await deleteCache("adminDashboardStats");
 
-    return res.status(201).json({message: "Post Rescue Form Created", newForm});
+    return res.status(201).json({ message: "Post Rescue Form Created", newForm });
 });
 
 // GET Completed Reports
 const getCompletedReports = catchAsync(async (req, res, next) => {
-  const cacheKey = "completedReports";
+    const cacheKey = "completedReports";
     const bypassCache = req.query.refresh === 'true';
-    
+
     // Check cache only if not bypassing
     if (!bypassCache) {
-      const cached = await getCache(cacheKey);
-      if (cached) {
-        res.set('Cache-Control', 'public, max-age=300');
-        return res.json(cached);
-      }
+        const cached = await getCache(cacheKey);
+        if (cached) {
+            res.set('Cache-Control', 'public, max-age=300');
+            return res.json(cached);
+        }
     }
 
     const reports = await alertRepo
-      .createQueryBuilder("alert")
-      .leftJoin("alert.terminal", "terminal")
-      .leftJoin("Neighborhood", "n", "n.terminalID = terminal.id")
-      .leftJoin("FocalPerson", "fp", "fp.id = n.focalPersonID")
-      .leftJoin("RescueForm", "rescueForm", "rescueForm.emergencyID = alert.id")
-      .leftJoin("Dispatcher", "dispatcher", "dispatcher.id = rescueForm.dispatcherID")
-      .leftJoin("PostRescueForm", "prf", "prf.alertID = alert.id")
-      .where("rescueForm.status = :status", { status: "Completed" })
-      .andWhere("(prf.archived IS NULL OR prf.archived = :archived)", { archived: false })
-      .select([
-        "alert.id AS \"alertId\"",
-        "terminal.name AS \"terminalName\"",
-        "rescueForm.originalAlertType AS \"alertType\"", // Use original alert type from rescue form
-        "dispatcher.name AS \"dispatcherName\"",
-        "rescueForm.status AS \"rescueStatus\"",
-        "alert.dateTimeSent AS \"createdAt\"",
-        "prf.completedAt AS \"completedAt\"",
-        "fp.address AS \"address\"",
-      ])
-      .orderBy("alert.dateTimeSent", "ASC")
-      .getRawMany();
+        .createQueryBuilder("alert")
+        .leftJoin("alert.terminal", "terminal")
+        .leftJoin("Neighborhood", "n", "n.terminalID = terminal.id")
+        .leftJoin("FocalPerson", "fp", "fp.id = n.focalPersonID")
+        .leftJoin("RescueForm", "rescueForm", "rescueForm.emergencyID = alert.id")
+        .leftJoin("Dispatcher", "dispatcher", "dispatcher.id = rescueForm.dispatcherID")
+        .leftJoin("PostRescueForm", "prf", "prf.alertID = alert.id")
+        .where("rescueForm.status = :status", { status: "Completed" })
+        .andWhere("(prf.archived IS NULL OR prf.archived = :archived)", { archived: false })
+        .select([
+            "alert.id AS \"alertId\"",
+            "terminal.name AS \"terminalName\"",
+            "rescueForm.originalAlertType AS \"alertType\"", // Use original alert type from rescue form
+            "dispatcher.name AS \"dispatcherName\"",
+            "rescueForm.status AS \"rescueStatus\"",
+            "alert.dateTimeSent AS \"createdAt\"",
+            "prf.completedAt AS \"completedAt\"",
+            "fp.address AS \"address\"",
+        ])
+        .orderBy("alert.dateTimeSent", "ASC")
+        .getRawMany();
 
     // Update cache with fresh data (shorter TTL for faster refresh after new reports)
     await setCache(cacheKey, reports, 30);
@@ -138,70 +138,70 @@ const getCompletedReports = catchAsync(async (req, res, next) => {
 });
 
 const getPendingReports = catchAsync(async (req, res, next) => {
-  const cacheKey = "pendingReports";
+    const cacheKey = "pendingReports";
     const bypassCache = req.query.refresh === 'true';
-    
+
     // Check cache only if not bypassing
     if (!bypassCache) {
-      const cached = await getCache(cacheKey);
-      if (cached) {
-        res.set('Cache-Control', 'public, max-age=300');
-        return res.json(cached);
-      }
+        const cached = await getCache(cacheKey);
+        if (cached) {
+            res.set('Cache-Control', 'public, max-age=300');
+            return res.json(cached);
+        }
     }
 
     const pending = await alertRepo
-      .createQueryBuilder("alert")
-      .leftJoin("alert.terminal", "terminal")
-      .leftJoin("Neighborhood", "n", "n.terminalID = terminal.id")
-      .leftJoin("FocalPerson", "fp", "fp.id = n.focalPersonID")
-      .leftJoin("RescueForm", "rescueForm", "rescueForm.emergencyID = alert.id")
-      .leftJoin("Dispatcher", "dispatcher", "dispatcher.id = rescueForm.dispatcherID")
-      .leftJoin("PostRescueForm", "prf", "prf.alertID = alert.id")
-      .where("rescueForm.id IS NOT NULL")
-      .andWhere("rescueForm.status = :status", { status: "Dispatched" })
-      .andWhere("prf.id IS NULL")
-      .select([
-        "alert.id AS \"alertId\"",
-        "terminal.name AS \"terminalName\"",
-        "rescueForm.originalAlertType AS \"alertType\"", // Use original alert type from rescue form
-        "dispatcher.name AS \"dispatcherName\"",
-        "rescueForm.status AS \"rescueStatus\"",
-        "alert.dateTimeSent AS \"createdAt\"",
-        "fp.address AS \"address\"",
-        "n.id AS \"neighborhoodId\"",
-        "fp.firstName AS \"focalFirstName\"",
-        "fp.lastName AS \"focalLastName\"",
-      ])
-      .orderBy("alert.dateTimeSent", "ASC")
-      .getRawMany();
+        .createQueryBuilder("alert")
+        .leftJoin("alert.terminal", "terminal")
+        .leftJoin("Neighborhood", "n", "n.terminalID = terminal.id")
+        .leftJoin("FocalPerson", "fp", "fp.id = n.focalPersonID")
+        .leftJoin("RescueForm", "rescueForm", "rescueForm.emergencyID = alert.id")
+        .leftJoin("Dispatcher", "dispatcher", "dispatcher.id = rescueForm.dispatcherID")
+        .leftJoin("PostRescueForm", "prf", "prf.alertID = alert.id")
+        .where("rescueForm.id IS NOT NULL")
+        .andWhere("rescueForm.status = :status", { status: "Dispatched" })
+        .andWhere("prf.id IS NULL")
+        .select([
+            "alert.id AS \"alertId\"",
+            "terminal.name AS \"terminalName\"",
+            "rescueForm.originalAlertType AS \"alertType\"", // Use original alert type from rescue form
+            "dispatcher.name AS \"dispatcherName\"",
+            "rescueForm.status AS \"rescueStatus\"",
+            "alert.dateTimeSent AS \"createdAt\"",
+            "fp.address AS \"address\"",
+            "n.id AS \"neighborhoodId\"",
+            "fp.firstName AS \"focalFirstName\"",
+            "fp.lastName AS \"focalLastName\"",
+        ])
+        .orderBy("alert.dateTimeSent", "ASC")
+        .getRawMany();
 
     // Parse address and extract coordinates from each report
     const reportsWithCoordinates = pending.map(report => {
-      let coordinates = "N/A";
-      let houseAddress = "N/A";
-      
-      if (report.address) {
-        try {
-          const parsedAddress = JSON.parse(report.address);
-          if (parsedAddress.coordinates) {
-            coordinates = parsedAddress.coordinates;
-          }
-          if (parsedAddress.address) {
-            houseAddress = parsedAddress.address;
-          }
-        } catch (e) {
-          // If parsing fails, use the raw address
-          houseAddress = report.address;
+        let coordinates = "N/A";
+        let houseAddress = "N/A";
+
+        if (report.address) {
+            try {
+                const parsedAddress = JSON.parse(report.address);
+                if (parsedAddress.coordinates) {
+                    coordinates = parsedAddress.coordinates;
+                }
+                if (parsedAddress.address) {
+                    houseAddress = parsedAddress.address;
+                }
+            } catch (e) {
+                // If parsing fails, use the raw address
+                houseAddress = report.address;
+            }
         }
-      }
-      
-      return {
-        ...report,
-        address: houseAddress,
-        coordinates: coordinates,
-        focalPersonName: [report.focalFirstName, report.focalLastName].filter(Boolean).join(" ") || "N/A",
-      };
+
+        return {
+            ...report,
+            address: houseAddress,
+            coordinates: coordinates,
+            focalPersonName: [report.focalFirstName, report.focalLastName].filter(Boolean).join(" ") || "N/A",
+        };
     });
 
     // Update cache with fresh data (balanced TTL for responsiveness)
@@ -213,115 +213,115 @@ const getPendingReports = catchAsync(async (req, res, next) => {
 // Aggregated
 // All of the Data in Document
 const getAggregatedRescueReports = catchAsync(async (req, res, next) => {
-  const { alertID } = req.query || {};
+    const { alertID } = req.query || {};
     const bypassCache = req.query.refresh === 'true';
     const cacheKey = alertID ? `aggregatedReports:${alertID}` : `aggregatedReports:all`;
-    
+
     // Check cache only if not bypassing
     if (!bypassCache) {
-      const cached = await getCache(cacheKey);
-      if (cached) return res.json(cached);
+        const cached = await getCache(cacheKey);
+        if (cached) return res.json(cached);
     }
 
     let qb = alertRepo
-      .createQueryBuilder("alert")
-      .leftJoin("RescueForm", "rf", "rf.emergencyID = alert.id")
-      .leftJoin("FocalPerson", "fp", "fp.id = rf.focalPersonID")
-      .leftJoin("Neighborhood", "n", "n.focalPersonID = fp.id")
-      .leftJoin("PostRescueForm", "prf", "prf.alertID = alert.id");
+        .createQueryBuilder("alert")
+        .leftJoin("RescueForm", "rf", "rf.emergencyID = alert.id")
+        .leftJoin("FocalPerson", "fp", "fp.id = rf.focalPersonID")
+        .leftJoin("Neighborhood", "n", "n.focalPersonID = fp.id")
+        .leftJoin("PostRescueForm", "prf", "prf.alertID = alert.id");
 
     if (alertID) {
-      qb = qb.where("alert.id = :alertID", { alertID })
-             .andWhere("rf.status = :rfStatus", { rfStatus: "Completed" })
-             .andWhere("prf.id IS NOT NULL");
+        qb = qb.where("alert.id = :alertID", { alertID })
+            .andWhere("rf.status = :rfStatus", { rfStatus: "Completed" })
+            .andWhere("prf.id IS NOT NULL");
     } else {
-      // Only include those with a RescueForm that is Completed and have a PostRescueForm
-      qb = qb.where("rf.status = :rfStatus", { rfStatus: "Completed" })
-             .andWhere("prf.id IS NOT NULL")
-             .andWhere("(prf.archived IS NULL OR prf.archived = :archived)", { archived: false });
+        // Only include those with a RescueForm that is Completed and have a PostRescueForm
+        qb = qb.where("rf.status = :rfStatus", { rfStatus: "Completed" })
+            .andWhere("prf.id IS NOT NULL")
+            .andWhere("(prf.archived IS NULL OR prf.archived = :archived)", { archived: false });
     }
 
     const rows = await qb
-      .select([
-        "n.id AS \"neighborhoodId\"",
-        "fp.firstName AS \"fpFirstName\"",
-        "fp.lastName AS \"fpLastName\"",
-        "fp.address AS \"fpAddress\"",
-        "fp.contactNumber AS \"fpContactNumber\"",
-        "alert.id AS \"alertId\"",
-        "rf.emergencyID AS \"emergencyId\"",
-        "rf.waterLevel AS \"waterLevel\"",
-        "rf.urgencyOfEvacuation AS \"urgencyOfEvacuation\"",
-        "rf.hazardPresent AS \"hazardPresent\"",
-        "rf.accessibility AS \"accessibility\"",
-        "rf.resourceNeeds AS \"resourceNeeds\"",
-        "rf.otherInformation AS \"otherInformation\"",
-        "rf.originalAlertType AS \"alertType\"", // Use original alert type from rescue form
-        "prf.createdAt AS \"prfCreatedAt\"",
-        "prf.completedAt AS \"prfCompletedAt\"",
-        "prf.noOfPersonnelDeployed AS \"noOfPersonnel\"",
-        "prf.resourcesUsed AS \"resourcesUsed\"",
-        "prf.actionTaken AS \"actionsTaken\"",
-      ])
-      .orderBy("alert.dateTimeSent", "DESC")
-      .getRawMany();
+        .select([
+            "n.id AS \"neighborhoodId\"",
+            "fp.firstName AS \"fpFirstName\"",
+            "fp.lastName AS \"fpLastName\"",
+            "fp.address AS \"fpAddress\"",
+            "fp.contactNumber AS \"fpContactNumber\"",
+            "alert.id AS \"alertId\"",
+            "rf.emergencyID AS \"emergencyId\"",
+            "rf.waterLevel AS \"waterLevel\"",
+            "rf.urgencyOfEvacuation AS \"urgencyOfEvacuation\"",
+            "rf.hazardPresent AS \"hazardPresent\"",
+            "rf.accessibility AS \"accessibility\"",
+            "rf.resourceNeeds AS \"resourceNeeds\"",
+            "rf.otherInformation AS \"otherInformation\"",
+            "rf.originalAlertType AS \"alertType\"", // Use original alert type from rescue form
+            "prf.createdAt AS \"prfCreatedAt\"",
+            "prf.completedAt AS \"prfCompletedAt\"",
+            "prf.noOfPersonnelDeployed AS \"noOfPersonnel\"",
+            "prf.resourcesUsed AS \"resourcesUsed\"",
+            "prf.actionTaken AS \"actionsTaken\"",
+        ])
+        .orderBy("alert.dateTimeSent", "DESC")
+        .getRawMany();
 
     const data = rows.map(r => {
-      const timeOfRescue = r.prfCreatedAt || null;
-      const completedAt = r.prfCompletedAt || null;
-      const rescueCompleted = !!completedAt;
+        const timeOfRescue = r.prfCreatedAt || null;
+        const completedAt = r.prfCompletedAt || null;
+        const rescueCompleted = !!completedAt;
 
-      let resourcesUsed = r.resourcesUsed;
-      if (typeof resourcesUsed === 'string') {
-          try {
-              resourcesUsed = JSON.parse(resourcesUsed);
-          } catch (e) {
-              // keep as string if parse fails
-          }
-      }
+        let resourcesUsed = r.resourcesUsed;
+        if (typeof resourcesUsed === 'string') {
+            try {
+                resourcesUsed = JSON.parse(resourcesUsed);
+            } catch (e) {
+                // keep as string if parse fails
+            }
+        }
 
-      let rescueCompletionTime = null;
-      if (timeOfRescue && completedAt) {
-        const start = new Date(timeOfRescue).getTime();
-        const end = new Date(completedAt).getTime();
-        const diffMs = Math.max(0, end - start);
-        // Format as HH:MM:SS
-        const totalSeconds = Math.floor(diffMs / 1000);
-        const hours = Math.floor(totalSeconds / 3600);
-        const minutes = Math.floor((totalSeconds % 3600) / 60);
-        const seconds = totalSeconds % 60;
-        const hh = String(hours).padStart(2, "0");
-        const mm = String(minutes).padStart(2, "0");
-        const ss = String(seconds).padStart(2, "0");
-        rescueCompletionTime = `${hh}:${mm}:${ss}`;
-      }
+        let rescueCompletionTime = null;
+        if (timeOfRescue && completedAt) {
+            const start = new Date(timeOfRescue).getTime();
+            const end = new Date(completedAt).getTime();
+            const diffMs = Math.max(0, end - start);
+            // Format as HH:MM:SS
+            const totalSeconds = Math.floor(diffMs / 1000);
+            const hours = Math.floor(totalSeconds / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const seconds = totalSeconds % 60;
+            const hh = String(hours).padStart(2, "0");
+            const mm = String(minutes).padStart(2, "0");
+            const ss = String(seconds).padStart(2, "0");
+            rescueCompletionTime = `${hh}:${mm}:${ss}`;
+        }
 
-      return {
-        neighborhoodId: r.neighborhoodId || null,
-        focalFirstName: r.fpFirstName || null,
-        focalLastName: r.fpLastName || null,
-        focalAddress: r.fpAddress || null,
-        focalContactNumber: r.fpContactNumber || null,
+        return {
+            neighborhoodId: r.neighborhoodId || null,
+            focalFirstName: r.fpFirstName || null,
+            focalLastName: r.fpLastName || null,
+            focalAddress: r.fpAddress || null,
+            focalContactNumber: r.fpContactNumber || null,
 
-        emergencyId: r.emergencyId || r.alertId || null,
-        alertId: r.alertId || r.emergencyId || null,
-        dateTimeOccurred: r.prfCreatedAt || null,
-        waterLevel: r.waterLevel || null,
-        urgencyOfEvacuation: r.urgencyOfEvacuation || null,
-        hazardPresent: r.hazardPresent || null,
-        accessibility: r.accessibility || null,
-        resourceNeeds: r.resourceNeeds || null,
-        otherInformation: r.otherInformation || null,
-        timeOfRescue, // PostRescueForm.createdAt
-        alertType: r.alertType || null,
-        completionDate: completedAt,
+            emergencyId: r.emergencyId || r.alertId || null,
+            alertId: r.alertId || r.emergencyId || null,
+            dateTimeOccurred: r.prfCreatedAt || null,
+            waterLevel: r.waterLevel || null,
+            urgencyOfEvacuation: r.urgencyOfEvacuation || null,
+            hazardPresent: r.hazardPresent || null,
+            accessibility: r.accessibility || null,
+            resourceNeeds: r.resourceNeeds || null,
+            otherInformation: r.otherInformation || null,
+            timeOfRescue, // PostRescueForm.createdAt
+            alertType: r.alertType || null,
+            completionDate: completedAt,
 
-        rescueCompleted,
-        rescueCompletionTime, // human (e.g., "1h 12m")
-        noOfPersonnel: r.noOfPersonnel || null,
-        resourcesUsed: resourcesUsed || null,
-        actionsTaken: r.actionsTaken || null,
-      };
+            rescueCompleted,
+            rescueCompletionTime, // human (e.g., "1h 12m")
+            noOfPersonnel: r.noOfPersonnel || null,
+            resourcesUsed: resourcesUsed || null,
+            actionsTaken: r.actionsTaken || null,
+        };
     });
 
     await setCache(cacheKey, data, 300);
@@ -331,8 +331,12 @@ const getAggregatedRescueReports = catchAsync(async (req, res, next) => {
 // Post Rescue Form
 // Complete Table 
 const getAggregatedPostRescueForm = catchAsync(async (req, res, next) => {
-    const { alertID } = req.query || {};
-    const cacheKey = alertID ? `aggregatedPRF:${alertID}` : `aggregatedPRF:all`;
+    const { alertID, terminalId } = req.query || {};
+    const cacheKey = alertID
+        ? `aggregatedPRF:${alertID}`
+        : terminalId
+            ? `aggregatedPRF:terminal:${terminalId}`
+            : `aggregatedPRF:all`;
     const cached = await getCache(cacheKey);
     if (cached) return res.json(cached);
 
@@ -348,6 +352,10 @@ const getAggregatedPostRescueForm = catchAsync(async (req, res, next) => {
         qb = qb.andWhere("prf.alertID = :alertID", { alertID });
     }
 
+    if (terminalId) {
+        qb = qb.andWhere("alert.terminalID = :terminalId", { terminalId });
+    }
+
     const rows = await qb
         .select([
             "rf.emergencyID AS \"emergencyId\"",
@@ -359,6 +367,12 @@ const getAggregatedPostRescueForm = catchAsync(async (req, res, next) => {
             "fp.address AS \"houseAddress\"",
             "dispatcher.name AS \"dispatchedName\"",
             "prf.completedAt AS \"completionDate\"",
+            "prf.noOfPersonnelDeployed AS \"noOfPersonnel\"",
+            "rf.waterLevel AS \"waterLevel\"",
+            "rf.urgencyOfEvacuation AS \"urgencyOfEvacuation\"",
+            "rf.hazardPresent AS \"hazardPresent\"",
+            "prf.resourcesUsed AS \"resourcesUsed\"",
+            "prf.actionTaken AS \"actionsTaken\"",
         ])
         .orderBy("prf.completedAt", "DESC")
         .getRawMany();
@@ -372,45 +386,45 @@ const clearReportsCache = catchAsync(async (req, res, next) => {
     await deleteCache("completedReports");
     await deleteCache("pendingReports");
     await deleteCache("rescueForms:all");
-    
+
     // Clear all aggregated cache keys that might exist
     const keys = [
         "aggregatedReports:all",
         "aggregatedPRF:all"
     ];
-    
+
     for (const key of keys) {
         await deleteCache(key);
     }
-    
+
     res.json({ message: "Reports cache cleared successfully" });
 });
 
 // Fix Data: Update RescueForm status to "Completed" for alerts with PostRescueForm records
 const fixRescueFormStatus = catchAsync(async (req, res, next) => {
     console.log('[FixData] Starting rescue form status fix...');
-    
+
     // Get all PostRescueForm records
     const postRescueForms = await postRescueRepo.find({
         select: ["alertID"]
     });
-    
+
     if (postRescueForms.length === 0) {
         return res.json({ message: "No PostRescueForm records found", fixed: 0 });
     }
-    
+
     const alertIds = postRescueForms.map(prf => prf.alertID);
     console.log('[FixData] Found PostRescueForm records for alerts:', alertIds);
-    
+
     // Find RescueForm records for these alerts that don't have status "Completed"
     const rescueFormsToUpdate = await rescueFormRepo
         .createQueryBuilder("rescueForm")
         .where("rescueForm.emergencyID IN (:...alertIds)", { alertIds })
         .andWhere("rescueForm.status != :status", { status: "Completed" })
         .getMany();
-        
+
     console.log('[FixData] Found rescue forms to update:', rescueFormsToUpdate.map(rf => ({ id: rf.id, emergencyID: rf.emergencyID, currentStatus: rf.status })));
-    
+
     // Update the status to "Completed"
     let updatedCount = 0;
     for (const rescueForm of rescueFormsToUpdate) {
@@ -419,12 +433,12 @@ const fixRescueFormStatus = catchAsync(async (req, res, next) => {
         updatedCount++;
         console.log(`[FixData] Updated RescueForm ${rescueForm.id} status to "Completed"`);
     }
-    
+
     // Clear cache after fixing data
     await deleteCache("completedReports");
     await deleteCache("pendingReports");
-    
-    res.json({ 
+
+    res.json({
         message: `Fixed ${updatedCount} rescue form statuses`,
         fixed: updatedCount,
         alertIds: alertIds
@@ -440,7 +454,7 @@ const migrateOriginalAlertTypes = catchAsync(async (req, res, next) => {
         .andWhere("alert.alertType IS NOT NULL")
         .select([
             "rf.id AS rescueFormId",
-            "rf.emergencyID AS alertId", 
+            "rf.emergencyID AS alertId",
             "alert.alertType AS currentAlertType"
         ])
         .getRawMany();
@@ -454,9 +468,9 @@ const migrateOriginalAlertTypes = catchAsync(async (req, res, next) => {
         updatedCount++;
     }
 
-    res.json({ 
+    res.json({
         message: `Migration completed: ${updatedCount} rescue forms updated with original alert types`,
-        updatedCount 
+        updatedCount
     });
 });
 
@@ -464,13 +478,13 @@ const migrateOriginalAlertTypes = catchAsync(async (req, res, next) => {
 const getAlertTypeChartData = catchAsync(async (req, res, next) => {
     const { timeRange = 'last3months' } = req.query;
     const cacheKey = `alertTypeChart:${timeRange}`;
-    
+
     console.log(`[AlertTypeChart] Processing request for timeRange: ${timeRange}`);
 
     // Calculate date range based on timeRange parameter
     const endDate = new Date();
     const startDate = new Date();
-    
+
     switch (timeRange) {
         case 'last6months':
             startDate.setMonth(endDate.getMonth() - 6);
@@ -521,148 +535,148 @@ const getAlertTypeChartData = catchAsync(async (req, res, next) => {
 
     // Generate chart data based on time range
     const chartData = [];
-        
-        if (timeRange === 'last3months') {
-            // For last 30 days, show weekly data points including today
-            const weeks = 5; // Show 5 weeks to include today
-            for (let i = 0; i < weeks; i++) {
-                const weekStart = new Date(startDate);
-                weekStart.setDate(startDate.getDate() + (i * 7));
-                const weekEnd = new Date(weekStart);
-                weekEnd.setDate(weekStart.getDate() + 6);
-                
-                // For the last week, make sure it includes today
-                if (i === weeks - 1) {
-                    weekEnd.setTime(endDate.getTime());
-                }
-                
-                const weekLabel = i === weeks - 1 ? 
-                    `Today (${endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })})` :
-                    weekStart.toLocaleDateString('en-US', { 
-                        month: 'short', 
-                        day: 'numeric' 
-                    });
 
-                // Count alerts in this week
-                let userInitiated = 0;
-                let critical = 0;
+    if (timeRange === 'last3months') {
+        // For last 30 days, show weekly data points including today
+        const weeks = 5; // Show 5 weeks to include today
+        for (let i = 0; i < weeks; i++) {
+            const weekStart = new Date(startDate);
+            weekStart.setDate(startDate.getDate() + (i * 7));
+            const weekEnd = new Date(weekStart);
+            weekEnd.setDate(weekStart.getDate() + 6);
 
-                alertData.forEach(item => {
-                    const alertDate = new Date(item.alertDate);
-                    if (alertDate >= weekStart && alertDate <= weekEnd) {
-                        const alertType = (item.alertType || '').toLowerCase();
-                        console.log(`[AlertTypeChart] Processing alert type: "${item.alertType}" on ${alertDate.toDateString()}`);
-                        
-                        if (alertType.includes('user') || alertType === 'user-initiated') {
-                            userInitiated++;
-                        } else if (alertType.includes('critical') || alertType === 'critical') {
-                            critical++;
-                        }
-                        // Note: If alertType doesn't match either category, it won't be counted
-                    }
-                });
-
-                console.log(`[AlertTypeChart] Week ${weekLabel}: userInitiated=${userInitiated}, critical=${critical}`);
-
-                chartData.push({
-                    date: weekLabel,
-                    userInitiated,
-                    critical
-                });
+            // For the last week, make sure it includes today
+            if (i === weeks - 1) {
+                weekEnd.setTime(endDate.getTime());
             }
-        } else if (timeRange === 'last6months') {
-            // For 6 months, show monthly data points including current month
-            for (let i = 0; i < 6; i++) {
-                const monthStart = new Date(startDate);
-                monthStart.setMonth(startDate.getMonth() + i);
-                monthStart.setDate(1);
-                
-                const monthEnd = new Date(monthStart);
-                monthEnd.setMonth(monthStart.getMonth() + 1);
-                monthEnd.setDate(0);
-                
-                // For the last month, make sure it includes today
-                if (i === 5) {
-                    monthEnd.setTime(endDate.getTime());
-                }
 
-                const monthLabel = i === 5 ?
-                    `${monthStart.toLocaleDateString('en-US', { month: 'short' })} (Current)` :
-                    monthStart.toLocaleDateString('en-US', { 
-                        month: 'short' 
-                    });
+            const weekLabel = i === weeks - 1 ?
+                `Today (${endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })})` :
+                weekStart.toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric'
+                });
 
-                // Count alerts in this month
-                let userInitiated = 0;
-                let critical = 0;
+            // Count alerts in this week
+            let userInitiated = 0;
+            let critical = 0;
 
-                alertData.forEach(item => {
-                    const alertDate = new Date(item.alertDate);
-                    if (alertDate >= monthStart && alertDate <= monthEnd) {
-                        const alertType = (item.alertType || '').toLowerCase();
-                        
-                        if (alertType.includes('user') || alertType === 'user-initiated') {
-                            userInitiated++;
-                        } else if (alertType.includes('critical') || alertType === 'critical') {
-                            critical++;
-                        }
+            alertData.forEach(item => {
+                const alertDate = new Date(item.alertDate);
+                if (alertDate >= weekStart && alertDate <= weekEnd) {
+                    const alertType = (item.alertType || '').toLowerCase();
+                    console.log(`[AlertTypeChart] Processing alert type: "${item.alertType}" on ${alertDate.toDateString()}`);
+
+                    if (alertType.includes('user') || alertType === 'user-initiated') {
+                        userInitiated++;
+                    } else if (alertType.includes('critical') || alertType === 'critical') {
+                        critical++;
                     }
-                });
-
-                chartData.push({
-                    date: monthLabel,
-                    userInitiated,
-                    critical
-                });
-            }
-        } else if (timeRange === 'lastyear') {
-            // For last year, show quarterly data points including current quarter
-            const quarters = ['Q1', 'Q2', 'Q3', 'Q4'];
-            const currentYear = endDate.getFullYear();
-            
-            for (let i = 0; i < 4; i++) {
-                const quarterStart = new Date(startDate);
-                quarterStart.setMonth(i * 3);
-                quarterStart.setDate(1);
-                
-                const quarterEnd = new Date(quarterStart);
-                quarterEnd.setMonth(quarterStart.getMonth() + 3);
-                quarterEnd.setDate(0);
-                
-                // For the current quarter, make sure it includes today
-                const currentQuarter = Math.floor(endDate.getMonth() / 3);
-                if (i === currentQuarter) {
-                    quarterEnd.setTime(endDate.getTime());
+                    // Note: If alertType doesn't match either category, it won't be counted
                 }
+            });
 
-                const quarterLabel = i === currentQuarter ?
-                    `${quarters[i]} ${currentYear} (Current)` :
-                    `${quarters[i]} ${quarterStart.getFullYear()}`;
+            console.log(`[AlertTypeChart] Week ${weekLabel}: userInitiated=${userInitiated}, critical=${critical}`);
 
-                // Count alerts in this quarter
-                let userInitiated = 0;
-                let critical = 0;
-
-                alertData.forEach(item => {
-                    const alertDate = new Date(item.alertDate);
-                    if (alertDate >= quarterStart && alertDate <= quarterEnd) {
-                        const alertType = (item.alertType || '').toLowerCase();
-                        
-                        if (alertType.includes('user') || alertType === 'user-initiated') {
-                            userInitiated++;
-                        } else if (alertType.includes('critical') || alertType === 'critical') {
-                            critical++;
-                        }
-                    }
-                });
-
-                chartData.push({
-                    date: quarterLabel,
-                    userInitiated,
-                    critical
-                });
-            }
+            chartData.push({
+                date: weekLabel,
+                userInitiated,
+                critical
+            });
         }
+    } else if (timeRange === 'last6months') {
+        // For 6 months, show monthly data points including current month
+        for (let i = 0; i < 6; i++) {
+            const monthStart = new Date(startDate);
+            monthStart.setMonth(startDate.getMonth() + i);
+            monthStart.setDate(1);
+
+            const monthEnd = new Date(monthStart);
+            monthEnd.setMonth(monthStart.getMonth() + 1);
+            monthEnd.setDate(0);
+
+            // For the last month, make sure it includes today
+            if (i === 5) {
+                monthEnd.setTime(endDate.getTime());
+            }
+
+            const monthLabel = i === 5 ?
+                `${monthStart.toLocaleDateString('en-US', { month: 'short' })} (Current)` :
+                monthStart.toLocaleDateString('en-US', {
+                    month: 'short'
+                });
+
+            // Count alerts in this month
+            let userInitiated = 0;
+            let critical = 0;
+
+            alertData.forEach(item => {
+                const alertDate = new Date(item.alertDate);
+                if (alertDate >= monthStart && alertDate <= monthEnd) {
+                    const alertType = (item.alertType || '').toLowerCase();
+
+                    if (alertType.includes('user') || alertType === 'user-initiated') {
+                        userInitiated++;
+                    } else if (alertType.includes('critical') || alertType === 'critical') {
+                        critical++;
+                    }
+                }
+            });
+
+            chartData.push({
+                date: monthLabel,
+                userInitiated,
+                critical
+            });
+        }
+    } else if (timeRange === 'lastyear') {
+        // For last year, show quarterly data points including current quarter
+        const quarters = ['Q1', 'Q2', 'Q3', 'Q4'];
+        const currentYear = endDate.getFullYear();
+
+        for (let i = 0; i < 4; i++) {
+            const quarterStart = new Date(startDate);
+            quarterStart.setMonth(i * 3);
+            quarterStart.setDate(1);
+
+            const quarterEnd = new Date(quarterStart);
+            quarterEnd.setMonth(quarterStart.getMonth() + 3);
+            quarterEnd.setDate(0);
+
+            // For the current quarter, make sure it includes today
+            const currentQuarter = Math.floor(endDate.getMonth() / 3);
+            if (i === currentQuarter) {
+                quarterEnd.setTime(endDate.getTime());
+            }
+
+            const quarterLabel = i === currentQuarter ?
+                `${quarters[i]} ${currentYear} (Current)` :
+                `${quarters[i]} ${quarterStart.getFullYear()}`;
+
+            // Count alerts in this quarter
+            let userInitiated = 0;
+            let critical = 0;
+
+            alertData.forEach(item => {
+                const alertDate = new Date(item.alertDate);
+                if (alertDate >= quarterStart && alertDate <= quarterEnd) {
+                    const alertType = (item.alertType || '').toLowerCase();
+
+                    if (alertType.includes('user') || alertType === 'user-initiated') {
+                        userInitiated++;
+                    } else if (alertType.includes('critical') || alertType === 'critical') {
+                        critical++;
+                    }
+                }
+            });
+
+            chartData.push({
+                date: quarterLabel,
+                userInitiated,
+                critical
+            });
+        }
+    }
 
     console.log(`[AlertTypeChart] Generated chart data:`, chartData);
 
@@ -674,10 +688,10 @@ const getAlertTypeChartData = catchAsync(async (req, res, next) => {
 // GET Detailed Report Data for PDF Generation
 const getDetailedReportData = catchAsync(async (req, res, next) => {
     const { alertId } = req.params;
-    
+
     console.log('[DetailedReport] Fetching data for alertId:', alertId);
     console.log('[DetailedReport] AlertId type:', typeof alertId);
-    
+
     if (!alertId || alertId === 'undefined' || alertId === 'null') {
         return next(new BadRequestError("Alert ID is required"));
     }
@@ -686,7 +700,7 @@ const getDetailedReportData = catchAsync(async (req, res, next) => {
     const alertExists = await alertRepo.findOne({ where: { id: alertId } });
     console.log('[DetailedReport] Alert exists:', !!alertExists);
     console.log('[DetailedReport] Alert data:', alertExists);
-    
+
     if (!alertExists) {
         console.log('[DetailedReport] Alert not found in database for ID:', alertId);
         return next(new NotFoundError(`Alert not found for ID: ${alertId}`));
@@ -695,54 +709,54 @@ const getDetailedReportData = catchAsync(async (req, res, next) => {
     // Get detailed report data using complex join query
     console.log('[DetailedReport] Building query for alertId:', alertId);
     const reportData = await alertRepo
-            .createQueryBuilder("alert")
-            .leftJoin("alert.terminal", "terminal")
-            .leftJoin("Neighborhood", "n", "n.terminalID = terminal.id")
-            .leftJoin("FocalPerson", "fp", "fp.id = n.focalPersonID")
-            .leftJoin("RescueForm", "rf", "rf.emergencyID = alert.id")
-            .leftJoin("Dispatcher", "dispatcher", "dispatcher.id = rf.dispatcherID")
-            .leftJoin("PostRescueForm", "prf", "prf.alertID = alert.id")
-            .where("alert.id = :alertId", { alertId })
-            .select([
-                // Alert information
-                "alert.id AS alertId",
-                "alert.alertType AS originalAlertType",
-                "alert.dateTimeSent AS dateTimeSent",
-                
-                // Terminal information
-                "terminal.name AS terminalName",
-                
-                // Neighborhood information
-                "n.id AS neighborhoodId",
-                
-                // Focal Person information
-                "fp.firstName AS focalFirstName",
-                "fp.lastName AS focalLastName",
-                "fp.address AS focalAddress",
-                "fp.contactNumber AS focalContactNumber",
-                
-                // Rescue Form information
-                "rf.id AS rescueFormId",
-                "rf.waterLevel AS waterLevel",
-                "rf.urgencyOfEvacuation AS urgencyOfEvacuation",
-                "rf.hazardPresent AS hazardPresent",
-                "rf.accessibility AS accessibility",
-                "rf.resourceNeeds AS resourceNeeds",
-                "rf.otherInformation AS otherInformation",
-                "rf.originalAlertType AS rescueFormAlertType",
-                
-                // Dispatcher information
-                "dispatcher.name AS dispatcherName",
-                
-                // Post Rescue Form information
-                "prf.id AS postRescueFormId",
-                "prf.noOfPersonnelDeployed AS noOfPersonnelDeployed",
-                "prf.resourcesUsed AS resourcesUsed",
-                "prf.actionTaken AS actionTaken",
-                "prf.completedAt AS completedAt",
-                "prf.createdAt AS prfCreatedAt"
-            ])
-            .getRawOne();
+        .createQueryBuilder("alert")
+        .leftJoin("alert.terminal", "terminal")
+        .leftJoin("Neighborhood", "n", "n.terminalID = terminal.id")
+        .leftJoin("FocalPerson", "fp", "fp.id = n.focalPersonID")
+        .leftJoin("RescueForm", "rf", "rf.emergencyID = alert.id")
+        .leftJoin("Dispatcher", "dispatcher", "dispatcher.id = rf.dispatcherID")
+        .leftJoin("PostRescueForm", "prf", "prf.alertID = alert.id")
+        .where("alert.id = :alertId", { alertId })
+        .select([
+            // Alert information
+            "alert.id AS alertId",
+            "alert.alertType AS originalAlertType",
+            "alert.dateTimeSent AS dateTimeSent",
+
+            // Terminal information
+            "terminal.name AS terminalName",
+
+            // Neighborhood information
+            "n.id AS neighborhoodId",
+
+            // Focal Person information
+            "fp.firstName AS focalFirstName",
+            "fp.lastName AS focalLastName",
+            "fp.address AS focalAddress",
+            "fp.contactNumber AS focalContactNumber",
+
+            // Rescue Form information
+            "rf.id AS rescueFormId",
+            "rf.waterLevel AS waterLevel",
+            "rf.urgencyOfEvacuation AS urgencyOfEvacuation",
+            "rf.hazardPresent AS hazardPresent",
+            "rf.accessibility AS accessibility",
+            "rf.resourceNeeds AS resourceNeeds",
+            "rf.otherInformation AS otherInformation",
+            "rf.originalAlertType AS rescueFormAlertType",
+
+            // Dispatcher information
+            "dispatcher.name AS dispatcherName",
+
+            // Post Rescue Form information
+            "prf.id AS postRescueFormId",
+            "prf.noOfPersonnelDeployed AS noOfPersonnelDeployed",
+            "prf.resourcesUsed AS resourcesUsed",
+            "prf.actionTaken AS actionTaken",
+            "prf.completedAt AS completedAt",
+            "prf.createdAt AS prfCreatedAt"
+        ])
+        .getRawOne();
 
     console.log('[DetailedReport] Query result:', reportData);
     console.log('[DetailedReport] Query result keys:', reportData ? Object.keys(reportData) : 'null');
@@ -766,49 +780,49 @@ const getDetailedReportData = catchAsync(async (req, res, next) => {
 
     // Format the response data (accessing lowercase property names from PostgreSQL)
     const formattedData = {
-            alertId: reportData.alertid,
-            emergencyId: reportData.alertid, // Using alertId as emergencyId for compatibility
-            
-            // Community & Terminal Information
-            neighborhoodId: reportData.neighborhoodid || 'N/A',
-            terminalName: reportData.terminalname || 'N/A',
-            focalPersonName: `${reportData.focalfirstname || ''} ${reportData.focallastname || ''}`.trim() || 'N/A',
-            focalPersonAddress: (() => {
-                // Parse the JSON address and extract just the address field
-                try {
-                    if (reportData.focaladdress && typeof reportData.focaladdress === 'string') {
-                        const parsed = JSON.parse(reportData.focaladdress);
-                        return parsed.address || reportData.focaladdress;
-                    }
-                    return reportData.focaladdress || 'N/A';
-                } catch (e) {
-                    // If parsing fails, return the original string
-                    return reportData.focaladdress || 'N/A';
+        alertId: reportData.alertid,
+        emergencyId: reportData.alertid, // Using alertId as emergencyId for compatibility
+
+        // Community & Terminal Information
+        neighborhoodId: reportData.neighborhoodid || 'N/A',
+        terminalName: reportData.terminalname || 'N/A',
+        focalPersonName: `${reportData.focalfirstname || ''} ${reportData.focallastname || ''}`.trim() || 'N/A',
+        focalPersonAddress: (() => {
+            // Parse the JSON address and extract just the address field
+            try {
+                if (reportData.focaladdress && typeof reportData.focaladdress === 'string') {
+                    const parsed = JSON.parse(reportData.focaladdress);
+                    return parsed.address || reportData.focaladdress;
                 }
-            })(),
-            focalPersonContactNumber: reportData.focalcontactnumber || 'N/A',
-            
-            // Emergency Context
-            waterLevel: reportData.waterlevel || 'N/A',
-            urgencyOfEvacuation: reportData.urgencyofevacuation || 'N/A',
-            hazardPresent: reportData.hazardpresent || 'N/A',
-            accessibility: reportData.accessibility || 'N/A',
-            resourceNeeds: reportData.resourceneeds || 'N/A',
-            otherInformation: reportData.otherinformation || 'N/A',
-            alertType: reportData.rescueformalerttype || reportData.originalalerttype || 'N/A',
-            timeOfRescue: reportData.prfcreatedat ? new Date(reportData.prfcreatedat).toLocaleTimeString() : 'N/A',
-            dateTimeOccurred: reportData.datetimesent ? new Date(reportData.datetimesent).toLocaleString() : 'N/A',
-            
-            // Dispatcher Information
-            dispatcherName: reportData.dispatchername || 'N/A',
-            
-            // Rescue Completion Details
-            rescueFormId: reportData.rescueformid || 'N/A',
-            postRescueFormId: reportData.postrescueformid || 'N/A',
-            noOfPersonnelDeployed: reportData.noofpersonneldeployed || 'N/A',
-            resourcesUsed: resourcesUsed || 'N/A',
-            actionTaken: reportData.actiontaken || 'N/A',
-            completedAt: reportData.completedat ? new Date(reportData.completedat).toLocaleString() : 'N/A',
+                return reportData.focaladdress || 'N/A';
+            } catch (e) {
+                // If parsing fails, return the original string
+                return reportData.focaladdress || 'N/A';
+            }
+        })(),
+        focalPersonContactNumber: reportData.focalcontactnumber || 'N/A',
+
+        // Emergency Context
+        waterLevel: reportData.waterlevel || 'N/A',
+        urgencyOfEvacuation: reportData.urgencyofevacuation || 'N/A',
+        hazardPresent: reportData.hazardpresent || 'N/A',
+        accessibility: reportData.accessibility || 'N/A',
+        resourceNeeds: reportData.resourceneeds || 'N/A',
+        otherInformation: reportData.otherinformation || 'N/A',
+        alertType: reportData.rescueformalerttype || reportData.originalalerttype || 'N/A',
+        timeOfRescue: reportData.prfcreatedat ? new Date(reportData.prfcreatedat).toLocaleTimeString() : 'N/A',
+        dateTimeOccurred: reportData.datetimesent ? new Date(reportData.datetimesent).toLocaleString() : 'N/A',
+
+        // Dispatcher Information
+        dispatcherName: reportData.dispatchername || 'N/A',
+
+        // Rescue Completion Details
+        rescueFormId: reportData.rescueformid || 'N/A',
+        postRescueFormId: reportData.postrescueformid || 'N/A',
+        noOfPersonnelDeployed: reportData.noofpersonneldeployed || 'N/A',
+        resourcesUsed: resourcesUsed || 'N/A',
+        actionTaken: reportData.actiontaken || 'N/A',
+        completedAt: reportData.completedat ? new Date(reportData.completedat).toLocaleString() : 'N/A',
         rescueCompletionTime: reportData.completedat ? new Date(reportData.completedat).toLocaleTimeString() : 'N/A'
     };
 
@@ -949,18 +963,18 @@ const deletePostRescueForm = catchAsync(async (req, res, next) => {
 });
 
 module.exports = {
-  createPostRescueForm,
-  getCompletedReports,
-  getPendingReports,
-  getAggregatedPostRescueForm,
-  getAggregatedRescueReports,
-  clearReportsCache,
-  migrateOriginalAlertTypes,
-  fixRescueFormStatus,
-  getAlertTypeChartData,
-  getDetailedReportData,
-  archivePostRescueForm,
-  restorePostRescueForm,
-  getArchivedPostRescueForm,
-  deletePostRescueForm,
+    createPostRescueForm,
+    getCompletedReports,
+    getPendingReports,
+    getAggregatedPostRescueForm,
+    getAggregatedRescueReports,
+    clearReportsCache,
+    migrateOriginalAlertTypes,
+    fixRescueFormStatus,
+    getAlertTypeChartData,
+    getDetailedReportData,
+    archivePostRescueForm,
+    restorePostRescueForm,
+    getArchivedPostRescueForm,
+    deletePostRescueForm,
 };

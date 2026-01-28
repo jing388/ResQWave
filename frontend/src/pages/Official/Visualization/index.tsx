@@ -5,6 +5,10 @@ import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { useEffect, useRef, useState } from "react";
 import { CommunityGroupInfoSheet } from "../CommunityGroups/components/CommunityGroupInfoSheet";
+import { useMapPins } from "../Dashboard/hooks/useMapPins";
+import { TerminalInsightsPanel } from "../Dashboard/components/TerminalInsightsPanel";
+import { MapPins } from "../Dashboard/components/MapPins";
+import { AdminPinPopover } from "../Dashboard/components/AdminPinPopover";
 
 import DistressSignalAlert, {
   type DistressSignalAlertHandle,
@@ -46,6 +50,26 @@ function VisualizationContent() {
   const { selectedWaitlistForm, setSelectedWaitlistForm, removeFromWaitlist } =
     useRescueWaitlist();
   const [showWaitlistPreview, setShowWaitlistPreview] = useState(false);
+
+  // Terminal pins data and state
+  const { pins: terminalPins, loading: pinsLoading } = useMapPins();
+  const [insightsPanelOpen, setInsightsPanelOpen] = useState(false);
+  const [selectedTerminal, setSelectedTerminal] = useState<{
+    terminalID: string;
+    terminalName: string;
+  } | null>(null);
+  const [terminalPopover, setTerminalPopover] = useState<{
+    lng: number;
+    lat: number;
+    screen: { x: number; y: number };
+    terminalID: string;
+    terminalName: string;
+    terminalStatus: string;
+    timeSent: string;
+    focalPerson: string;
+    contactNumber: string;
+    totalAlerts: number;
+  } | null>(null);
 
   // Rescue Form Alerts ref
   const rescueFormAlertsRef = useRef<RescueFormAlertsHandle>(null);
@@ -640,6 +664,10 @@ function VisualizationContent() {
         onShowDispatchAlert={handleShowDispatchAlert}
         onShowErrorAlert={handleShowErrorAlert}
         onShowDispatchConfirmation={handleShowDispatchConfirmation}
+        onOpenInsights={(terminalID, terminalName) => {
+          setSelectedTerminal({ terminalID, terminalName });
+          setInsightsPanelOpen(true);
+        }}
       />
 
       <MapControls
@@ -714,7 +742,7 @@ function VisualizationContent() {
       {/* Community Group Info Sheet */}
       <CommunityGroupInfoSheet
         open={infoSheetOpen}
-        onOpenChange={() => {}}
+        onOpenChange={() => { }}
         communityData={undefined}
       />
 
@@ -805,6 +833,42 @@ function VisualizationContent() {
 
       {/* Signal Status Legend */}
       <SignalStatusLegend />
+
+      {/* Terminal Pins - rendered when data is loaded */}
+      {!pinsLoading && (
+        <MapPins
+          map={mapRef.current}
+          pins={terminalPins}
+          mapContainer={mapContainer}
+          onPinClick={(popoverData) => {
+            setTerminalPopover(popoverData);
+          }}
+        />
+      )}
+
+      {/* Terminal Pin Popover */}
+      <AdminPinPopover
+        popover={terminalPopover}
+        onClose={() => setTerminalPopover(null)}
+        onOpenInsights={(terminalID, terminalName) => {
+          setSelectedTerminal({ terminalID, terminalName });
+          setInsightsPanelOpen(true);
+          setTerminalPopover(null);
+        }}
+      />
+
+      {/* Terminal Insights Panel */}
+      {selectedTerminal && (
+        <TerminalInsightsPanel
+          isOpen={insightsPanelOpen}
+          onClose={() => {
+            setInsightsPanelOpen(false);
+            setSelectedTerminal(null);
+          }}
+          terminalID={selectedTerminal.terminalID}
+          terminalName={selectedTerminal.terminalName}
+        />
+      )}
     </div>
   );
 }

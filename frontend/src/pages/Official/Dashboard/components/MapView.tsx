@@ -7,6 +7,7 @@ import { useMapPins } from "../hooks/useMapPins";
 import { AdminPinPopover } from "./AdminPinPopover";
 import MapControls from "./MapControls";
 import { MapPins } from "./MapPins";
+import { TerminalInsightsPanel } from "./TerminalInsightsPanel";
 
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN;
 
@@ -35,6 +36,13 @@ export function MapView() {
     focalPerson: string;
     contactNumber: string;
     totalAlerts: number;
+  } | null>(null);
+
+  // Terminal Insights Panel state
+  const [insightsPanelOpen, setInsightsPanelOpen] = useState(false);
+  const [selectedTerminal, setSelectedTerminal] = useState<{
+    terminalID: string;
+    terminalName: string;
   } | null>(null);
 
   // Ref to track popover for map move event
@@ -251,7 +259,7 @@ export function MapView() {
       mapRef.current = null;
       map.remove();
     };
-     
+
   }, []);
 
   // Update map layers when signals change
@@ -351,8 +359,12 @@ export function MapView() {
         popover={popover}
         onClose={() => setPopover(null)}
         onMoreInfo={() => {
-          console.log("[MapView] More info clicked for:", popover?.terminalID);
-          // TODO: Implement more info functionality
+          console.log("[MapView] More Info clicked for:", popover?.terminalID);
+          // TODO: Implement More Info functionality
+        }}
+        onOpenInsights={(terminalID: string, terminalName: string) => {
+          setSelectedTerminal({ terminalID, terminalName });
+          setInsightsPanelOpen(true);
         }}
       />
 
@@ -371,6 +383,16 @@ export function MapView() {
           onPinClick={(popoverData) => {
             setPopover(popoverData);
           }}
+        />
+      )}
+
+      {/* Terminal Insights Panel - slides up from bottom */}
+      {selectedTerminal && (
+        <TerminalInsightsPanel
+          isOpen={insightsPanelOpen}
+          onClose={() => setInsightsPanelOpen(false)}
+          terminalID={selectedTerminal.terminalID}
+          terminalName={selectedTerminal.terminalName}
         />
       )}
     </div>

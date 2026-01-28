@@ -49,6 +49,7 @@ export default function SignalPopover({
   onShowDispatchAlert,
   onShowErrorAlert,
   onShowDispatchConfirmation,
+  onOpenInsights,
 }: SignalPopupProps) {
   const { isRescueFormOpen, setIsRescueFormOpen } = useRescueForm();
   const { setIsLiveReportOpen } = useLiveReport();
@@ -297,9 +298,21 @@ export default function SignalPopover({
               <button
                 onClick={handleMoreInfo}
                 disabled={loadingCommunityData}
-                className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-4 py-2 rounded text-sm font-medium transition-colors"
+                className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-2 py-1.5 rounded text-sm font-medium transition-colors whitespace-nowrap"
               >
                 {loadingCommunityData ? "Loading..." : "More Info"}
+              </button>
+              <button
+                onClick={() => {
+                  if (onOpenInsights && popover?.deviceId) {
+                    // Use deviceId as terminalID for signal-based insights
+                    onOpenInsights(popover.deviceId, popover.title || popover.deviceId);
+                    setPopover(null); // Close popover when opening insights
+                  }
+                }}
+                className="flex-1 bg-green-600 hover:bg-green-700 text-white px-2 py-1.5 rounded text-sm font-medium transition-colors whitespace-nowrap"
+              >
+                AI Insights
               </button>
               <button
                 onClick={() => {
@@ -308,11 +321,10 @@ export default function SignalPopover({
                   }
                 }}
                 disabled={!isRescueNeeded}
-                className={`flex-1 px-4 py-2 rounded text-sm font-medium transition-colors ${
-                  isRescueNeeded
-                    ? "bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
-                    : "bg-gray-600 text-gray-400 cursor-not-allowed opacity-50"
-                }`}
+                className={`flex-1 px-2 py-1.5 rounded text-sm font-medium transition-colors whitespace-nowrap ${isRescueNeeded
+                  ? "bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
+                  : "bg-gray-600 text-gray-400 cursor-not-allowed opacity-50"
+                  }`}
                 title={
                   !isRescueNeeded
                     ? "Rescue form only available for Critical and User-Initiated alerts"

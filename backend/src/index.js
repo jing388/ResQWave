@@ -6,6 +6,7 @@ const http = require("http");
 const { setupSocket } = require("./realtime/socket");
 const authRoutes = require("./routes/authRoutes");
 const chatbotRoutes = require("./routes/chatbotRoutes");
+const aiPredictionRoutes = require("./routes/aiPredictionRoutes");
 const resetPasswordRoutes = require("./routes/resetPasswordRoutes");
 const dispatcherRoutes = require("./routes/dispatcherRoutes");
 const terminalRoutes = require("./routes/terminalRoutes");
@@ -25,6 +26,7 @@ const adminLogRoutes = require("./routes/adminLogRoutes");
 const adminDashboardRoutes = require("./routes/adminDashboardRoutes");
 const sensorDataRoutes = require("./routes/sensorDataRoutes");
 const lmsRoutes = require("./routes/lmsRoutes");
+const weatherRoutes = require("./routes/weatherRoutes");
 const { authMiddleware, requireRole } = require("./middleware/authMiddleware");
 const { getTerminalsForMap } = require("./controllers/terminalController");
 const { createCriticalAlert, createUserInitiatedAlert } = require("./controllers/alertController");
@@ -87,6 +89,9 @@ AppDataSource.initialize()
     // Chatbot (public) routes
     app.use("/chatbot", chatbotRoutes);
 
+    // Weather routes (public)
+    app.use("/api/weather", weatherRoutes);
+
     // Public endpoint for map data (landing page)
     app.get("/terminals/map", getTerminalsForMap);
 
@@ -112,12 +117,13 @@ AppDataSource.initialize()
     app.use("/profile", profileRoutes);
     app.use("/forms", rescueFormRoutes);
     app.use("/post", postRescueRoutes);
+    app.use("/ai/prediction", aiPredictionRoutes);
     app.use("/", graphRoutes);
     app.use("/", documentRoutes);
 
     // Handle 404
     app.use((req, res, next) => {
-        next(new NotFoundError(`Can't find ${req.originalUrl} on this server!`));
+      next(new NotFoundError(`Can't find ${req.originalUrl} on this server!`));
     });
 
     // Global Error Handler

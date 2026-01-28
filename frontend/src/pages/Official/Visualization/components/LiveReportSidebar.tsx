@@ -154,11 +154,10 @@ export default function LiveReportSidebar({
           <div className="mb-3">
             <Badge
               variant="outline"
-              className={`text-xs px-2 py-1 rounded-[3px] ${
-                signal.properties.alertType === "CRITICAL"
+              className={`text-xs px-2 py-1 rounded-[3px] ${signal.properties.alertType === "CRITICAL"
                   ? "border-red-500 text-red-500 bg-red-500/10"
                   : "border-yellow-500 text-yellow-500 bg-yellow-500/10"
-              }`}
+                }`}
             >
               {signal.properties.alertType}
             </Badge>
@@ -205,11 +204,10 @@ export default function LiveReportSidebar({
           <div className="mb-3">
             <Badge
               variant="outline"
-              className={`text-xs px-2 py-1 rounded-[3px] ${
-                form.alertType === "CRITICAL"
+              className={`text-xs px-2 py-1 rounded-[3px] ${form.alertType === "CRITICAL"
                   ? "border-red-500 text-red-500 bg-red-500/10"
                   : "border-yellow-500 text-yellow-500 bg-yellow-500/10"
-              }`}
+                }`}
             >
               {form.alertType === "CRITICAL" ? "Critical" : "User-Initiated"}
             </Badge>
@@ -284,9 +282,8 @@ export default function LiveReportSidebar({
 
   return (
     <div
-      className={`fixed top-0 right-0 h-full w-[400px] bg-[#171717] border-l border-[#2a2a2a] transform transition-transform duration-300 ease-in-out ${
-        isOpen ? "translate-x-0" : "translate-x-full"
-      }`}
+      className={`fixed top-0 right-0 h-full w-[400px] bg-[#171717] border-l border-[#2a2a2a] transform transition-transform duration-300 ease-in-out ${isOpen ? "translate-x-0" : "translate-x-full"
+        }`}
       style={{ zIndex: 50 }}
     >
       {/* Header */}
@@ -309,11 +306,10 @@ export default function LiveReportSidebar({
         <div className="flex gap-2 p-1 rounded-[5px] bg-[#262626]">
           <button
             onClick={() => setActiveTab("unassigned")}
-            className={`flex-1 rounded-[5px] h-8 px-4 transition-colors duration-200 flex items-center justify-center ${
-              activeTab === "unassigned"
+            className={`flex-1 rounded-[5px] h-8 px-4 transition-colors duration-200 flex items-center justify-center ${activeTab === "unassigned"
                 ? "bg-[#414141] text-white"
                 : "bg-transparent text-gray-300 hover:text-white hover:bg-[#333333]"
-            }`}
+              }`}
           >
             Unassigned
             <span className="ml-2 bg-[#606060] text-white text-xs px-2 py-1 rounded-full">
@@ -322,11 +318,10 @@ export default function LiveReportSidebar({
           </button>
           <button
             onClick={() => setActiveTab("waitlisted")}
-            className={`flex-1 rounded-[5px] h-8 px-4 transition-colors duration-200 flex items-center justify-center ${
-              activeTab === "waitlisted"
+            className={`flex-1 rounded-[5px] h-8 px-4 transition-colors duration-200 flex items-center justify-center ${activeTab === "waitlisted"
                 ? "bg-[#414141] text-white"
                 : "bg-transparent text-gray-300 hover:text-white hover:bg-[#333333]"
-            }`}
+              }`}
           >
             Waitlisted
             <span className="ml-2 bg-[#606060] text-white text-xs px-2 py-1 rounded-full">

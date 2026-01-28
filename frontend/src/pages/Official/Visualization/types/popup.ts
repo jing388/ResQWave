@@ -22,4 +22,6 @@ export type SignalPopupProps = {
     formData: unknown,
     onConfirm: () => void,
   ) => void;
+  // AI Insights handler
+  onOpenInsights?: (terminalID: string, terminalName: string) => void;
 };
