@@ -425,7 +425,7 @@ const adminDispatcherLogin = catchAsync(async (req, res, next) => {
           await dispatcherRepo.save(dispatcher);
           await sendLockoutEmail(dispatcher.email, dispatcher.name);
           return res.status(403).json({
-            message: `Too many failed attempts. Please try again after: ${dispatcher.lockUntil}`,
+            message: `Too many failed attempts. Account locked for 15 minutes.`,
           });
         }
         await dispatcherRepo.save(dispatcher);
