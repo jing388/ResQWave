@@ -216,6 +216,14 @@ export function TerminalInsightsPanel({
     const [showContextModal, setShowContextModal] = useState(false);
     const previousRescueRecordsRef = useRef<string>('');
 
+    // Frontend weather cache - stores weather data by terminalID
+    const weatherCacheRef = useRef<Map<string, { data: WeatherData; expiresAt: string }>>(new Map());
+
+    // IoT button test state
+    const [iotButtonBlinking, setIotButtonBlinking] = useState(false);
+    const [iotBlinkColor, setIotBlinkColor] = useState<'red' | 'orange'>('red');
+    const [iotTestResult, setIotTestResult] = useState<string | null>(null);
+
     console.log('🎯 TerminalInsightsPanel rendered - isOpen:', isOpen, 'terminalID:', terminalID);
 
     // Define fetch functions before they're used in useEffects
@@ -252,7 +260,27 @@ export function TerminalInsightsPanel({
     }, [terminalID]);
 
     const fetchWeatherData = useCallback(async () => {
-        console.log('🌐 Starting weather API call...');
+        console.log('🌐 Starting weather fetch...');
+
+        // Check if we have valid cached data in frontend
+        const cachedEntry = weatherCacheRef.current.get(terminalID);
+        if (cachedEntry) {
+            const now = new Date();
+            const expiresAt = new Date(cachedEntry.expiresAt);
+
+            if (now < expiresAt) {
+                console.log('✅ Using FRONTEND cache for terminal', terminalID);
+                setWeatherData(cachedEntry.data);
+                setIsLoading(false);
+                setError(null);
+                setNoCoordinates(false);
+                return; // Skip API call
+            } else {
+                console.log('⏰ Frontend cache expired for terminal', terminalID);
+                weatherCacheRef.current.delete(terminalID);
+            }
+        }
+
         const startTime = Date.now();
         setIsLoading(true);
         setError(null);
@@ -291,14 +319,33 @@ export function TerminalInsightsPanel({
             }
 
             if (foundCoordinates && lat && lon) {
-                queryParams = `?lat=${lat}&lon=${lon}`;
-                console.log('📍 Using terminal coordinates:', { lat, lon });
+                queryParams = `?terminalID=${terminalID}&lat=${lat}&lon=${lon}`;
+                console.log('📍 Using terminal coordinates:', { terminalID, lat, lon });
 
-                // Only fetch weather if we have coordinates
-                const response = await apiFetch<{ status: string; data: WeatherData }>(`/api/weather/complete${queryParams}`);
+                // Fetch weather from backend (which also has caching)
+                const response = await apiFetch<{
+                    status: string;
+                    data: WeatherData;
+                    meta?: {
+                        cached: boolean;
+                        fetchedAt: string;
+                        expiresAt: string;
+                    }
+                }>(`/api/weather/complete${queryParams}`);
                 console.log('✅ Weather data received:', response);
+                console.log(`📦 Data source: ${response.meta?.cached ? 'BACKEND CACHE' : 'FRESH API CALL'}`);
+
                 if (response.status === 'success') {
                     setWeatherData(response.data);
+
+                    // Store in frontend cache if we have expiration info
+                    if (response.meta?.expiresAt) {
+                        weatherCacheRef.current.set(terminalID, {
+                            data: response.data,
+                            expiresAt: response.meta.expiresAt
+                        });
+                        console.log('💾 Stored in frontend cache until', response.meta.expiresAt);
+                    }
                 }
             } else {
                 setNoCoordinates(true);
@@ -325,7 +372,7 @@ export function TerminalInsightsPanel({
         } finally {
             setIsLoading(false);
         }
-    }, [communityData]);
+    }, [communityData, terminalID]);
 
     // Fetch rescue records when panel opens
     useEffect(() => {
@@ -333,21 +380,24 @@ export function TerminalInsightsPanel({
             console.log('🌤️ Panel opened, fetching data...');
             fetchRescueRecords();
         }
-    }, [isOpen, terminalID, fetchRescueRecords]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isOpen, terminalID]); // Intentionally exclude fetchRescueRecords to prevent double calls
 
     // Fetch community data when terminal opens
     useEffect(() => {
         if (isOpen && terminalID) {
             fetchCommunityData();
         }
-    }, [isOpen, terminalID, fetchCommunityData]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isOpen, terminalID]); // Intentionally exclude fetchCommunityData to prevent double calls
 
     // Fetch weather when community data is available
     useEffect(() => {
         if (communityData) {
             fetchWeatherData();
         }
-    }, [communityData, fetchWeatherData]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [communityData]); // Intentionally exclude fetchWeatherData to prevent double calls
 
     const getDaysFromPeriod = (period: typeof timePeriod): number | null => {
         switch (period) {
@@ -366,6 +416,92 @@ export function TerminalInsightsPanel({
             case '1month': return 'Past Month';
             case '3months': return 'Past 3 Months';
             case 'all': return 'All Time';
+        }
+    };
+
+    // IoT SOS Button Test - Simulates hardware button press
+    const testIoTButton = async () => {
+        if (iotButtonBlinking) return; // Prevent multiple clicks while blinking
+
+        console.log('🔴 IoT SOS Button Test - Checking weather risk...');
+        setIotTestResult(null);
+
+        try {
+            // Call the IoT weather check API
+            const response = await apiFetch<{
+                status: string;
+                allowAlert: boolean;
+                riskLevel: string;
+                reasons: string[];
+                weatherSummary: {
+                    currentCondition: string;
+                    rainProbability: number;
+                    windSpeed: number;
+                    isNightTime: boolean;
+                    recentAlerts: number;
+                };
+            }>(`/api/weather/iot/check?terminalID=${terminalID}`);
+
+            if (response.status === 'success') {
+                const { allowAlert, riskLevel, reasons, weatherSummary } = response;
+                
+                console.log(`📊 Risk Level: ${riskLevel}`);
+                console.log(`� Allow Alert: ${allowAlert}`);
+                console.log(`📝 Reasons:`, reasons);
+
+                // Set result message
+                const resultMsg = `${riskLevel} - ${reasons.join(', ')}`;
+                setIotTestResult(resultMsg);
+
+                // Start blinking animation
+                setIotButtonBlinking(true);
+
+                if (allowAlert) {
+                    // RISKY weather - blink red-orange alternating (5 times each color)
+                    console.log('🟠 RISKY: Blinking red-orange (alert would be sent)');
+                    let count = 0;
+                    const blinkInterval = setInterval(() => {
+                        setIotBlinkColor(prev => prev === 'red' ? 'orange' : 'red');
+                        count++;
+                        if (count >= 10) { // 10 blinks = 5 red + 5 orange alternating
+                            clearInterval(blinkInterval);
+                            setIotButtonBlinking(false);
+                            setIotBlinkColor('red');
+                        }
+                    }, 400); // 400ms per blink (slower for visibility)
+                } else {
+                    // NORMAL weather - blink red only (5 times)
+                    console.log('� NORMAL: Blinking red (alert blocked)');
+                    let count = 0;
+                    let isVisible = true;
+                    const blinkInterval = setInterval(() => {
+                        isVisible = !isVisible;
+                        if (!isVisible) {
+                            // Make button invisible (simulate off state)
+                            setIotBlinkColor('red');
+                        }
+                        count++;
+                        if (count >= 10) { // 5 complete on-off cycles
+                            clearInterval(blinkInterval);
+                            setIotButtonBlinking(false);
+                        }
+                    }, 300);
+                }
+            }
+        } catch (err) {
+            console.error('❌ IoT button test error:', err);
+            setIotTestResult('Error checking weather risk');
+            
+            // Blink red 3 times for error
+            setIotButtonBlinking(true);
+            let count = 0;
+            const interval = setInterval(() => {
+                count++;
+                if (count >= 3) {
+                    clearInterval(interval);
+                    setIotButtonBlinking(false);
+                }
+            }, 200);
         }
     };
 
@@ -412,14 +548,28 @@ export function TerminalInsightsPanel({
         }
     };
 
-    // Handle slide animation
+    // Handle slide animation and clear data when panel closes or terminal changes
     useEffect(() => {
         if (isOpen) {
             setTimeout(() => setIsVisible(true), 10);
         } else {
             setIsVisible(false);
+            // Clear weather data when panel closes to prevent showing stale data
+            setWeatherData(null);
+            setCommunityData(null);
+            setAiPrediction(null);
         }
     }, [isOpen]);
+
+    // Clear weather data when terminal changes
+    useEffect(() => {
+        setWeatherData(null);
+        setCommunityData(null);
+        setAiPrediction(null);
+        setError(null);
+        setNoCoordinates(false);
+        setIsLoading(true); // Show loading animation immediately
+    }, [terminalID]);
 
     // Filter rescue records by time period
     const getFilteredRecords = (): RescueRecord[] => {
@@ -471,15 +621,52 @@ export function TerminalInsightsPanel({
             >
                 {/* Header */}
                 <div className="flex items-center justify-between px-6 py-3 border-b border-border bg-[#171717]">
-                    <div>
-                        <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-                            <Thermometer className="w-5 h-5 text-muted-foreground" />
-                            Predictive AI Rescue Command System - {terminalName}
-                        </h2>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                            Terminal ID: {terminalID}
-                        </p>
+                    <div className="flex items-center gap-4">
+                        <div>
+                            <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                                <Thermometer className="w-5 h-5 text-muted-foreground" />
+                                Predictive AI Rescue Command System - {terminalName}
+                            </h2>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                                Terminal ID: {terminalID}
+                            </p>
+                        </div>
+
+                        {/* IoT SOS Button Test */}
+                        <div className="flex items-center gap-2 ml-8">
+                            <button
+                                onClick={testIoTButton}
+                                disabled={iotButtonBlinking}
+                                className="relative group"
+                                title="Test IoT SOS Button (simulates hardware button press)"
+                            >
+                                <div 
+                                    className={`
+                                        w-12 h-12 rounded-full flex items-center justify-center
+                                        transition-all duration-200 cursor-pointer
+                                        ${iotButtonBlinking 
+                                            ? iotBlinkColor === 'red' 
+                                                ? 'bg-red-500 shadow-[0_0_20px_rgba(239,68,68,0.8)]' 
+                                                : 'bg-orange-500 shadow-[0_0_20px_rgba(249,115,22,0.8)]'
+                                            : 'bg-red-600 hover:bg-red-500 hover:shadow-[0_0_15px_rgba(239,68,68,0.6)]'
+                                        }
+                                        ${iotButtonBlinking ? 'animate-pulse' : ''}
+                                    `}
+                                >
+                                    <AlertCircle className="w-6 h-6 text-white" />
+                                </div>
+                                <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] text-muted-foreground whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
+                                    Test IoT
+                                </span>
+                            </button>
+                            {iotTestResult && (
+                                <div className="text-xs text-muted-foreground max-w-xs">
+                                    {iotTestResult}
+                                </div>
+                            )}
+                        </div>
                     </div>
+                    
                     <button
                         onClick={onClose}
                         className="text-muted-foreground hover:text-foreground transition-colors p-1.5 rounded-md hover:bg-accent"
