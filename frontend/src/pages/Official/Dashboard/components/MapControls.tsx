@@ -1,12 +1,12 @@
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
 } from "@/components/ui/popover-focal";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
 } from "@/components/ui/tooltip-white";
 import { Layers, Minus, Plus } from "lucide-react";
 import { useState } from "react";
@@ -21,8 +21,8 @@ export default function MapControls({
   addCustomLayers,
 }: MapControlsProps) {
   const [layersOpen, setLayersOpen] = useState(false);
-  const [selectedLayer, setSelectedLayer] = useState<"terrain" | "satellite">(
-    "terrain",
+  const [selectedLayer, setSelectedLayer] = useState<"default" | "satellite">(
+    "default",
   );
 
   return (
@@ -118,10 +118,10 @@ export default function MapControls({
               >
                 <button
                   onClick={() => {
-                    setSelectedLayer("terrain");
+                    setSelectedLayer("default");
                     const m = mapRef.current;
                     if (!m) return;
-                    m.setStyle("mapbox://styles/mapbox/outdoors-v12");
+                    m.setStyle("mapbox://styles/mapbox/streets-v12");
 
                     // Use both styledata event and timeout as fallback
                     const handleStyleData = () => {
@@ -141,18 +141,18 @@ export default function MapControls({
                     padding: "8px 16px",
                     borderRadius: 8,
                     background:
-                      selectedLayer === "terrain" ? "#111827" : "transparent",
-                    color: selectedLayer === "terrain" ? "#fff" : "#9ca3af",
+                      selectedLayer === "default" ? "#111827" : "transparent",
+                    color: selectedLayer === "default" ? "#fff" : "#9ca3af",
                     border: "none",
                     fontWeight: 500,
                     cursor: "pointer",
                     boxShadow:
-                      selectedLayer === "terrain"
+                      selectedLayer === "default"
                         ? "0 6px 12px rgba(0,0,0,0.25)"
                         : "none",
                   }}
                 >
-                  Terrain
+                  Default
                 </button>
                 <button
                   onClick={() => {
