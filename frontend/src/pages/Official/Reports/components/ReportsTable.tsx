@@ -1,33 +1,33 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import {
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table";
 import { useAuth } from "@/contexts/AuthContext";
 import {
-    getCoreRowModel,
-    getPaginationRowModel,
-    useReactTable,
-    type CellContext,
-    type ColumnDef,
+  getCoreRowModel,
+  getPaginationRowModel,
+  useReactTable,
+  type CellContext,
+  type ColumnDef,
 } from "@tanstack/react-table";
 import { Archive, ArchiveRestore, FileText, Info, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
@@ -36,8 +36,8 @@ import { CommunityGroupInfoSheet } from "../../CommunityGroups/components/Commun
 import type { CommunityGroupDetails } from "../../CommunityGroups/types";
 import { fetchDetailedReportData, type DetailedReportData } from "../api/api";
 import {
-    exportOfficialReportToPdf,
-    type OfficialReportData,
+  exportOfficialReportToPdf,
+  type OfficialReportData,
 } from "../utils/reportExportUtils";
 import { PostRescueFormInfoSheet } from "./PostRescueFormInfoSheet";
 import "./ReportsTable.css";
@@ -248,7 +248,7 @@ export function ReportsTable({
       accessorKey: "emergencyId",
       header: "Emergency ID",
       cell: ({ row }) => (
-        <div className="font-medium text-foreground">
+        <div className="font-medium text-foreground truncate" title={row.getValue("emergencyId")}>
           {row.getValue("emergencyId")}
         </div>
       ),
@@ -257,7 +257,7 @@ export function ReportsTable({
       accessorKey: "communityName",
       header: "Terminal Name",
       cell: ({ row }) => (
-        <div className="text-foreground">{row.getValue("communityName")}</div>
+        <div className="text-foreground truncate" title={row.getValue("communityName")}>{row.getValue("communityName")}</div>
       ),
     },
     {
@@ -287,14 +287,14 @@ export function ReportsTable({
       accessorKey: "dispatcher",
       header: "Dispatcher",
       cell: ({ row }) => (
-        <div className="text-foreground">{row.getValue("dispatcher")}</div>
+        <div className="text-foreground truncate" title={row.getValue("dispatcher")}>{row.getValue("dispatcher")}</div>
       ),
     },
     {
       accessorKey: "dateTimeOccurred",
       header: "Date & Time Occurred",
       cell: ({ row }) => (
-        <div className="text-foreground">
+        <div className="text-foreground truncate" title={row.getValue("dateTimeOccurred")}>
           {row.getValue("dateTimeOccurred")}
         </div>
       ),
@@ -305,7 +305,7 @@ export function ReportsTable({
             accessorKey: "accomplishedOn",
             header: "Accomplished on",
             cell: ({ row }: CellContext<ReportData, unknown>) => (
-              <div className="text-foreground">
+              <div className="text-foreground truncate" title={(row.original as CompletedReport).accomplishedOn}>
                 {(row.original as CompletedReport).accomplishedOn}
               </div>
             ),
@@ -317,7 +317,7 @@ export function ReportsTable({
       header: "Address",
       cell: ({ row }) => (
         <div
-          className="text-foreground max-w-[200px] truncate"
+          className="text-foreground truncate"
           title={row.getValue("address")}
         >
           {row.getValue("address")}
@@ -687,28 +687,107 @@ export function ReportsTable({
             </Select>
           </div>
           <div className="flex items-center space-x-1">
-            {Array.from(
-              { length: Math.min(3, table.getPageCount()) },
-              (_, i) => {
-                const pageNumber = i + 1;
-                const isCurrentPage =
-                  table.getState().pagination.pageIndex + 1 === pageNumber;
-                return (
+            {(() => {
+              const totalPages = table.getPageCount();
+              const currentPage = table.getState().pagination.pageIndex + 1;
+              const pageButtons = [];
+
+              if (totalPages <= 7) {
+                // Show all pages if 7 or fewer
+                for (let i = 1; i <= totalPages; i++) {
+                  const isCurrentPage = currentPage === i;
+                  pageButtons.push(
+                    <Button
+                      key={i}
+                      variant={isCurrentPage ? "default" : "outline"}
+                      className={
+                        isCurrentPage
+                          ? "h-8 w-8 bg-[#4285f4] text-white hover:bg-[#3367d6]"
+                          : "h-8 w-8 bg-transparent border-[#404040] text-[#a1a1a1] hover:bg-[#262626] hover:text-white"
+                      }
+                      onClick={() => table.setPageIndex(i - 1)}
+                    >
+                      {i}
+                    </Button>
+                  );
+                }
+              } else {
+                // Show smart pagination with ellipsis for more than 7 pages
+                // Always show first page
+                pageButtons.push(
                   <Button
-                    key={pageNumber}
-                    variant={isCurrentPage ? "default" : "outline"}
+                    key={1}
+                    variant={currentPage === 1 ? "default" : "outline"}
                     className={
-                      isCurrentPage
+                      currentPage === 1
                         ? "h-8 w-8 bg-[#4285f4] text-white hover:bg-[#3367d6]"
                         : "h-8 w-8 bg-transparent border-[#404040] text-[#a1a1a1] hover:bg-[#262626] hover:text-white"
                     }
-                    onClick={() => table.setPageIndex(pageNumber - 1)}
+                    onClick={() => table.setPageIndex(0)}
                   >
-                    {pageNumber}
+                    1
                   </Button>
                 );
-              },
-            )}
+
+                // Show ellipsis if current page is far from start
+                if (currentPage > 3) {
+                  pageButtons.push(
+                    <span key="ellipsis-start" className="px-2 text-[#a1a1a1]">
+                      ...
+                    </span>
+                  );
+                }
+
+                // Show pages around current page
+                const startPage = Math.max(2, currentPage - 1);
+                const endPage = Math.min(totalPages - 1, currentPage + 1);
+
+                for (let i = startPage; i <= endPage; i++) {
+                  const isCurrentPage = currentPage === i;
+                  pageButtons.push(
+                    <Button
+                      key={i}
+                      variant={isCurrentPage ? "default" : "outline"}
+                      className={
+                        isCurrentPage
+                          ? "h-8 w-8 bg-[#4285f4] text-white hover:bg-[#3367d6]"
+                          : "h-8 w-8 bg-transparent border-[#404040] text-[#a1a1a1] hover:bg-[#262626] hover:text-white"
+                      }
+                      onClick={() => table.setPageIndex(i - 1)}
+                    >
+                      {i}
+                    </Button>
+                  );
+                }
+
+                // Show ellipsis if current page is far from end
+                if (currentPage < totalPages - 2) {
+                  pageButtons.push(
+                    <span key="ellipsis-end" className="px-2 text-[#a1a1a1]">
+                      ...
+                    </span>
+                  );
+                }
+
+                // Always show last page
+                pageButtons.push(
+                  <Button
+                    key={totalPages}
+                    variant={currentPage === totalPages ? "default" : "outline"}
+                    className={
+                      currentPage === totalPages
+                        ? "h-8 w-8 bg-[#4285f4] text-white hover:bg-[#3367d6]"
+                        : "h-8 w-8 bg-transparent border-[#404040] text-[#a1a1a1] hover:bg-[#262626] hover:text-white"
+                    }
+                    onClick={() => table.setPageIndex(totalPages - 1)}
+                  >
+                    {totalPages}
+                  </Button>
+                );
+              }
+
+              return pageButtons;
+            })()}
           </div>
           <Button
             variant="outline"

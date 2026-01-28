@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
-import { Filter, Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Search } from "lucide-react";
 import { useMemo, useState } from "react";
 import { AlarmInfoSheet } from "./components/AlarmInfoSheet";
 import { createColumns } from "./components/Column";
@@ -8,7 +9,8 @@ import { useAlarms } from "./hooks/useAlarms";
 import type { Alarm } from "./types";
 
 export function Alarms() {
-  const [searchQuery] = useState("");
+  const [searchVisible, setSearchVisible] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const [selectedAlarm, setSelectedAlarm] = useState<Alarm | null>(null);
   const [infoSheetOpen, setInfoSheetOpen] = useState(false);
   
@@ -88,30 +90,40 @@ export function Alarms() {
   return (
     <div className="bg-[#171717] text-white p-4 sm:p-6 flex flex-col h-[calc(100vh-73px)]">
       <div className="w-full max-w-9xl mx-auto flex-1 flex flex-col min-h-0">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-4 md:mb-6 gap-4">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-2 md:mb-4 gap-4">
           <div className="flex flex-col gap-1">
             <h1 className="text-2xl font-bold">Alarms</h1>
           </div>
 
-          <div className="flex items-center gap-2">
-            {/* Search Icon Button */}
+          <div className="flex items-center gap-1">
+            <div
+              className={`transition-all duration-300 ease-in-out overflow-hidden ${
+                searchVisible ? "w-64 opacity-100" : "w-0 opacity-0"
+              }`}
+            >
+              <Input
+                type="text"
+                placeholder="Search alarms..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-64 bg-[#262626] border-[#404040] text-white placeholder:text-[#a1a1a1] focus:border-[#4285f4] transition-all duration-300"
+                autoFocus={searchVisible}
+              />
+            </div>
             <Button
               variant="ghost"
               size="icon"
-              className="h-9 w-9 rounded-[5px] border border-[#404040] bg-[#262626] text-white hover:bg-[#404040] hover:text-white"
-              onClick={() => console.log("Search clicked")}
+              className={`text-[#a1a1a1] hover:text-white hover:bg-[#262626] transition-all duration-200 ${
+                searchVisible ? "bg-[#262626] text-white" : ""
+              }`}
+              onClick={() => {
+                setSearchVisible(!searchVisible);
+                if (searchVisible) {
+                  setSearchQuery("");
+                }
+              }}
             >
               <Search className="h-4 w-4" />
-            </Button>
-
-            {/* Filter Icon Button */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-9 w-9 rounded-[5px] border border-[#404040] bg-[#262626] text-white hover:bg-[#404040] hover:text-white"
-              onClick={() => console.log("Filter clicked")}
-            >
-              <Filter className="h-4 w-4" />
             </Button>
           </div>
         </div>

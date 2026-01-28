@@ -15,21 +15,25 @@ import type { MapControlsProps } from "../types/controls";
 export default function MapControls({
   mapRef,
   addCustomLayers,
+  addBoundaryAndFloodLayers,
+  heatmapVisible,
+  setHeatmapVisible,
   onToggleLiveReport,
   isLiveReportOpen,
 }: MapControlsProps) {
   const [layersOpen, setLayersOpen] = useState(false);
-  const [selectedLayer, setSelectedLayer] = useState<"terrain" | "satellite">(
-    "terrain",
+  const [selectedLayer, setSelectedLayer] = useState<"default" | "satellite">(
+    "default",
   );
-  const [heatmapVisible, setHeatmapVisible] = useState(false);
 
   const toggleHeatmap = () => {
     const map = mapRef.current;
     if (!map) return;
 
     const newVisibility = !heatmapVisible;
-    setHeatmapVisible(newVisibility);
+    if (setHeatmapVisible) {
+      setHeatmapVisible(newVisibility);
+    }
 
     // Toggle visibility of flood polygon layers
     const floodLayerIds = ["flood-polygons-metro-manila"];
@@ -235,13 +239,14 @@ export default function MapControls({
               >
                 <button
                   onClick={() => {
-                    setSelectedLayer("terrain");
+                    setSelectedLayer("default");
                     const m = mapRef.current;
                     if (!m) return;
-                    m.setStyle("mapbox://styles/mapbox/outdoors-v12");
+                    m.setStyle("mapbox://styles/mapbox/streets-v12");
 
                     // Use both styledata event and timeout as fallback
                     const handleStyleData = () => {
+                      if (addBoundaryAndFloodLayers) addBoundaryAndFloodLayers(m);
                       addCustomLayers(m);
                       m.off("styledata", handleStyleData);
                     };
@@ -250,6 +255,7 @@ export default function MapControls({
                     // Fallback timeout in case styledata doesn't fire
                     setTimeout(() => {
                       if (m.isStyleLoaded()) {
+                        if (addBoundaryAndFloodLayers) addBoundaryAndFloodLayers(m);
                         addCustomLayers(m);
                       }
                     }, 1000);
@@ -258,18 +264,18 @@ export default function MapControls({
                     padding: "8px 16px",
                     borderRadius: 8,
                     background:
-                      selectedLayer === "terrain" ? "#111827" : "transparent",
-                    color: selectedLayer === "terrain" ? "#fff" : "#9ca3af",
+                      selectedLayer === "default" ? "#111827" : "transparent",
+                    color: selectedLayer === "default" ? "#fff" : "#9ca3af",
                     border: "none",
                     fontWeight: 500,
                     cursor: "pointer",
                     boxShadow:
-                      selectedLayer === "terrain"
+                      selectedLayer === "default"
                         ? "0 6px 12px rgba(0,0,0,0.25)"
                         : "none",
                   }}
                 >
-                  Terrain
+                  Default
                 </button>
                 <button
                   onClick={() => {
@@ -280,6 +286,7 @@ export default function MapControls({
 
                     // Use both styledata event and timeout as fallback
                     const handleStyleData = () => {
+                      if (addBoundaryAndFloodLayers) addBoundaryAndFloodLayers(m);
                       addCustomLayers(m);
                       m.off("styledata", handleStyleData);
                     };
@@ -288,6 +295,7 @@ export default function MapControls({
                     // Fallback timeout in case styledata doesn't fire
                     setTimeout(() => {
                       if (m.isStyleLoaded()) {
+                        if (addBoundaryAndFloodLayers) addBoundaryAndFloodLayers(m);
                         addCustomLayers(m);
                       }
                     }, 1000);

@@ -215,6 +215,21 @@ export function MapPins({ map, pins, mapContainer, onPinClick }: MapPinsProps) {
       }
     };
 
+    // Listen for style changes to re-initialize
+    const handleStyleData = () => {
+      // Reset initialization flag when style changes
+      if (!map.getSource("admin-pins")) {
+        layersInitialized.current = false;
+        handlersAttached.current = false;
+        // Delay to ensure boundaries are added first, then pins go on top
+        setTimeout(() => {
+          if (map && map.isStyleLoaded()) {
+            initializeLayers();
+          }
+        }, 1200);
+      }
+    };
+
     // Wait for style to load
     if (map.isStyleLoaded()) {
       initializeLayers();
@@ -222,11 +237,16 @@ export function MapPins({ map, pins, mapContainer, onPinClick }: MapPinsProps) {
       map.once("load", initializeLayers);
     }
 
+    // Listen for style changes
+    map.on("styledata", handleStyleData);
+
     // Cleanup only on unmount
     return () => {
-      if (!map || typeof map.getLayer !== 'function') return;
+      if (!map || typeof map.off !== 'function') return;
       
       try {
+        map.off("styledata", handleStyleData);
+        
         if (map.getLayer("admin-pins-layer")) {
           map.removeLayer("admin-pins-layer");
         }
