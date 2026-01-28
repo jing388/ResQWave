@@ -1,33 +1,33 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import {
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table";
 import { useAuth } from "@/contexts/AuthContext";
 import {
-    getCoreRowModel,
-    getPaginationRowModel,
-    useReactTable,
-    type CellContext,
-    type ColumnDef,
+  getCoreRowModel,
+  getPaginationRowModel,
+  useReactTable,
+  type CellContext,
+  type ColumnDef,
 } from "@tanstack/react-table";
 import { Archive, ArchiveRestore, FileText, Info, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
@@ -36,8 +36,8 @@ import { CommunityGroupInfoSheet } from "../../CommunityGroups/components/Commun
 import type { CommunityGroupDetails } from "../../CommunityGroups/types";
 import { fetchDetailedReportData, type DetailedReportData } from "../api/api";
 import {
-    exportOfficialReportToPdf,
-    type OfficialReportData,
+  exportOfficialReportToPdf,
+  type OfficialReportData,
 } from "../utils/reportExportUtils";
 import { PostRescueFormInfoSheet } from "./PostRescueFormInfoSheet";
 import "./ReportsTable.css";
@@ -248,7 +248,7 @@ export function ReportsTable({
       accessorKey: "emergencyId",
       header: "Emergency ID",
       cell: ({ row }) => (
-        <div className="font-medium text-foreground">
+        <div className="font-medium text-foreground truncate" title={row.getValue("emergencyId")}>
           {row.getValue("emergencyId")}
         </div>
       ),
@@ -257,7 +257,7 @@ export function ReportsTable({
       accessorKey: "communityName",
       header: "Terminal Name",
       cell: ({ row }) => (
-        <div className="text-foreground">{row.getValue("communityName")}</div>
+        <div className="text-foreground truncate" title={row.getValue("communityName")}>{row.getValue("communityName")}</div>
       ),
     },
     {
@@ -287,14 +287,14 @@ export function ReportsTable({
       accessorKey: "dispatcher",
       header: "Dispatcher",
       cell: ({ row }) => (
-        <div className="text-foreground">{row.getValue("dispatcher")}</div>
+        <div className="text-foreground truncate" title={row.getValue("dispatcher")}>{row.getValue("dispatcher")}</div>
       ),
     },
     {
       accessorKey: "dateTimeOccurred",
       header: "Date & Time Occurred",
       cell: ({ row }) => (
-        <div className="text-foreground">
+        <div className="text-foreground truncate" title={row.getValue("dateTimeOccurred")}>
           {row.getValue("dateTimeOccurred")}
         </div>
       ),
@@ -305,7 +305,7 @@ export function ReportsTable({
             accessorKey: "accomplishedOn",
             header: "Accomplished on",
             cell: ({ row }: CellContext<ReportData, unknown>) => (
-              <div className="text-foreground">
+              <div className="text-foreground truncate" title={(row.original as CompletedReport).accomplishedOn}>
                 {(row.original as CompletedReport).accomplishedOn}
               </div>
             ),
@@ -317,7 +317,7 @@ export function ReportsTable({
       header: "Address",
       cell: ({ row }) => (
         <div
-          className="text-foreground max-w-[200px] truncate"
+          className="text-foreground truncate"
           title={row.getValue("address")}
         >
           {row.getValue("address")}
