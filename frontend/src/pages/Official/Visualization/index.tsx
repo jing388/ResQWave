@@ -5,10 +5,10 @@ import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { useEffect, useRef, useState } from "react";
 import { CommunityGroupInfoSheet } from "../CommunityGroups/components/CommunityGroupInfoSheet";
-import { useMapPins } from "../Dashboard/hooks/useMapPins";
-import { TerminalInsightsPanel } from "../Dashboard/components/TerminalInsightsPanel";
-import { MapPins } from "../Dashboard/components/MapPins";
 import { AdminPinPopover } from "../Dashboard/components/AdminPinPopover";
+import { MapPins } from "../Dashboard/components/MapPins";
+import { TerminalInsightsPanel } from "../Dashboard/components/TerminalInsightsPanel";
+import { useMapPins } from "../Dashboard/hooks/useMapPins";
 
 import DistressSignalAlert, {
   type DistressSignalAlertHandle,
@@ -50,6 +50,7 @@ function VisualizationContent() {
   const { selectedWaitlistForm, setSelectedWaitlistForm, removeFromWaitlist } =
     useRescueWaitlist();
   const [showWaitlistPreview, setShowWaitlistPreview] = useState(false);
+  const [heatmapVisible, setHeatmapVisible] = useState(false);
 
   // Terminal pins data and state
   const { pins: terminalPins, loading: pinsLoading } = useMapPins();
@@ -307,6 +308,101 @@ function VisualizationContent() {
   };
 
   /**
+   * Add Caloocan boundary and flood polygon layers to the map
+   */
+  const addBoundaryAndFloodLayers = (map: mapboxgl.Map, heatmapVisibility = heatmapVisible) => {
+    try {
+      const caloocan175SourceId = "caloocan-175-boundary";
+      const caloocan175LayerId = "caloocan-175-boundary-layer";
+      const caloocan175StrokeLayerId = "caloocan-175-boundary-stroke";
+
+      // Add vector tile source for 175 Caloocan boundary
+      if (!map.getSource(caloocan175SourceId)) {
+        map.addSource(caloocan175SourceId, {
+          type: "vector",
+          url: "mapbox://rodelll.aenwq122",
+        });
+      }
+
+      // Add fill layer for 175 Caloocan boundary
+      if (!map.getLayer(caloocan175LayerId)) {
+        map.addLayer({
+          id: caloocan175LayerId,
+          type: "fill",
+          source: caloocan175SourceId,
+          "source-layer": "175_boundary-cz8oek",
+          paint: {
+            "fill-color": "#0019bd",
+            "fill-opacity": 0.05,
+          },
+        });
+      }
+
+      // Add stroke layer for 175 Caloocan boundary
+      if (!map.getLayer(caloocan175StrokeLayerId)) {
+        map.addLayer({
+          id: caloocan175StrokeLayerId,
+          type: "line",
+          source: caloocan175SourceId,
+          "source-layer": "175_boundary-cz8oek",
+          paint: {
+            "line-color": "#0019bd",
+            "line-width": 3,
+            "line-opacity": 0.4,
+          },
+        });
+      }
+    } catch (e) {
+      console.warn("[Visualization] could not add 175 Caloocan boundary", e);
+    }
+
+    try {
+      const sourceId = "floods-metro-manila";
+      const polygonLayerId = "flood-polygons-metro-manila";
+
+      // Add vector tile source from Mapbox
+      if (!map.getSource(sourceId)) {
+        map.addSource(sourceId, {
+          type: "vector",
+          url: "mapbox://rodelll.3lm08j9b",
+        });
+      }
+
+      // Add polygon fill layer
+      if (!map.getLayer(polygonLayerId)) {
+        map.addLayer(
+          {
+            id: polygonLayerId,
+            type: "fill",
+            source: sourceId,
+            "source-layer": "MetroManila_Flood",
+            layout: {
+              visibility: heatmapVisibility ? "visible" : "none",
+            },
+            paint: {
+              "fill-color": [
+                "match",
+                ["get", "Var"],
+                1,
+                "#ffff00",
+                2,
+                "#ff9900",
+                3,
+                "#ff0000",
+                "#000000",
+              ],
+              "fill-opacity": 0.5,
+            },
+          },
+          "waterway-label",
+        );
+      }
+    } catch (e) {
+      console.warn("[Visualization] could not add flood polygons", e);
+    }
+  };
+
+  /**
    * Initialize map canvas for interactions
    */
   const initializeMapCanvas = (map: mapboxgl.Map) => {
@@ -495,97 +591,8 @@ function VisualizationContent() {
     map.on("load", () => {
       initializeMapCanvas(map);
 
-      // Add Caloocan boundary layer (bottom layer)
-      try {
-        const caloocan175SourceId = "caloocan-175-boundary";
-        const caloocan175LayerId = "caloocan-175-boundary-layer";
-        const caloocan175StrokeLayerId = "caloocan-175-boundary-stroke";
-
-        // Add vector tile source for 175 Caloocan boundary
-        if (!map.getSource(caloocan175SourceId)) {
-          map.addSource(caloocan175SourceId, {
-            type: "vector",
-            url: "mapbox://rodelll.aenwq122",
-          });
-        }
-
-        // Add fill layer for 175 Caloocan boundary
-        if (!map.getLayer(caloocan175LayerId)) {
-          map.addLayer({
-            id: caloocan175LayerId,
-            type: "fill",
-            source: caloocan175SourceId,
-            "source-layer": "175_boundary-cz8oek", // Using correct tileset name
-            paint: {
-              "fill-color": "#0019bd", // Light blue color
-              "fill-opacity": 0.05, // More transparent
-            },
-          });
-        }
-
-        // Add stroke layer for 175 Caloocan boundary
-        if (!map.getLayer(caloocan175StrokeLayerId)) {
-          map.addLayer({
-            id: caloocan175StrokeLayerId,
-            type: "line",
-            source: caloocan175SourceId,
-            "source-layer": "175_boundary-cz8oek", // Using correct tileset name
-            paint: {
-              "line-color": "#0019bd", // Light blue stroke
-              "line-width": 3,
-              "line-opacity": 0.4, // More transparent
-            },
-          });
-        }
-      } catch (e) {
-        console.warn("[Visualization] could not add 175 Caloocan boundary", e);
-      }
-
-      // Add flood polygons using Mapbox vector tileset (top layer - on top of Caloocan)
-      try {
-        const sourceId = "floods-metro-manila";
-        const polygonLayerId = "flood-polygons-metro-manila";
-
-        // Add vector tile source from Mapbox
-        if (!map.getSource(sourceId)) {
-          map.addSource(sourceId, {
-            type: "vector",
-            url: "mapbox://rodelll.3lm08j9b",
-          });
-        }
-
-        // Add polygon fill layer
-        if (!map.getLayer(polygonLayerId)) {
-          map.addLayer(
-            {
-              id: polygonLayerId,
-              type: "fill",
-              source: sourceId,
-              "source-layer": "MetroManila_Flood", // Use the tileset's source layer name
-              layout: {
-                visibility: "none", // Hidden by default
-              },
-              paint: {
-                "fill-color": [
-                  "match",
-                  ["get", "Var"],
-                  1,
-                  "#ffff00", // Low hazard → Yellow
-                  2,
-                  "#ff9900", // Medium hazard → Orange
-                  3,
-                  "#ff0000", // High hazard → Red
-                  "#000000", // fallback → Black
-                ],
-                "fill-opacity": 0.5,
-              },
-            },
-            "waterway-label",
-          );
-        }
-      } catch (e) {
-        console.warn("[Visualization] could not add flood polygons", e);
-      }
+      // Add Caloocan boundary and flood layers
+      addBoundaryAndFloodLayers(map);
 
       // Add signal pins as the topmost layer
       addCustomLayers(map, otherSignals, OwnCommunitySignal);
@@ -677,6 +684,9 @@ function VisualizationContent() {
         addCustomLayers={(m) =>
           addCustomLayers(m, otherSignals, OwnCommunitySignal)
         }
+        addBoundaryAndFloodLayers={addBoundaryAndFloodLayers}
+        heatmapVisible={heatmapVisible}
+        setHeatmapVisible={setHeatmapVisible}
         onToggleLiveReport={() => setIsLiveReportOpen(!isLiveReportOpen)}
         isLiveReportOpen={isLiveReportOpen}
       />
