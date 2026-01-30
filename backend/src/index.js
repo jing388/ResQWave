@@ -29,7 +29,10 @@ const lmsRoutes = require("./routes/lmsRoutes");
 const weatherRoutes = require("./routes/weatherRoutes");
 const { authMiddleware, requireRole } = require("./middleware/authMiddleware");
 const { getTerminalsForMap } = require("./controllers/terminalController");
-const { createCriticalAlert, createUserInitiatedAlert } = require("./controllers/alertController");
+const {
+  createCriticalAlert,
+  createUserInitiatedAlert,
+} = require("./controllers/alertController");
 const { testSanityConnection } = require("./services/sanity-chatbot-service");
 const errorHandler = require("./middleware/errorMiddleware");
 const { NotFoundError } = require("./exceptions/index");
@@ -44,12 +47,18 @@ app.use(
     origin: [
       "http://localhost:5173",
       "https://resqwave.vercel.app",
-      "https://resqwave-production.up.railway.app"
+      "https://resqwave-production.up.railway.app",
+      "https://resqwave-landing.vercel.app",
     ],
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "Cache-Control", "Pragma"],
-  })
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "Cache-Control",
+      "Pragma",
+    ],
+  }),
 );
 app.use(express.json());
 
@@ -137,8 +146,10 @@ AppDataSource.initialize()
       ],
       credentials: true,
     });
-    server.listen(5000, '0.0.0.0', () =>
-      console.log("Server + SocketIO at http://0.0.0.0:5000 (accessible from network)"))
+    server.listen(5000, "0.0.0.0", () =>
+      console.log(
+        "Server + SocketIO at http://0.0.0.0:5000 (accessible from network)",
+      ),
+    );
   })
   .catch((err) => console.error("DB Error", err));
-
