@@ -1,44 +1,44 @@
 import {
-    X,
-    Sun,
-    Cloud,
-    CloudRain,
-    CloudSnow,
-    CloudDrizzle,
-    Moon,
-    Droplets,
-    Gauge,
-    Wind,
-    Thermometer,
-    FileText,
-    Clock,
-    CheckCircle,
-    AlertTriangle,
-    AlertCircle,
-    Shield,
-    Brain,
-    Loader2,
-    Zap,
-    Phone,
-    ChevronDown,
-    ChevronLeft,
-    ChevronRight,
-    MessageSquarePlus,
-} from "lucide-react";
-import { Gemini } from '@lobehub/icons';
-import { useEffect, useState, useCallback, type ReactElement, useRef } from "react";
-import { apiFetch } from "@/lib/api";
-import { getRescueRecordsByTerminal, type RescueRecord } from "../api/rescueRecordsApi";
-import { getNeighborhoodByTerminalId } from "@/pages/Official/CommunityGroups/api/communityGroupApi";
-import type { CommunityGroupDetails } from "@/pages/Official/CommunityGroups/types";
-import { Area, AreaChart, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import {
     Select,
     SelectContent,
     SelectItem,
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { apiFetch } from "@/lib/api";
+import { getNeighborhoodByTerminalId } from "@/pages/Official/CommunityGroups/api/communityGroupApi";
+import type { CommunityGroupDetails } from "@/pages/Official/CommunityGroups/types";
+import { Gemini } from '@lobehub/icons';
+import {
+    AlertCircle,
+    AlertTriangle,
+    Brain,
+    CheckCircle,
+    ChevronDown,
+    ChevronLeft,
+    ChevronRight,
+    Clock,
+    Cloud,
+    CloudDrizzle,
+    CloudRain,
+    CloudSnow,
+    Droplets,
+    FileText,
+    Gauge,
+    Loader2,
+    MessageSquarePlus,
+    Moon,
+    Phone,
+    Shield,
+    Sun,
+    Thermometer,
+    Wind,
+    X,
+    Zap,
+} from "lucide-react";
+import { useCallback, useEffect, useRef, useState, type ReactElement } from "react";
+import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { getRescueRecordsByTerminal, type RescueRecord } from "../api/rescueRecordsApi";
 
 // AI Prediction types
 interface AIPredictionItem {
@@ -221,10 +221,6 @@ export function TerminalInsightsPanel({
     // Frontend weather cache - stores weather data by terminalID
     const weatherCacheRef = useRef<Map<string, { data: WeatherData; expiresAt: string }>>(new Map());
 
-    // IoT button test state
-    const [iotButtonBlinking, setIotButtonBlinking] = useState(false);
-    const [iotBlinkColor, setIotBlinkColor] = useState<'red' | 'orange'>('red');
-    const [iotTestResult, setIotTestResult] = useState<string | null>(null);
 
     console.log('🎯 TerminalInsightsPanel rendered - isOpen:', isOpen, 'terminalID:', terminalID);
 
@@ -422,7 +418,7 @@ export function TerminalInsightsPanel({
     };
 
     // IoT SOS Button Test - Simulates hardware button press
-    const testIoTButton = async () => {
+    /* const testIoTButton = async () => {
         if (iotButtonBlinking) return; // Prevent multiple clicks while blinking
 
         console.log('🔴 IoT SOS Button Test - Checking weather risk...');
@@ -445,7 +441,7 @@ export function TerminalInsightsPanel({
             }>(`/api/weather/iot/check?terminalID=${terminalID}`);
 
             if (response.status === 'success') {
-                const { allowAlert, riskLevel, reasons, weatherSummary } = response;
+                const { allowAlert, riskLevel, reasons } = response;
 
                 console.log(`📊 Risk Level: ${riskLevel}`);
                 console.log(`� Allow Alert: ${allowAlert}`);
@@ -505,7 +501,7 @@ export function TerminalInsightsPanel({
                 }
             }, 200);
         }
-    };
+    }; */
 
     // Generate AI Prediction
     const generateAIPrediction = async () => {

@@ -1,3 +1,4 @@
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
@@ -5,7 +6,6 @@ import { AlertCircleIcon, Eye, EyeOff } from "lucide-react";
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { HeaderOfficial } from "./components/HeaderOfficial";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export function LoginOfficial() {
   const navigate = useNavigate();
@@ -52,32 +52,18 @@ export function LoginOfficial() {
       <div className="loginfocal-radial-gradient" />
       <HeaderOfficial />
       <main
-        className="flex flex-1 flex-col items-center w-full px-10 sm:px-0"
-        style={{ marginTop: "120px", zIndex: 20, position: "relative" }}
+        className="flex flex-1 flex-col items-center w-full px-4 sm:px-10 lg:px-0 mt-20 sm:mt-[120px] z-20 relative"
       >
         <div
-          className="flex flex-col items-center gap-4 mb-8"
-          style={{
-            width: "100%",
-            maxWidth: window.innerWidth <= 480 ? "95vw" : "460px",
-            minWidth: window.innerWidth <= 480 ? "0" : undefined,
-            marginLeft: "auto",
-            marginRight: "auto",
-            paddingLeft: window.innerWidth <= 480 ? "5vw" : 0,
-            paddingRight: window.innerWidth <= 480 ? "5vw" : 0,
-            boxSizing: "border-box",
-            ...(window.innerWidth <= 480 ? { marginBottom: "1.5rem" } : {}),
-          }}
+          className="flex flex-col items-center gap-3 sm:gap-4 mb-6 sm:mb-8 w-full max-w-full sm:max-w-[460px] mx-auto"
         >
           <h1
-            className="text-[45px] font-semibold text-white"
-            style={window.innerWidth <= 480 ? { fontSize: "1.45rem" } : {}}
+            className="text-3xl sm:text-[45px] font-semibold text-white"
           >
             Sign in
           </h1>
           <p
-            className="text-[#BABABA] text-center text-base leading-relaxed"
-            style={window.innerWidth <= 480 ? { fontSize: "0.82rem" } : {}}
+            className="text-[#BABABA] text-center text-[0.9rem] sm:text-base leading-relaxed px-2"
           >
             Log in using your account credentials.
             <br />
@@ -90,51 +76,31 @@ export function LoginOfficial() {
         {/* Error Alert UI - styled like focal login */}
         {error && (
           <div
-            className="flex items-center gap-3 animate-in fade-in  mx-auto"
-            style={{
-              maxWidth: window.innerWidth <= 480 ? "95vw" : "490px",
-              minWidth: window.innerWidth <= 480 ? "0" : undefined,
-              width: "100%",
-              fontSize: window.innerWidth <= 480 ? "0.78rem" : undefined,
-              marginLeft: "auto",
-              marginRight: "auto",
-            }}
+            className="flex items-center gap-3 animate-in fade-in mx-auto w-full max-w-full sm:max-w-[490px] px-4 sm:px-0"
           >
             <Alert
-              className=" bg-[#291415] border border-[#F92626]  rounded-md  mb-4"
+              className="bg-[#291415] border border-[#F92626] rounded-[5px] mb-4 w-full text-xs sm:text-sm"
               variant="destructive"
             >
-              <AlertCircleIcon />
-              <AlertTitle>
-                {" "}
+              <AlertCircleIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+              <AlertTitle className="text-sm sm:text-base">
                 {error.includes("credentials")
                   ? "Login failed"
                   : "Login failed"}
               </AlertTitle>
-              <AlertDescription>
-                <p> {error}</p>
+              <AlertDescription className="text-xs sm:text-sm">
+                <p>{error}</p>
               </AlertDescription>
             </Alert>
           </div>
         )}
 
         <form
-          className="flex flex-col gap-3 w-full mx-auto"
-          style={{
-            maxWidth: window.innerWidth <= 480 ? "95vw" : "490px",
-            minWidth: window.innerWidth <= 480 ? "0" : undefined,
-            width: "100%",
-            marginLeft: "auto",
-            marginRight: "auto",
-            paddingLeft: window.innerWidth <= 480 ? "5vw" : 0,
-            paddingRight: window.innerWidth <= 480 ? "5vw" : 0,
-            boxSizing: "border-box",
-          }}
+          className="flex flex-col gap-3 w-full max-w-full sm:max-w-[490px] mx-auto px-4 sm:px-0"
           onSubmit={handleSubmit}
         >
           <label
-            className="block text-white text-[15px] font-light"
-            style={window.innerWidth <= 480 ? { fontSize: "0.85rem" } : {}}
+            className="block text-white text-[0.9rem] sm:text-[15px] font-light"
           >
             ID
           </label>
@@ -146,26 +112,12 @@ export function LoginOfficial() {
               if (error) setError("");
             }}
             aria-invalid={!!error}
-            className="bg-[#171717] border border-[#404040] mb-1 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            style={{
-              fontSize: window.innerWidth <= 480 ? "13px" : "16px",
-              height: window.innerWidth <= 480 ? "38px" : "55px",
-              width: window.innerWidth <= 480 ? "100%" : "100%",
-              maxWidth: window.innerWidth <= 480 ? "260px" : undefined,
-              marginLeft: window.innerWidth <= 480 ? "auto" : undefined,
-              marginRight: window.innerWidth <= 480 ? "auto" : undefined,
-              display: "block",
-            }}
+            className="bg-[#171717] border border-[#404040] mb-1 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base h-[44px] sm:h-[55px] w-full"
           />
 
           <div className="mb-2">
             <label
-              className="block text-white text-[15px] font-light mb-2"
-              style={
-                window.innerWidth <= 480
-                  ? { fontSize: "0.85rem", marginBottom: "0.4rem" }
-                  : {}
-              }
+              className="block text-white text-[0.9rem] sm:text-[15px] font-light mb-2"
             >
               Password
             </label>
@@ -178,19 +130,10 @@ export function LoginOfficial() {
                   if (error) setError("");
                 }}
                 aria-invalid={!!error}
-                className="bg-[#171717] border border-[#404040] rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 pr-12"
-                style={{
-                  fontSize: window.innerWidth <= 480 ? "13px" : "16px",
-                  height: window.innerWidth <= 480 ? "38px" : "55px",
-                  width: "100%",
-                  maxWidth: window.innerWidth <= 480 ? "260px" : undefined,
-                  marginLeft: window.innerWidth <= 480 ? "auto" : undefined,
-                  marginRight: window.innerWidth <= 480 ? "auto" : undefined,
-                  display: "block",
-                }}
+                className="bg-[#171717] border border-[#404040] rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 pr-12 text-sm sm:text-base h-[44px] sm:h-[55px] w-full"
               />
               <span
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-[#BABABA] hover:text-white transition-colors duration-300"
+                className="absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 text-[#BABABA] hover:text-white transition-colors duration-300 cursor-pointer z-10"
                 onClick={() => setShowPassword((prev) => !prev)}
                 tabIndex={0}
                 role="button"
@@ -201,14 +144,11 @@ export function LoginOfficial() {
                     setShowPassword((prev) => !prev);
                   }
                 }}
-                style={{
-                  zIndex: 10,
-                }}
               >
                 {showPassword ? (
-                  <EyeOff size={window.innerWidth <= 480 ? 15 : 22} />
+                  <EyeOff className="w-[18px] h-[18px] sm:w-[22px] sm:h-[22px]" />
                 ) : (
-                  <Eye size={window.innerWidth <= 480 ? 15 : 22} />
+                  <Eye className="w-[18px] h-[18px] sm:w-[22px] sm:h-[22px]" />
                 )}
               </span>
             </div>
@@ -217,22 +157,18 @@ export function LoginOfficial() {
           <Button
             type="submit"
             disabled={isLoading}
-            className="text-white py-6 rounded-md font-medium text-base flex items-center justify-center gap-2
+            className="text-white rounded-lg font-medium text-[0.95rem] sm:text-base flex items-center justify-center gap-2
              bg-linear-to-t from-[#3B82F6] to-[#70A6FF] 
              hover:from-[#1052BE] hover:to-[#70A6FF]
-             transition duration-300 ease-in cursor-pointer mt-1"
+             transition duration-300 ease-in cursor-pointer mt-1 w-full h-[44px] sm:h-[55px]"
             style={{
               opacity: isLoading ? 0.7 : 1,
-              width: "100%",
-              fontSize: window.innerWidth <= 480 ? "0.95rem" : undefined,
-              paddingTop: window.innerWidth <= 480 ? "0.7rem" : undefined,
-              paddingBottom: window.innerWidth <= 480 ? "0.7rem" : undefined,
             }}
           >
             {isLoading && (
               <span className="inline-block mr-2">
                 <svg
-                  className="animate-spin h-6 w-6 text-white"
+                  className="animate-spin h-5 w-5 sm:h-6 sm:w-6 text-white"
                   viewBox="0 0 24 24"
                 >
                   <circle
@@ -256,11 +192,10 @@ export function LoginOfficial() {
           </Button>
         </form>
 
-        <div className="text-center mt-4">
+        <div className="text-center mt-4 px-4 sm:px-0">
           <button
-            className="text-[#BABABA] hover:text-white mt-2 text-md bg-transparent border-none cursor-pointer transition-colors duration-300"
+            className="text-[#BABABA] hover:text-white mt-2 text-[0.95rem] sm:text-base bg-transparent border-none cursor-pointer transition-colors duration-300"
             onClick={() => navigate("/forgot-password-dispatcher")}
-            style={window.innerWidth <= 480 ? { fontSize: "0.97rem" } : {}}
           >
             Forgot Password?
           </button>
