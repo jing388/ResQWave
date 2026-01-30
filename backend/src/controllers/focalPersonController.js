@@ -133,7 +133,7 @@ const createFocalPerson = catchAsync(async (req, res, next) => {
     const startIndex = PREFIX.length + 1; // SUBSTRING() is 1-based
     const lastFocalPerson = await focalPersonRepo
         .createQueryBuilder("fp")
-        .orderBy(`CAST(SUBSTRING(fp.id, ${startIndex}) AS UNSIGNED)`, "DESC")
+        .orderBy(`CAST(SUBSTRING(fp.id, ${startIndex}) AS INTEGER)`, "DESC")
         .getOne();
 
     let newFocalNum = 1;
@@ -231,7 +231,7 @@ const createFocalPerson = catchAsync(async (req, res, next) => {
     // Generate Neighborhood ID (N001, N002, ...) by numeric suffix
     const lastNeighborhood = await neighborhoodRepo
         .createQueryBuilder("neighborhood")
-        .orderBy("CAST(SUBSTRING(neighborhood.id, 2) AS UNSIGNED)", "DESC")
+        .orderBy("CAST(SUBSTRING(neighborhood.id, 2) AS INTEGER)", "DESC")
         .getOne();
 
     let newNeighborhoodNum = 1;
