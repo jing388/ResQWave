@@ -133,7 +133,7 @@ const createFocalPerson = catchAsync(async (req, res, next) => {
     const startIndex = PREFIX.length + 1; // SUBSTRING() is 1-based
     const lastFocalPerson = await focalPersonRepo
         .createQueryBuilder("fp")
-        .orderBy(`CAST(SUBSTRING(fp.id, ${startIndex}) AS UNSIGNED)`, "DESC")
+        .orderBy(`CAST(SUBSTRING(fp.id, ${startIndex}) AS INTEGER)`, "DESC")
         .getOne();
 
     let newFocalNum = 1;
@@ -231,7 +231,7 @@ const createFocalPerson = catchAsync(async (req, res, next) => {
     // Generate Neighborhood ID (N001, N002, ...) by numeric suffix
     const lastNeighborhood = await neighborhoodRepo
         .createQueryBuilder("neighborhood")
-        .orderBy("CAST(SUBSTRING(neighborhood.id, 2) AS UNSIGNED)", "DESC")
+        .orderBy("CAST(SUBSTRING(neighborhood.id, 2) AS INTEGER)", "DESC")
         .getOne();
 
     let newNeighborhoodNum = 1;
@@ -546,6 +546,12 @@ const updateFocalPhotos = catchAsync(async (req, res, next) => {
     await deleteCache("focalPersons:all");
     await deleteCache(`focalPhoto:${id}`);
     await deleteCache(`focalAltPhoto:${id}`);
+    await deleteCache(`viewMap:nb:${id}`);
+    await deleteCache("neighborhoods:active");
+    await deleteCache("adminDashboard:aggregatedMap");
+
+    const neighborhood = await neighborhoodRepo.findOne({ select: ["id"], where: { focalPersonID: id } });
+    await deleteCache(`neighborhood:${neighborhood?.id}`);
 
     // Do not include raw blobs in JSON response
     return res.json({ message: "Focal Person Photos Updated", id: fp.id });
@@ -631,6 +637,12 @@ const deleteFocalPhoto = catchAsync(async (req, res, next) => {
     await deleteCache(`focalPerson:${id}`);
     await deleteCache("focalPersons:all");
     await deleteCache(`focalPhoto:${id}`);
+    await deleteCache(`viewMap:nb:${id}`);
+    await deleteCache("neighborhoods:active");
+    await deleteCache("adminDashboard:aggregatedMap");
+
+    const neighborhood = await neighborhoodRepo.findOne({ select: ["id"], where: { focalPersonID: id } });
+    await deleteCache(`neighborhood:${neighborhood?.id}`);
 
     return res.json({ message: "Focal person photo deleted successfully" });
 });
@@ -696,6 +708,11 @@ const updateFocalPerson = catchAsync(async (req, res, next) => {
     await deleteCache(`focalPerson:${id}`);
     await deleteCache("focalPersons:all");
     await deleteCache("adminDashboard:aggregatedMap");
+    await deleteCache(`viewMap:nb:${id}`);
+    await deleteCache("neighborhoods:active");
+
+    const neighborhood = await neighborhoodRepo.findOne({ select: ["id"], where: { focalPersonID: id } });
+    await deleteCache(`neighborhood:${neighborhood?.id}`);
 
     res.json({ message: "Focal Person Updated", focalPerson });
 });

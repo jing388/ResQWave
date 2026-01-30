@@ -9,4 +9,11 @@ router.get('/hourly', weatherController.getHourlyForecast);
 router.get('/weekly', weatherController.getWeeklyForecast);
 router.get('/complete', weatherController.getCompleteWeather);
 
+// Cache management routes
+router.post('/refresh', weatherController.refreshWeatherCache);
+router.get('/cache/stats', weatherController.getCacheStats);
+
+// IoT weather risk check (public endpoint for IoT devices)
+router.get('/iot/check', weatherController.checkIoTWeatherRisk);
+
 module.exports = router;

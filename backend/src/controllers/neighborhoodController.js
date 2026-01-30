@@ -68,6 +68,14 @@ const uploadAltFocalPhoto = catchAsync(async (req, res, next) => {
       actorRole,
     });
 
+    // Invalidate caches
+    await deleteCache(`neighborhood:${id}`);
+    await deleteCache(`viewMap:nb:${neighborhood.focalPersonID}`);
+    await deleteCache(`focalPerson:${neighborhood.focalPersonID}`);
+    await deleteCache(`focalAltPhoto:${neighborhood.focalPersonID}`);
+    await deleteCache("neighborhoods:active");
+    await deleteCache("focalPersons:all");
+
   return res.json({ message: "Alternative focal person photo uploaded" });
 });
 
@@ -120,6 +128,14 @@ const deleteAltFocalPhoto = catchAsync(async (req, res, next) => {
         actorRole,
       });
     }
+
+    // Invalidate caches
+    await deleteCache(`neighborhood:${id}`);
+    await deleteCache(`viewMap:nb:${neighborhood.focalPersonID}`);
+    await deleteCache(`focalPerson:${neighborhood.focalPersonID}`);
+    await deleteCache(`focalAltPhoto:${neighborhood.focalPersonID}`);
+    await deleteCache("neighborhoods:active");
+    await deleteCache("focalPersons:all");
 
   return res.json({ message: "Alternative focal person photo deleted successfully" });
 });
