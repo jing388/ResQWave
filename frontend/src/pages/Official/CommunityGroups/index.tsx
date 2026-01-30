@@ -1,47 +1,49 @@
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
 } from "@/components/ui/select";
 import { ArchiveRestore, Info, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  archiveNeighborhood,
-  deleteNeighborhood,
-  fetchNeighborhoodDetailsTransformed,
-  getArchivedNeighborhoods,
-  getNeighborhoods,
-  transformNeighborhoodToCommunityGroup,
+    archiveNeighborhood,
+    deleteNeighborhood,
+    fetchNeighborhoodDetailsTransformed,
+    getArchivedNeighborhoods,
+    getNeighborhoods,
+    transformNeighborhoodToCommunityGroup,
+    unarchiveNeighborhood,
 } from "./api/communityGroupApi";
 import { createColumns, type CommunityGroup } from "./components/Column";
 import CommunityGroupAlerts, {
-  type CommunityGroupAlertsHandle,
+    type CommunityGroupAlertsHandle,
 } from "./components/CommunityGroupAlerts";
 import { CommunityGroupApprovalSheet } from "./components/CommunityGroupApprovalSheet";
 import { CommunityGroupInfoSheet } from "./components/CommunityGroupInfoSheet";
 import { CommunityGroupDrawer } from "./components/CreateCommunityGroupSheet";
 import { DataTable } from "./components/DataTable";
+import { UnarchiveNeighborhoodModal } from "./components/UnarchiveNeighborhoodModal";
 import {
-  predefinedAwaitingGroupDetails,
-  predefinedAwaitingGroups,
+    predefinedAwaitingGroupDetails,
+    predefinedAwaitingGroups,
 } from "./data/predefinedCommunityGroups";
 import type { CommunityGroupDetails } from "./types";
 
@@ -139,6 +141,9 @@ export function CommunityGroups() {
     CommunityGroupDetails | undefined
   >(undefined);
   const [selectedTerminal, setSelectedTerminal] = useState<string>("");
+  const [unarchiveModalOpen, setUnarchiveModalOpen] = useState(false);
+  const [selectedGroupForUnarchive, setSelectedGroupForUnarchive] =
+    useState<CommunityGroup | null>(null);
   const [activeGroups, setActiveGroups] = useState<CommunityGroup[]>([]);
   const [archivedGroups, setArchivedGroups] = useState<CommunityGroup[]>([]);
   const [awaitingGroups, setAwaitingGroups] = useState<CommunityGroup[]>(
@@ -229,9 +234,56 @@ export function CommunityGroups() {
   }, []);
 
   const handleRestore = useCallback((group: CommunityGroup) => {
-    setArchivedGroups((prev) => prev.filter((g) => g.id !== group.id));
-    setActiveGroups((prev) => [group, ...prev]);
+    // Open the unarchive modal to assign a terminal
+    setSelectedGroupForUnarchive(group);
+    setUnarchiveModalOpen(true);
   }, []);
+
+  const handleUnarchive = useCallback(
+    async (terminalId: string) => {
+      if (!selectedGroupForUnarchive) return;
+
+      try {
+        // Call the unarchive API with the selected terminal
+        await unarchiveNeighborhood(selectedGroupForUnarchive.id, terminalId);
+
+        // Refetch both active and archived lists to sync with backend
+        const [activeData, archivedData] = await Promise.all([
+          getNeighborhoods(),
+          getArchivedNeighborhoods(),
+        ]);
+
+        setActiveGroups(
+          activeData.map((neighborhood) =>
+            transformNeighborhoodToCommunityGroup(neighborhood, false)
+          )
+        );
+        setArchivedGroups(
+          archivedData.map((neighborhood) =>
+            transformNeighborhoodToCommunityGroup(neighborhood, true)
+          )
+        );
+
+        // Show success alert
+        alertsRef.current?.showRestoreSuccess(
+          selectedGroupForUnarchive.name ||
+            selectedGroupForUnarchive.focalPerson ||
+            "Neighborhood Group"
+        );
+
+        // Reset selected group
+        setSelectedGroupForUnarchive(null);
+      } catch (err) {
+        console.error("Error unarchiving neighborhood:", err);
+        alertsRef.current?.showError(
+          err instanceof Error
+            ? err.message
+            : "Failed to unarchive neighborhood. Please try again."
+        );
+      }
+    },
+    [selectedGroupForUnarchive]
+  );
 
   const handleDeletePermanent = useCallback((group: CommunityGroup) => {
     // Show confirmation dialog before deleting
@@ -731,6 +783,14 @@ export function CommunityGroups() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Unarchive Neighborhood Modal */}
+      <UnarchiveNeighborhoodModal
+        open={unarchiveModalOpen}
+        onOpenChange={setUnarchiveModalOpen}
+        onUnarchive={handleUnarchive}
+        neighborhoodId={selectedGroupForUnarchive?.id || ""}
+      />
 
       {/* Alerts */}
       <CommunityGroupAlerts ref={alertsRef} />

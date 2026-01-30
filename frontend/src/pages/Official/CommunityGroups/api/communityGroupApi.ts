@@ -20,6 +20,20 @@ export async function deleteNeighborhood(
 }
 
 /**
+ * Unarchive a neighborhood and assign it to a terminal
+ * Moves neighborhood from archived to active
+ */
+export async function unarchiveNeighborhood(
+  id: string,
+  terminalID: string,
+): Promise<{ message: string }> {
+  return apiFetch(`/neighborhood/${id}/restore`, {
+    method: "PATCH",
+    body: JSON.stringify({ terminalID }),
+  });
+}
+
+/**
  * Update an existing neighborhood and its focal person (like EditAboutCommunity pattern)
  */
 export async function updateNeighborhood(
