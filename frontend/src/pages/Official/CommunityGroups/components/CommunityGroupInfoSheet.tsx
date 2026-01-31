@@ -204,7 +204,7 @@ export function CommunityGroupInfoSheet({
           <div className="flex justify-between items-center bg-[#1d1d1d] px-4 py-4 rounded-[5px]">
             <span className="text-white/80 text-sm">No. of Households</span>
             <span className="text-white text-sm">
-              ~ {communityData.families || "0"}
+               {communityData.families || "0"}
             </span>
           </div>
 
@@ -212,7 +212,7 @@ export function CommunityGroupInfoSheet({
           <div className="flex justify-between items-center bg-[#171717] px-4 py-4 rounded-[5px]">
             <span className="text-white/80 text-sm">No. of Residents</span>
             <span className="text-white text-sm">
-              ~ {communityData.individuals || "0"}
+              {communityData.individuals || "0"}
             </span>
           </div>
 
@@ -223,7 +223,7 @@ export function CommunityGroupInfoSheet({
             </span>
             <span className="text-white text-sm">
               {communityData.floodSubsideHours
-                ? `~ ${communityData.floodSubsideHours} hr`
+                ? ` ${communityData.floodSubsideHours} hr`
                 : "N/A"}
             </span>
           </div>
@@ -257,7 +257,7 @@ export function CommunityGroupInfoSheet({
                 ))}
               </ul>
             ) : (
-              <p className="text-white text-sm">No additional information</p>
+              <p className="text-white text-sm">N/A</p>
             )}
           </div>
 
