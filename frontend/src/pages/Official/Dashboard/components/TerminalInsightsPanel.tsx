@@ -5,6 +5,18 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
 import { apiFetch } from "@/lib/api";
 import { getNeighborhoodByTerminalId } from "@/pages/Official/CommunityGroups/api/communityGroupApi";
 import type { CommunityGroupDetails } from "@/pages/Official/CommunityGroups/types";
@@ -12,6 +24,7 @@ import { Gemini } from '@lobehub/icons';
 import {
     AlertCircle,
     AlertTriangle,
+    Bell,
     Brain,
     CheckCircle,
     ChevronDown,
@@ -30,6 +43,7 @@ import {
     Moon,
     Phone,
     Shield,
+    ShieldOff,
     Sun,
     Thermometer,
     Wind,
@@ -98,6 +112,8 @@ interface WeatherData {
     current: CurrentWeather;
     hourly: HourlyForecast[];
     weekly: WeeklyForecast[];
+    weatherCheckEnabled?: boolean;
+    manualBlockEnabled?: boolean;
 }
 
 interface TerminalInsightsPanelProps {
@@ -216,23 +232,189 @@ export function TerminalInsightsPanel({
     const [communityData, setCommunityData] = useState<CommunityGroupDetails | null>(null);
     const [additionalContext, setAdditionalContext] = useState<string>('');
     const [showContextModal, setShowContextModal] = useState(false);
+    const [weatherCheckEnabled, setWeatherCheckEnabled] = useState<boolean>(true);
+    const [isTogglingWeatherCheck, setIsTogglingWeatherCheck] = useState(false);
+    const [manualBlockEnabled, setManualBlockEnabled] = useState<boolean>(false);
+    const [isTogglingManualBlock, setIsTogglingManualBlock] = useState(false);
+    const [iotButtonBlinking, setIotButtonBlinking] = useState(false);
+    const [iotBlinkColor, setIotBlinkColor] = useState<'red' | 'orange'>('red');
+    const [iotTestResult, setIotTestResult] = useState<string | null>(null);
+    const [isAlertingFocalPerson, setIsAlertingFocalPerson] = useState(false);
+    const [recentAlerts, setRecentAlerts] = useState<number[]>([]);
+    const [confirmAlertOpen, setConfirmAlertOpen] = useState(false);
+    const [showSuccessSnackbar, setShowSuccessSnackbar] = useState(false);
+    const [successMessage, setSuccessMessage] = useState('');
     const previousRescueRecordsRef = useRef<string>('');
 
-    // Frontend weather cache - stores weather data by terminalID
-    const weatherCacheRef = useRef<Map<string, { data: WeatherData; expiresAt: string }>>(new Map());
+    // Toggle weather check for IoT
+    const handleToggleWeatherCheck = async () => {
+        setIsTogglingWeatherCheck(true);
+        try {
+            const newState = !weatherCheckEnabled;
+            const response = await apiFetch<{
+                status: string;
+                data: {
+                    terminalID: string;
+                    weatherCheckEnabled: boolean;
+                    message: string;
+                }
+            }>('/api/weather/toggle-check', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    terminalID,
+                    enabled: newState
+                })
+            });
 
+            if (response.status === 'success') {
+                setWeatherCheckEnabled(newState);
+                console.log(`✅ Weather check ${newState ? 'enabled' : 'disabled'} for ${terminalID}`);
+            }
+        } catch (err) {
+            console.error('❌ Error toggling weather check:', err);
+        } finally {
+            setIsTogglingWeatherCheck(false);
+        }
+    };
 
-    console.log('🎯 TerminalInsightsPanel rendered - isOpen:', isOpen, 'terminalID:', terminalID);
+    // Toggle manual block for IoT
+    const handleToggleManualBlock = async () => {
+        setIsTogglingManualBlock(true);
+        try {
+            const newState = !manualBlockEnabled;
+            const response = await apiFetch<{
+                status: string;
+                data: {
+                    terminalID: string;
+                    manualBlockEnabled: boolean;
+                    message: string;
+                }
+            }>('/api/weather/toggle-manual-block', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    terminalID,
+                    blocked: newState
+                })
+            });
+
+            if (response.status === 'success') {
+                setManualBlockEnabled(newState);
+                console.log(`🚫 Manual block ${newState ? 'enabled' : 'disabled'} for ${terminalID}`);
+            }
+        } catch (err) {
+            console.error('❌ Error toggling manual block:', err);
+        } finally {
+            setIsTogglingManualBlock(false);
+        }
+    };
+
+    // Alert Focal Person - Send SMS + Email
+    const handleAlertFocalPerson = async () => {
+        // Rate limiting: max 5 alerts within 10 minutes
+        const now = Date.now();
+        const tenMinutesAgo = now - 600000; // 10 minutes in ms
+        const recentAlertsList = recentAlerts.filter(time => time > tenMinutesAgo);
+
+        if (recentAlertsList.length >= 5) {
+            // Find oldest alert in the window
+            const oldestAlert = Math.min(...recentAlertsList);
+            const waitTime = Math.ceil((oldestAlert + 600000 - now) / 60000);
+            const remaining = 5 - recentAlertsList.length;
+            setSuccessMessage(`Rate limit reached. Please wait ${waitTime} minute(s) before sending another alert. (5 alerts per 10 minutes)`);
+            setShowSuccessSnackbar(true);
+            setTimeout(() => setShowSuccessSnackbar(false), 4000);
+            return;
+        }
+
+        // Open confirmation modal instead of browser confirm
+        setConfirmAlertOpen(true);
+    };
+
+    const sendFocalAlert = async () => {
+        setConfirmAlertOpen(false);
+        const now = Date.now();
+
+        setIsAlertingFocalPerson(true);
+        try {
+            // Build alert reason from weather data
+            let alertReason = 'Emergency alert - Please monitor conditions';
+            let weatherConditions = 'Check current conditions';
+
+            if (weatherData) {
+                const { current } = weatherData;
+                // Capitalize each word in description
+                const capitalizedDescription = current.description
+                    .split(' ')
+                    .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
+                    .join(' ');
+
+                weatherConditions = `${capitalizedDescription}\nTemp: ${current.temperature}°C\nWind: ${current.windSpeed} km/h\nHumidity: ${current.humidity}%`;
+
+                // Determine alert reason based on conditions
+                if (current.windSpeed >= 25 || current.description.toLowerCase().includes('rain')) {
+                    alertReason = 'High flood risk detected - Weather conditions are unfavorable';
+                } else {
+                    alertReason = 'Potential flood risk - Please stay alert';
+                }
+            }
+
+            const response = await apiFetch<{
+                status: string;
+                message: string;
+                data: {
+                    focalPerson: {
+                        name: string;
+                        phone: string | null;
+                        email: string | null;
+                    };
+                    sent: {
+                        sms: boolean;
+                        email: boolean;
+                    };
+                    timestamp: string;
+                }
+            }>('/api/focal-alert', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    terminalID,
+                    alertReason,
+                    weatherConditions,
+                    dispatcherName: undefined // You can pass dispatcher name if available
+                })
+            });
+
+            if (response.status === 'success') {
+                const { focalPerson, sent } = response.data;
+                const sentMethods = [];
+                if (sent.sms) sentMethods.push('SMS');
+                if (sent.email) sentMethods.push('Email');
+
+                setSuccessMessage(`Alert sent successfully via ${sentMethods.join(' + ')}`);
+                setShowSuccessSnackbar(true);
+                setTimeout(() => setShowSuccessSnackbar(false), 4000);
+
+                // Add timestamp to recent alerts array
+                setRecentAlerts(prev => [...prev, now]);
+                console.log(`📢 Focal person alerted: ${focalPerson.name} via ${sentMethods.join(', ')}`);
+            }
+        } catch (err: any) {
+            console.error('❌ Error alerting focal person:', err);
+            setSuccessMessage(`Failed to send alert: ${err.message || 'Unknown error'}`);
+            setShowSuccessSnackbar(true);
+            setTimeout(() => setShowSuccessSnackbar(false), 4000);
+        } finally {
+            setIsAlertingFocalPerson(false);
+        }
+    };
 
     // Define fetch functions before they're used in useEffects
     const fetchRescueRecords = useCallback(async () => {
-        console.log('📋 Fetching rescue records for terminal:', terminalID);
         setLoadingRescues(true);
         try {
             const records = await getRescueRecordsByTerminal(terminalID);
-            console.log('✅ Rescue records received:', records);
-            console.log('🔍 First record data:', records[0]);
-            console.log('🔍 Personnel counts:', records.map(r => ({ id: r.emergencyId, personnel: r.noOfPersonnel })));
             setRescueRecords(records);
 
             // Detect data changes for orange blinking dot
@@ -258,27 +440,6 @@ export function TerminalInsightsPanel({
     }, [terminalID]);
 
     const fetchWeatherData = useCallback(async () => {
-        console.log('🌐 Starting weather fetch...');
-
-        // Check if we have valid cached data in frontend
-        const cachedEntry = weatherCacheRef.current.get(terminalID);
-        if (cachedEntry) {
-            const now = new Date();
-            const expiresAt = new Date(cachedEntry.expiresAt);
-
-            if (now < expiresAt) {
-                console.log('✅ Using FRONTEND cache for terminal', terminalID);
-                setWeatherData(cachedEntry.data);
-                setIsLoading(false);
-                setError(null);
-                setNoCoordinates(false);
-                return; // Skip API call
-            } else {
-                console.log('⏰ Frontend cache expired for terminal', terminalID);
-                weatherCacheRef.current.delete(terminalID);
-            }
-        }
-
         const startTime = Date.now();
         setIsLoading(true);
         setError(null);
@@ -318,7 +479,6 @@ export function TerminalInsightsPanel({
 
             if (foundCoordinates && lat && lon) {
                 queryParams = `?terminalID=${terminalID}&lat=${lat}&lon=${lon}`;
-                console.log('📍 Using terminal coordinates:', { terminalID, lat, lon });
 
                 // Fetch weather from backend (which also has caching)
                 const response = await apiFetch<{
@@ -330,25 +490,18 @@ export function TerminalInsightsPanel({
                         expiresAt: string;
                     }
                 }>(`/api/weather/complete${queryParams}`);
-                console.log('✅ Weather data received:', response);
-                console.log(`📦 Data source: ${response.meta?.cached ? 'BACKEND CACHE' : 'FRESH API CALL'}`);
+
+                console.log(`📦 ${response.meta?.cached ? 'BACKEND CACHE' : 'FRESH API'} - ${terminalID}`);
 
                 if (response.status === 'success') {
                     setWeatherData(response.data);
-
-                    // Store in frontend cache if we have expiration info
-                    if (response.meta?.expiresAt) {
-                        weatherCacheRef.current.set(terminalID, {
-                            data: response.data,
-                            expiresAt: response.meta.expiresAt
-                        });
-                        console.log('💾 Stored in frontend cache until', response.meta.expiresAt);
-                    }
+                    // Set weather check enabled state from backend
+                    setWeatherCheckEnabled(response.data.weatherCheckEnabled ?? true);
+                    setManualBlockEnabled(response.data.manualBlockEnabled ?? false);
                 }
             } else {
                 setNoCoordinates(true);
                 setWeatherData(null); // Clear any previous weather data
-                console.log('⚠️ No coordinates found - not fetching weather data');
             }
 
             // Ensure minimum loading time of 1.5 seconds for better UX
@@ -375,27 +528,26 @@ export function TerminalInsightsPanel({
     // Fetch rescue records when panel opens
     useEffect(() => {
         if (isOpen && terminalID) {
-            console.log('🌤️ Panel opened, fetching data...');
             fetchRescueRecords();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen, terminalID]); // Intentionally exclude fetchRescueRecords to prevent double calls
 
-    // Fetch community data when terminal opens
+    // Fetch community data and weather when panel opens
     useEffect(() => {
-        if (isOpen && terminalID) {
+        if (isOpen && terminalID && !communityData) {
             fetchCommunityData();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isOpen, terminalID]); // Intentionally exclude fetchCommunityData to prevent double calls
+    }, [isOpen, terminalID]);
 
-    // Fetch weather when community data is available
+    // Fetch weather when community data becomes available
     useEffect(() => {
-        if (communityData) {
+        if (communityData && isOpen) {
             fetchWeatherData();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [communityData]); // Intentionally exclude fetchWeatherData to prevent double calls
+    }, [communityData, isOpen]);
 
     const getDaysFromPeriod = (period: typeof timePeriod): number | null => {
         switch (period) {
@@ -444,7 +596,7 @@ export function TerminalInsightsPanel({
                 const { allowAlert, riskLevel, reasons } = response;
 
                 console.log(`📊 Risk Level: ${riskLevel}`);
-                console.log(`� Allow Alert: ${allowAlert}`);
+                console.log(`✅ Allow Alert: ${allowAlert}`);
                 console.log(`📝 Reasons:`, reasons);
 
                 // Set result message
@@ -469,7 +621,7 @@ export function TerminalInsightsPanel({
                     }, 400); // 400ms per blink (slower for visibility)
                 } else {
                     // NORMAL weather - blink red only (5 times)
-                    console.log('� NORMAL: Blinking red (alert blocked)');
+                    console.log('🔴 NORMAL: Blinking red (alert blocked)');
                     let count = 0;
                     let isVisible = true;
                     const blinkInterval = setInterval(() => {
@@ -552,17 +704,17 @@ export function TerminalInsightsPanel({
             setTimeout(() => setIsVisible(true), 10);
         } else {
             setIsVisible(false);
-            // Clear weather data when panel closes to prevent showing stale data
+            // Don't clear communityData - it's needed for cache check on reopen
+            // Only clear visual data
             setWeatherData(null);
-            setCommunityData(null);
             setAiPrediction(null);
         }
     }, [isOpen]);
 
-    // Clear weather data when terminal changes
+    // Clear all data when terminal changes (new terminal = fresh data needed)
     useEffect(() => {
         setWeatherData(null);
-        setCommunityData(null);
+        setCommunityData(null); // Clear on terminal change
         setAiPrediction(null);
         setError(null);
         setNoCoordinates(false);
@@ -593,22 +745,24 @@ export function TerminalInsightsPanel({
 
     return (
         <>
-            {/* Backdrop */}
-            <div
-                className="fixed z-40 transition-opacity bg-black/50"
-                style={{
-                    top: 0,
-                    bottom: 0,
-                    left: "80px", // Sidebar width (collapsed state)
-                    right: 0,
-                    opacity: isVisible ? 1 : 0,
-                }}
-                onClick={onClose}
-            />
+            {/* Backdrop - hidden when modal is open to prevent double darkening */}
+            {!confirmAlertOpen && (
+                <div
+                    className="fixed z-40 transition-opacity bg-black/50"
+                    style={{
+                        top: 0,
+                        bottom: 0,
+                        left: "80px", // Sidebar width (collapsed state)
+                        right: 0,
+                        opacity: isVisible ? 1 : 0,
+                    }}
+                    onClick={onClose}
+                />
+            )}
 
             {/* Bottom Panel - Full map width with shadcn dark theme */}
             <div
-                className="fixed bottom-0 bg-[#171717] border-t border-border z-[9999] transition-transform duration-300 ease-out"
+                className="fixed bottom-0 bg-[#171717] border-t border-border z-50 transition-transform duration-300 ease-out"
                 style={{
                     left: "80px", // Sidebar width (collapsed state)
                     right: 0,
@@ -665,13 +819,61 @@ export function TerminalInsightsPanel({
                         </div> */}
                     </div>
 
-                    <button
-                        onClick={onClose}
-                        className="text-muted-foreground hover:text-foreground transition-colors p-1.5 rounded-md hover:bg-accent"
-                        aria-label="Close"
-                    >
-                        <X size={20} />
-                    </button>
+                    <div className="flex items-center gap-2">
+                        {/* Weather Check Toggle Button */}
+                        <button
+                            onClick={handleToggleWeatherCheck}
+                            disabled={isTogglingWeatherCheck}
+                            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all bg-card border border-border hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
+                            style={{ boxShadow: '0 2px 8px 0 #0000000a' }}
+                            title={weatherCheckEnabled
+                                ? 'Weather check ON: IoT sends alerts only during risky weather'
+                                : 'Weather check OFF: IoT always sends alerts regardless of weather'
+                            }
+                        >
+                            {isTogglingWeatherCheck ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />
+                            ) : weatherCheckEnabled ? (
+                                <Shield className="w-3.5 h-3.5 text-green-400" />
+                            ) : (
+                                <AlertTriangle className="w-3.5 h-3.5 text-orange-400" />
+                            )}
+                            <span className={weatherCheckEnabled ? 'text-green-400' : 'text-orange-400'}>
+                                Weather-Based Alert: {weatherCheckEnabled ? 'ON' : 'OFF'}
+                            </span>
+                        </button>
+
+                        {/* Manual Block Toggle Button */}
+                        <button
+                            onClick={handleToggleManualBlock}
+                            disabled={isTogglingManualBlock}
+                            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all bg-card border border-border hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
+                            style={{ boxShadow: '0 2px 8px 0 #0000000a' }}
+                            title={manualBlockEnabled
+                                ? 'Manual Block ON: All IoT alerts are blocked regardless of weather'
+                                : 'Manual Block OFF: IoT operates normally based on weather conditions'
+                            }
+                        >
+                            {isTogglingManualBlock ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />
+                            ) : manualBlockEnabled ? (
+                                <CheckCircle className="w-3.5 h-3.5 text-green-400" />
+                            ) : (
+                                <ShieldOff className="w-3.5 h-3.5 text-red-400" />
+                            )}
+                            <span className={manualBlockEnabled ? 'text-green-400' : 'text-red-400'}>
+                                Manual Block: {manualBlockEnabled ? 'ON' : 'OFF'}
+                            </span>
+                        </button>
+
+                        <button
+                            onClick={onClose}
+                            className="text-muted-foreground hover:text-foreground transition-colors p-1.5 rounded-md hover:bg-accent"
+                            aria-label="Close"
+                        >
+                            <X size={20} />
+                        </button>
+                    </div>
                 </div>
 
                 {/* Content - Scrollable */}
@@ -790,17 +992,25 @@ export function TerminalInsightsPanel({
                                             </div>
                                         </div>
 
-                                        {/* Emergency Call Button */}
+                                        {/* Alert Focal Person Button */}
                                         <button
-                                            onClick={() => {
-                                                // TODO: Implement emergency call functionality
-                                                console.log('Emergency call initiated');
-                                            }}
-                                            className="bg-red-600 hover:bg-red-700 text-white rounded-lg mt-3 py-3 px-3 flex items-center justify-center gap-2 transition-colors font-medium"
+                                            onClick={handleAlertFocalPerson}
+                                            disabled={isAlertingFocalPerson}
+                                            className="bg-red-600 hover:bg-red-700 disabled:bg-red-800 disabled:opacity-50 text-white rounded-lg mt-3 py-3 px-3 flex items-center justify-center gap-2 transition-colors font-medium disabled:cursor-not-allowed"
                                             style={{ boxShadow: '0 2px 8px 0 #0000000a' }}
+                                            title="Send emergency alert to focal person via SMS and Email"
                                         >
-                                            <Phone className="w-4 h-4" />
-                                            <span className="text-xs">Emergency Call</span>
+                                            {isAlertingFocalPerson ? (
+                                                <>
+                                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                                    <span className="text-sm">Sending...</span>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Bell className="w-4 h-4" />
+                                                    <span className="text-sm">Focal Alert</span>
+                                                </>
+                                            )}
                                         </button>
                                     </div>
                                     {/* Main column - Hourly Forecast and Temp Trend stacked vertically */}
@@ -1522,6 +1732,78 @@ export function TerminalInsightsPanel({
                     </div>
                 </>
             )}
+
+            {/* Alert Focal Person Confirmation Modal */}
+            {confirmAlertOpen && (
+                <div
+                    style={{
+                        position: 'fixed',
+                        inset: 0,
+                        background: 'rgba(0, 0, 0, 0.35)',
+                        zIndex: 100000,
+                        pointerEvents: 'auto',
+                    }}
+                    onClick={() => setConfirmAlertOpen(false)}
+                />
+            )}
+            <AlertDialog open={confirmAlertOpen} onOpenChange={setConfirmAlertOpen}>
+                <AlertDialogContent
+                    style={{
+                        zIndex: 999999,
+                        background: '#0d0d0d',
+                        border: '1px solid #404040',
+                        color: '#fff'
+                    }}
+                >
+                    <AlertDialogHeader>
+                        <AlertDialogTitle style={{ color: '#fff', fontSize: '18px', fontWeight: 600 }}>
+                            Alert Focal Person
+                        </AlertDialogTitle>
+                        <AlertDialogDescription style={{ color: '#a1a1aa', lineHeight: '1.6' }}>
+                            Send emergency alert to focal person? This will send SMS and email notification with current conditions.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel
+                            onClick={() => setConfirmAlertOpen(false)}
+                            disabled={isAlertingFocalPerson}
+                            className="px-4 py-2 mt-3 bg-[#1b1b1b] text-white border border-[#3E3E3E] cursor-pointer transition duration-175 hover:bg-[#222222]"
+                            style={{ borderRadius: 8, fontSize: 15 }}
+                        >
+                            Cancel
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={sendFocalAlert}
+                            disabled={isAlertingFocalPerson}
+                            className="px-4 py-2 mt-3 bg-white text-black hover:bg-[#e2e2e2] rounded cursor-pointer transition duration-175"
+                            style={{ borderRadius: 8, fontSize: 15 }}
+                        >
+                            {isAlertingFocalPerson ? (
+                                <>
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    Sending...
+                                </>
+                            ) : (
+                                'Alert Focal'
+                            )}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            {/* Success Snackbar */}
+            <div
+                className={`fixed left-[85px] bottom-[30px] z-50 transition-all duration-300 ease-out ${showSuccessSnackbar ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0 pointer-events-none"}`}
+            >
+                <Alert className="min-w-[280px] max-w-[520px] bg-[#171717] border border-[#2a2a2a] text-white rounded-[5px] !items-center !grid-cols-[auto_1fr] !gap-x-3">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-[5px] bg-blue-600/25">
+                        <Bell className="size-5 text-[#3B82F6]" />
+                    </div>
+                    <AlertDescription className="text-[13px] leading-tight">
+                        {successMessage}
+                    </AlertDescription>
+                </Alert>
+            </div>
         </>
     );
 }

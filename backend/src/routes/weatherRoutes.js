@@ -12,6 +12,8 @@ router.get('/complete', weatherController.getCompleteWeather);
 // Cache management routes
 router.post('/refresh', weatherController.refreshWeatherCache);
 router.get('/cache/stats', weatherController.getCacheStats);
+router.post('/toggle-check', weatherController.toggleWeatherCheck);
+router.post('/toggle-manual-block', weatherController.toggleManualBlock);
 
 // IoT weather risk check (public endpoint for IoT devices)
 router.get('/iot/check', weatherController.checkIoTWeatherRisk);

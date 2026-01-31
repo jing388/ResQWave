@@ -46,6 +46,18 @@ module.exports = new EntitySchema({
             type: "timestamp",
             nullable: true,
             comment: "Last time this cache was read (for analytics)"
+        },
+        weatherCheckEnabled: {
+            type: "boolean",
+            default: true,
+            nullable: false,
+            comment: "Toggle IoT weather check: true = check weather conditions (risky only), false = always allow alerts (bypass weather check)"
+        },
+        manualBlockEnabled: {
+            type: "boolean",
+            default: false,
+            nullable: false,
+            comment: "Manual block by dispatcher: true = block all IoT alerts (manual override), false = allow normal operation"
         }
     },
     relations: {

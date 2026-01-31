@@ -27,6 +27,7 @@ const adminDashboardRoutes = require("./routes/adminDashboardRoutes");
 const sensorDataRoutes = require("./routes/sensorDataRoutes");
 const lmsRoutes = require("./routes/lmsRoutes");
 const weatherRoutes = require("./routes/weatherRoutes");
+const focalAlertRoutes = require("./routes/focalAlertRoutes");
 const { authMiddleware, requireRole } = require("./middleware/authMiddleware");
 const { getTerminalsForMap } = require("./controllers/terminalController");
 const {
@@ -129,6 +130,7 @@ AppDataSource.initialize()
     app.use("/ai/prediction", aiPredictionRoutes);
     app.use("/", graphRoutes);
     app.use("/", documentRoutes);
+    app.use("/api/focal-alert", focalAlertRoutes);
 
     // Handle 404
     app.use((req, res, next) => {

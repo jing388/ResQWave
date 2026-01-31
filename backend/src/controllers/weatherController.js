@@ -125,6 +125,52 @@ const getCacheStats = catchAsync(async (req, res) => {
 });
 
 /**
+ * Toggle weather check for IoT terminal
+ * POST /api/weather/toggle-check
+ * Body: { terminalID, enabled }
+ */
+const toggleWeatherCheck = catchAsync(async (req, res) => {
+    const { terminalID, enabled } = req.body;
+
+    if (!terminalID || typeof enabled !== 'boolean') {
+        return res.status(400).json({
+            status: 'error',
+            message: 'terminalID (string) and enabled (boolean) are required'
+        });
+    }
+
+    const result = await weatherCacheService.toggleWeatherCheck(terminalID, enabled);
+
+    res.status(200).json({
+        status: 'success',
+        data: result
+    });
+});
+
+/**
+ * Toggle manual block for IoT terminal
+ * POST /api/weather/toggle-manual-block
+ * Body: { terminalID, blocked }
+ */
+const toggleManualBlock = catchAsync(async (req, res) => {
+    const { terminalID, blocked } = req.body;
+
+    if (!terminalID || typeof blocked !== 'boolean') {
+        return res.status(400).json({
+            status: 'error',
+            message: 'terminalID (string) and blocked (boolean) are required'
+        });
+    }
+
+    const result = await weatherCacheService.toggleManualBlock(terminalID, blocked);
+
+    res.status(200).json({
+        status: 'success',
+        data: result
+    });
+});
+
+/**
  * IoT Weather Check - Determines if weather is risky enough to send alerts
  * GET /api/weather/iot/check?terminalID=RSQW-001
  * 
@@ -156,13 +202,51 @@ const checkIoTWeatherRisk = catchAsync(async (req, res) => {
         });
     }
 
+    // Check if manual block is enabled (dispatcher override)
+    const manualBlockEnabled = weatherData.manualBlockEnabled ?? false;
+
+    if (manualBlockEnabled) {
+        console.log(`🚫 Manual block ENABLED for terminal ${terminalID} - blocking alert by dispatcher override`);
+        return res.status(200).json({
+            status: 'success',
+            allowAlert: false,
+            riskLevel: 'BLOCKED',
+            reasons: ['Manual block enabled by dispatcher - all alerts blocked regardless of conditions'],
+            manualBlockEnabled: true,
+            weatherSummary: {
+                currentCondition: weatherData.current.description,
+                temperature: weatherData.current.temperature,
+                windSpeed: weatherData.current.windSpeed
+            }
+        });
+    }
+
+    // Check if weather check is disabled (bypass weather conditions)
+    const weatherCheckEnabled = weatherData.weatherCheckEnabled ?? true;
+
+    if (!weatherCheckEnabled) {
+        console.log(`⚠️ Weather check DISABLED for terminal ${terminalID} - allowing alert regardless of weather`);
+        return res.status(200).json({
+            status: 'success',
+            allowAlert: true,
+            riskLevel: 'BYPASS',
+            reasons: ['Weather check disabled by dispatcher - alerts allowed regardless of conditions'],
+            weatherCheckEnabled: false,
+            weatherSummary: {
+                currentCondition: weatherData.current.description,
+                temperature: weatherData.current.temperature,
+                windSpeed: weatherData.current.windSpeed
+            }
+        });
+    }
+
     // Check rescue history with tiered sensitivity based on recency
     const alertRepo = AppDataSource.getRepository('Alert');
-    
+
     // Define time windows
     const oneWeekAgo = new Date();
     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-    
+
     const oneMonthAgo = new Date();
     oneMonthAgo.setDate(oneMonthAgo.getDate() - 30);
 
@@ -211,7 +295,7 @@ const checkIoTWeatherRisk = catchAsync(async (req, res) => {
     // Risk thresholds (adjusted by sensitivity if recent flooding)
     const baseRainThreshold = isNightTime ? 30 : 40; // Night: 30%, Day: 40%
     const rainThreshold = baseRainThreshold * sensitivityMultiplier; // Lowers to 22.5% (night) or 30% (day) if recent rescues
-    
+
     const baseWindThreshold = 50; // km/h
     const windThreshold = baseWindThreshold * sensitivityMultiplier; // Lowers to 37.5 km/h if recent rescues
 
@@ -226,7 +310,7 @@ const checkIoTWeatherRisk = catchAsync(async (req, res) => {
             value: weatherData.current.description,
             threshold: 'Any rain',
             passed: !isCurrentlyRaining,
-            explanation: isCurrentlyRaining 
+            explanation: isCurrentlyRaining
                 ? `Currently ${weatherData.current.description} - immediate flood risk`
                 : 'Not raining currently'
         },
@@ -253,7 +337,7 @@ const checkIoTWeatherRisk = catchAsync(async (req, res) => {
     // Check precipitation forecast
     if (precipitationProbability >= rainThreshold) {
         isRisky = true;
-        const sensitivityNote = sensitivityLevel !== 'normal' 
+        const sensitivityNote = sensitivityLevel !== 'normal'
             ? ` - ${sensitivityLevel} sensitivity (${alertsLastWeek > 0 ? alertsLastWeek + ' rescues in past week' : alertsLastMonth + ' rescues in past month'})`
             : '';
         reasons.push(`${precipitationProbability}% rain probability in next 3 hours (threshold: ${rainThreshold.toFixed(1)}%${sensitivityNote})`);
@@ -324,5 +408,7 @@ module.exports = {
     getCompleteWeather,
     refreshWeatherCache,
     getCacheStats,
+    toggleWeatherCheck,
+    toggleManualBlock,
     checkIoTWeatherRisk
 };
