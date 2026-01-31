@@ -1,6 +1,7 @@
 const { AppDataSource } = require("../config/dataSource");
 const adminRepo = AppDataSource.getRepository("Admin");
 const dispatcherRepo = AppDataSource.getRepository("Dispatcher");
+const focalPersonRepo = AppDataSource.getRepository("FocalPerson");
 const { sendVerificationEmail } = require("../utils/confirmEmail");
 const { sendSMS } = require("../utils/textbeeSMS");
 const { setCache, getCache, deleteCache } = require("../config/cache");
@@ -118,6 +119,9 @@ const requestEmailChange = catchAsync(async (req, res, next) => {
     const existingDispatcher = await dispatcherRepo.findOne({ where: { email: newEmail } });
     if (existingDispatcher) return next(new BadRequestError("Email already in use"));
 
+    const existingFocalPerson = await focalPersonRepo.findOne({where: {email: newEmail} });
+    if (existingFocalPerson) return next (new BadRequestError("Email already in use"));
+
     // Generate Code
     const code = crypto.randomInt(100000, 999999).toString();
 
@@ -153,6 +157,12 @@ const verifyEmailChange = catchAsync(async (req, res, next) => {
         await adminRepo.update(id, { email: cachedData.newEmail });
     } else if (role === "dispatcher") {
         await dispatcherRepo.update(id, { email: cachedData.newEmail });
+        await deleteCache(`dispatcher:${id}`);
+        await deleteCache("dispatchers:active");
+    } else if (role === "focalPerson") {
+        await focalPersonRepo.update(id, { email: cachedData.newEmail });
+        await deleteCache(`focalPerson:${id}`);
+        await deleteCache("focalPersons:all");
     }
 
     // Clear Cache
@@ -174,7 +184,10 @@ const requestNumberChange = catchAsync(async (req, res, next) => {
     if (existingAdmin) return next(new BadRequestError("Contact Number already in use"));
 
     const existingDispatcher = await dispatcherRepo.findOne({where: {contactNumber: newNumber} });
-    if (existingDispatcher) return next(new BadRequestError("Contact Number already in use"))
+    if (existingDispatcher) return next(new BadRequestError("Contact Number already in use"));
+
+    const existingFocalPerson = await focalPersonRepo.findOne({where: {contactNumber: newNumber} });
+    if (existingFocalPerson) return next(new BadRequestError("Contact Number already in use"));
 
     // Generate Code
     const code = crypto.randomInt(100000, 999999).toString();
@@ -211,6 +224,12 @@ const verifyNumberChange = catchAsync(async (req, res, next) => {
         await adminRepo.update(id, { contactNumber: cachedData.newNumber });
     } else if (role === "dispatcher") {
         await dispatcherRepo.update(id, { contactNumber: cachedData.newNumber });
+        await deleteCache(`dispatcher:${id}`);
+        await deleteCache("dispatchers:active");
+    } else if (role === "focalPerson") {
+        await focalPersonRepo.update(id, {contactNumber: cachedData.newNumber });
+        await deleteCache(`focalPerson:${id}`);
+        await deleteCache("focalPersons:all");
     }
 
     // Clear Cache
