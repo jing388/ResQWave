@@ -14,7 +14,6 @@ export function ForgotPasswordFlow() {
   const navigate = useNavigate();
   const alertsRef = useRef<ForgotPasswordAlertsHandle>(null);
   const [currentStep, setCurrentStep] = useState<ForgotPasswordStep>(1);
-  const [direction, setDirection] = useState<"forward" | "backward">("forward");
 
   // State to persist across steps
   const [userID, setUserID] = useState<number | null>(null);
@@ -22,14 +21,8 @@ export function ForgotPasswordFlow() {
   const [verificationCode, setVerificationCode] = useState<string>("");
   const [expiryTimestamp, setExpiryTimestamp] = useState<number | null>(null);
 
-  const goToStep = (
-    step: ForgotPasswordStep,
-    dir: "forward" | "backward" = "forward",
-  ) => {
-    setDirection(dir);
-    setTimeout(() => {
-      setCurrentStep(step);
-    }, 50);
+  const goToStep = (step: ForgotPasswordStep) => {
+    setCurrentStep(step);
   };
 
   const handleBackToLogin = () => {
@@ -46,7 +39,7 @@ export function ForgotPasswordFlow() {
               setMaskedEmail(email);
               setExpiryTimestamp(expiry);
               alertsRef.current?.showCodeSent(email);
-              goToStep(2, "forward");
+              goToStep(2, );
             }}
             onBack={handleBackToLogin}
             onError={(message: string) => alertsRef.current?.showError(message)}
@@ -61,9 +54,9 @@ export function ForgotPasswordFlow() {
             onVerified={(code: string) => {
               setVerificationCode(code);
               alertsRef.current?.showCodeVerified();
-              goToStep(3, "forward");
+              goToStep(3, );
             }}
-            onBack={() => goToStep(1, "backward")}
+            onBack={() => goToStep(1)}
             onResend={(newExpiry: number) => {
               setExpiryTimestamp(newExpiry);
               alertsRef.current?.showCodeResent();
@@ -78,9 +71,9 @@ export function ForgotPasswordFlow() {
             code={verificationCode}
             onSuccess={() => {
               alertsRef.current?.showPasswordUpdated();
-              goToStep(4, "forward");
+              goToStep(4);
             }}
-            onBack={() => goToStep(2, "backward")}
+            onBack={() => goToStep(2)}
             onError={(message: string) => alertsRef.current?.showError(message)}
           />
         );
@@ -103,16 +96,9 @@ export function ForgotPasswordFlow() {
 
       {/* Animated Content */}
       <div className="relative" style={{ zIndex: 20 }}>
-        <div
-          key={currentStep}
-          className={`transition-all duration-400 ease-in-out ${
-            direction === "forward"
-              ? "animate-slide-in-left"
-              : "animate-slide-in-right"
-          }`}
-        >
+     
           {renderStep()}
-        </div>
+      
       </div>
     </div>
   );

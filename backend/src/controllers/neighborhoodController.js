@@ -242,7 +242,7 @@ const viewOtherNeighborhoods = catchAsync(async (req, res, next) => {
     // Get all neighborhoods except own, with focal person info
     const neighborhoods = await neighborhoodRepo
       .createQueryBuilder("n")
-      .select(["n.id", "n.hazards", "n.createdAt", "n.focalPersonID"])
+      .select(["n.id", "n.terminalID", "n.hazards", "n.createdAt", "n.focalPersonID"])
       .where("n.archived = :arch", { arch: false })
       .andWhere(ownNeighborhoodId ? "n.id <> :own" : "1=1", { own: ownNeighborhoodId })
       .getRawMany();
@@ -263,6 +263,7 @@ const viewOtherNeighborhoods = catchAsync(async (req, res, next) => {
     return res.json(
       neighborhoods.map((n) => ({
         neighborhoodID: n.n_id,
+        terminalID: n.n_terminalID || null,
         hazards: parseHazards(n.n_hazards),
         createdDate: n.n_createdAt ?? null,
       address: byFocalId[n.n_focalPersonID]?.f_address || null,
