@@ -69,9 +69,7 @@ export function Header({
                 </button>
               </div>
             ) : (
-              <span className="text-white/80 text-sm md:text-base font-medium bg-[#2a2a2a] px-4 py-2 rounded-[5px]">
-                Visualization Map
-              </span>
+             <div></div>
             )}
           </>
         )}
