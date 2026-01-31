@@ -8,9 +8,7 @@ module.exports = new EntitySchema({
             type: "varchar",
             length: 40,
             primary: true
-        }, // e.g., FP001
-
-        // Identity
+        },
         firstName: {
             type: "varchar",
             length: 80,
@@ -21,8 +19,6 @@ module.exports = new EntitySchema({
             length: 80,
             nullable: false
         },
-
-        // Contact
         email: {
             type: "varchar",
             length: 255,
@@ -33,21 +29,19 @@ module.exports = new EntitySchema({
             length: 40,
             nullable: true
         },
-
-        // Auth (hashed)
         password: {
             type: "varchar",
             length: 255,
             nullable: false
         },
-
-        // Address/Location (string or JSON string)
+        passwordLastUpdated: {
+            type: "timestamp",
+            nullable: true,
+        },
         address: {
             type: "text",
             nullable: true
         },
-
-        // Photos
         photo: {
             type: "bytea",
             nullable: true
@@ -56,8 +50,6 @@ module.exports = new EntitySchema({
             type: "bytea",
             nullable: true
         },
-
-        // Alternative focal person
         altFirstName: {
             type: "varchar",
             length: 255,
@@ -78,23 +70,19 @@ module.exports = new EntitySchema({
             length: 40,
             nullable: true
         },
-
         approvedBy: {
             type: "varchar",
             length: 255,
             nullable: true
         },
-
         archived: {
             type: "boolean",
             default: false
         },
-
         failedAttempts: {
             type: "int",
             default: 0
         },
-
         lockUntil: {
             type: "timestamp",
             nullable: true,
@@ -103,7 +91,6 @@ module.exports = new EntitySchema({
             type: "boolean",
             default: true
         },
-
         createdAt: {
             type: "timestamp",
             createDate: true,

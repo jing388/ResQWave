@@ -692,6 +692,7 @@ const getCurrentUser = catchAsync(async (req, res, next) => {
       id: admin.id,
       name: admin.name,
       email: admin.email,
+      contactNumber: admin.contactNumber,
       role: "admin",
       passwordLastUpdated: admin.passwordLastUpdated
     };
