@@ -2,6 +2,7 @@ const { AppDataSource } = require("../config/dataSource");
 const adminRepo = AppDataSource.getRepository("Admin");
 const dispatcherRepo = AppDataSource.getRepository("Dispatcher");
 const { sendVerificationEmail } = require("../utils/confirmEmail");
+const { sendSMS } = require("../utils/textbeeSMS");
 const { setCache, getCache, deleteCache } = require("../config/cache");
 const crypto = require("crypto");
 const bcrypt = require("bcrypt");
@@ -160,6 +161,64 @@ const verifyEmailChange = catchAsync(async (req, res, next) => {
     res.json({ message: "Email updated successfully" });
 });
 
+const requestNumberChange = catchAsync(async (req, res, next) => {
+    const { id, role, name} = req.user;
+    const { newNumber } = req.body;
+
+    if (!newNumber) {
+        return next(new BadRequestError("New Number is required"));
+    }
+
+    // Check if number is already in use
+    const existingAdmin = await adminRepo.findOne({where: {contactNumber: newNumber} });
+    if (existingAdmin) return next(new BadRequestError("Contact Number already in use"));
+
+    const existingDispatcher = await dispatcherRepo.findOne({where: {contactNumber: newNumber} });
+    if (existingDispatcher) return next(new BadRequestError("Contact Number already in use"))
+
+    // Generate Code
+    const code = crypto.randomInt(100000, 999999).toString();
+
+    // Store in Cache 
+    await setCache(`number_change:${id}`, {newNumber, code}, 300);
+
+    // Send Contact Number
+    const message = `Hello ${name}, your ResQWave verification code is: ${code}. Valid for 5 Minutes.`;
+    await sendSMS(newNumber, message);
+    
+    res.json({message: "Verification code sent to new contact number"});
+});
+
+const verifyNumberChange = catchAsync(async (req, res, next) => {
+    const { id, role } = req.user;
+    const { code } = req.body;
+
+    if (!code) {
+        return next (new BadRequestError("Verification code is required"));
+    }
+
+    const cachedData = await getCache(`number_change:${id}`);
+    if (!cachedData) {
+        return next(new BadRequestError("Code Expire or Invalid Request"));
+    }
+
+    if (String(cachedData.code) !== String(code)) {
+        return next(new BadRequestError("Invalid verification code"));
+    }
+
+    // Update Contact Number in DB
+    if (role === "admin") {
+        await adminRepo.update(id, { contactNumber: cachedData.newNumber });
+    } else if (role === "dispatcher") {
+        await dispatcherRepo.update(id, { contactNumber: cachedData.newNumber });
+    }
+
+    // Clear Cache
+    await deleteCache(`number_change:${id}`);
+
+    res.json({ message: "Contact Number updated successfully" });
+});
+
 const changePassword = catchAsync(async (req, res, next) => {
     const { id, role } = req.user;
     const { currentPassword, newPassword } = req.body;
@@ -251,6 +310,8 @@ module.exports = {
     getProfile,
     requestEmailChange,
     verifyEmailChange,
+    requestNumberChange,
+    verifyNumberChange,
     changePassword,
     uploadProfilePicture,
     upload // Export multer middleware for route
