@@ -14,7 +14,6 @@ export function ForgotPasswordFlow() {
   const navigate = useNavigate();
   const alertsRef = useRef<ForgotPasswordAlertsHandle>(null);
   const [currentStep, setCurrentStep] = useState<ForgotPasswordStep>(1);
-  const [direction, setDirection] = useState<"forward" | "backward">("forward");
 
   // State to persist across steps
   const [userID, setUserID] = useState<number | null>(null);
