@@ -746,7 +746,7 @@ const changePassword = catchAsync(async (req, res, next) => {
     }
 
     const hashed = await bcrypt.hash(String(newPassword), 10);
-    await focalPersonRepo.update({ id: targetId }, { password: hashed });
+    await focalPersonRepo.update({ id: targetId }, { password: hashed, lastPasswordUpdated: new Date() });
 
     // Log the password change
     const actorID = req.user?.focalPersonID || req.user?.id || targetId;
