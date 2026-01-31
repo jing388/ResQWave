@@ -279,7 +279,7 @@ export default function SignalPopover({
                       : popover.status || "N/A"
                 }
               />
-              <PopoverRow label="Time Sent" value={popover.timeSent || "N/A"} />
+              <PopoverRow label="Last Alert time" value={popover.timeSent || "N/A"} />
               <PopoverRow
                 label="Focal Person"
                 value={popover.focalPerson || "N/A"}

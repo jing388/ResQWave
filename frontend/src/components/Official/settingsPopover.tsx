@@ -99,11 +99,17 @@ export default function SettingsPopover({ isActive = false, isMobile = false }: 
         className="rounded-[5px]"
       >
         <div className="flex items-center rounded-[5px] gap-3 mb-4">
-          <img
-            src="https://i.pravatar.cc/100?img=12"
-            alt="User Avatar"
-            className="h-12 w-12 rounded-full"
-          />
+         <div className="h-12 w-12 rounded-full bg-[#404040] flex items-center justify-center flex-shrink-0">
+            <span className="text-lg font-bold text-[#9ca3af]">
+              {user?.name ? (() => {
+                const nameParts = user.name.trim().split(/\s+/);
+                if (nameParts.length >= 2) {
+                  return (nameParts[0].charAt(0) + nameParts[1].charAt(0)).toUpperCase();
+                }
+                return nameParts[0].charAt(0).toUpperCase();
+              })() : "U"}
+            </span>
+          </div>
           <div className="flex flex-col">
             <span className="font-semibold">{user?.name || 'User'}</span>
             <span className="text-gray-400 text-sm">{user?.id || 'N/A'}</span>
