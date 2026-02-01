@@ -33,6 +33,7 @@ const {
   createCriticalAlert,
   createUserInitiatedAlert,
 } = require("./controllers/alertController");
+const { checkExtendedDowntime } = require("./services/alarmService");
 const { testSanityConnection } = require("./services/sanity-chatbot-service");
 const errorHandler = require("./middleware/errorMiddleware");
 const { NotFoundError } = require("./exceptions/index");
@@ -66,6 +67,14 @@ app.use(express.json());
 AppDataSource.initialize()
   .then(async () => {
     console.log("Database Connected and Synced!");
+
+    // Initialize Extended Downtime Checker (Runs every day)
+    setInterval(() => {
+       checkExtendedDowntime().catch(err => console.error("[Cron] Error checking downtime:", err));
+    }, 6 * 60 * 60 * 1000); // 1 Day
+    
+    // Run immediately on startup
+    checkExtendedDowntime().catch(err => console.error("[Cron] Startup Check Error:", err));
 
     // Test Sanity connection
     try {

@@ -6,34 +6,46 @@ function decodePayloadFromLMS(lmsData) {
 
   const payloadHex = lmsData.DevEUI_uplink.payload_hex.trim();
   const devEUI = lmsData.DevEUI_uplink.DevEUI;
-
-  if (payloadHex.length !== 12) {
-    throw new Error("Invalid payload_hex length. Expected 12 hex characters.");
-  }
-
   const bytes = Buffer.from(payloadHex, "hex");
 
-  // Decode fields
-  const terminalID = bytes[0]; // first byte
-  const alertTypeNum = bytes[1]; // second byte
-  const timestamp = bytes.readUInt32BE(2); // last 4 bytes as 32-bit unsigned int
+  // Alert Payload (6 Bytes)
+  if (bytes.length === 6) {
+    const terminalID = bytes[0];
+    const alertTypeNum = bytes[1];
+    const timestamp = bytes.readUInt32BE(2);
 
-  // Map alertType number to string
-  const alertType = alertTypeNum === 1 ? "Critical" : "User-Initiated";
+    return {
+      type: "ALERT",
+      devEUI,
+      rawHex: payloadHex,
+      decoded: {
+        terminalID: terminalID.toString(),
+        alertType: alertTypeNum === 1 ? "Critical" : "User-Initiated",
+        timestamp,
+        dateTimeSent: new Date(timestamp * 1000),
+      },
+    };
+  }
 
-  // Convert timestamp to JS Date
-  const dateTimeSent = new Date(timestamp * 1000);
+  // Battery Payload (2 Bytes)
+  if (bytes.length === 2) {
+    const terminalID = bytes[0];
+    const batteryPercent = bytes[1];
 
-  return {
-    devEUI,
-    rawHex: payloadHex,
-    decoded: {
-      terminalID: terminalID.toString(),
-      alertType,
-      timestamp,
-      dateTimeSent,
-    },
-  };
+    return {
+      type: "BATTERY",
+      devEUI,
+      rawHex: payloadHex,
+      decoded: {
+        terminalID: terminalID.toString(),
+        batteryPercent, // Decimal
+      },
+    };
+  }
+
+  // Unknown Payload
+  throw new Error(`Unknown Payload Format: ${payloadHex}`);
+
 }
 
 module.exports = { decodePayloadFromLMS };
