@@ -46,24 +46,23 @@ export function LoginOfficial() {
 
   return (
     <div
-      className="min-h-screen flex flex-col primary-background"
-      style={{ position: "relative", overflow: "hidden" }}
+      className="min-h-screen flex flex-col primary-background relative overflow-hidden"
     >
       <div className="loginfocal-radial-gradient" />
       <HeaderOfficial />
       <main
-        className="flex flex-1 flex-col items-center w-full px-4 sm:px-10 lg:px-0 mt-20 sm:mt-[120px] z-20 relative"
+        className="flex flex-1 flex-col items-center w-full px-4 sm:px-6 md:px-10 lg:px-0 mt-8 sm:mt-12 md:mt-16 lg:mt-20 z-20 relative"
       >
         <div
-          className="flex flex-col items-center gap-3 sm:gap-4 mb-6 sm:mb-8 w-full max-w-full sm:max-w-[460px] mx-auto"
+          className="flex flex-col items-center gap-2 sm:gap-3 md:gap-4 mb-4 sm:mb-6 md:mb-8 w-full max-w-full sm:max-w-[460px] mx-auto"
         >
           <h1
-            className="text-3xl sm:text-[45px] font-semibold text-white"
+            className="text-2xl sm:text-3xl md:text-4xl lg:text-[45px] font-semibold text-white"
           >
             Sign in
           </h1>
           <p
-            className="text-[#BABABA] text-center text-[0.9rem] sm:text-base leading-relaxed px-2"
+            className="text-[#BABABA] text-center text-[0.85rem] sm:text-[0.9rem] md:text-base leading-relaxed px-2 sm:px-3"
           >
             Log in using your account credentials.
             <br />
@@ -76,10 +75,10 @@ export function LoginOfficial() {
         {/* Error Alert UI - styled like focal login */}
         {error && (
           <div
-            className="flex items-center gap-3 animate-in fade-in mx-auto w-full max-w-full sm:max-w-[490px] px-4 sm:px-0"
+            className="flex items-center gap-2 sm:gap-3 animate-in fade-in mx-auto w-full max-w-full sm:max-w-[490px] px-4 sm:px-6 md:px-0"
           >
             <Alert
-              className="bg-[#291415] border border-[#F92626] rounded-[5px] mb-4 w-full text-xs sm:text-sm"
+              className="bg-[#291415] border border-[#F92626] rounded-[5px] mb-3 sm:mb-4 w-full text-xs sm:text-sm"
               variant="destructive"
             >
               <AlertCircleIcon className="h-4 w-4 sm:h-5 sm:w-5" />
@@ -96,11 +95,11 @@ export function LoginOfficial() {
         )}
 
         <form
-          className="flex flex-col gap-3 w-full max-w-full sm:max-w-[490px] mx-auto px-4 sm:px-0"
+          className="flex flex-col gap-2 sm:gap-3 w-full max-w-full sm:max-w-[490px] mx-auto px-4 sm:px-6 md:px-0"
           onSubmit={handleSubmit}
         >
           <label
-            className="block text-white text-[0.9rem] sm:text-[15px] font-light"
+            className="block text-white text-[0.85rem] sm:text-[0.9rem] md:text-[15px] font-light"
           >
             ID
           </label>
@@ -112,12 +111,12 @@ export function LoginOfficial() {
               if (error) setError("");
             }}
             aria-invalid={!!error}
-            className="bg-[#171717] border border-[#404040] mb-1 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base h-[44px] sm:h-[55px] w-full"
+            className="bg-[#171717] border border-[#404040] mb-1 rounded-lg px-3 sm:px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base h-[42px] sm:h-[48px] md:h-[55px] w-full"
           />
 
-          <div className="mb-2">
+          <div className="mb-1 sm:mb-2">
             <label
-              className="block text-white text-[0.9rem] sm:text-[15px] font-light mb-2"
+              className="block text-white text-[0.85rem] sm:text-[0.9rem] md:text-[15px] font-light mb-1.5 sm:mb-2"
             >
               Password
             </label>
@@ -130,7 +129,7 @@ export function LoginOfficial() {
                   if (error) setError("");
                 }}
                 aria-invalid={!!error}
-                className="bg-[#171717] border border-[#404040] rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 pr-12 text-sm sm:text-base h-[44px] sm:h-[55px] w-full"
+                className="bg-[#171717] border border-[#404040] rounded-lg px-3 sm:px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 pr-10 sm:pr-12 text-sm sm:text-base h-[42px] sm:h-[48px] md:h-[55px] w-full"
               />
               <span
                 className="absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 text-[#BABABA] hover:text-white transition-colors duration-300 cursor-pointer z-10"
@@ -157,18 +156,16 @@ export function LoginOfficial() {
           <Button
             type="submit"
             disabled={isLoading}
-            className="text-white rounded-lg font-medium text-[0.95rem] sm:text-base flex items-center justify-center gap-2
+            className="text-white rounded-lg font-medium text-[0.9rem] sm:text-[0.95rem] md:text-base flex items-center justify-center gap-2
              bg-linear-to-t from-[#3B82F6] to-[#70A6FF] 
              hover:from-[#1052BE] hover:to-[#70A6FF]
-             transition duration-300 ease-in cursor-pointer mt-1 w-full h-[44px] sm:h-[55px]"
-            style={{
-              opacity: isLoading ? 0.7 : 1,
-            }}
+             transition duration-300 ease-in cursor-pointer mt-1 sm:mt-2 w-full h-[42px] sm:h-[48px] md:h-[55px]
+             disabled:opacity-70"
           >
             {isLoading && (
-              <span className="inline-block mr-2">
+              <span className="inline-block mr-1.5 sm:mr-2">
                 <svg
-                  className="animate-spin h-5 w-5 sm:h-6 sm:w-6 text-white"
+                  className="animate-spin h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6 text-white"
                   viewBox="0 0 24 24"
                 >
                   <circle
@@ -192,9 +189,9 @@ export function LoginOfficial() {
           </Button>
         </form>
 
-        <div className="text-center mt-4 px-4 sm:px-0">
+        <div className="text-center mt-3 sm:mt-4 px-4 sm:px-6 md:px-0">
           <button
-            className="text-[#BABABA] hover:text-white mt-2 text-[0.95rem] sm:text-base bg-transparent border-none cursor-pointer transition-colors duration-300"
+            className="text-[#BABABA] hover:text-white mt-1.5 sm:mt-2 text-[0.85rem] sm:text-[0.95rem] md:text-base bg-transparent border-none cursor-pointer transition-colors duration-300"
             onClick={() => navigate("/forgot-password-dispatcher")}
           >
             Forgot Password?

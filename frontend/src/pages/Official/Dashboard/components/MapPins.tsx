@@ -14,6 +14,7 @@ interface MapPinsProps {
     terminalStatus: string;
     timeSent: string;
     focalPerson: string;
+    address: string;
     contactNumber: string;
     totalAlerts: number;
   }) => void;
@@ -126,6 +127,9 @@ export function MapPins({ map, pins, mapContainer, onPinClick }: MapPinsProps) {
         terminalName: pin.terminalName,
         terminalStatus: pin.terminalStatus,
         focalPerson: pin.focalPerson || "N/A",
+        address: typeof pin.address === "string" 
+          ? pin.address 
+          : (pin.address as Record<string, unknown>)?.address as string || "N/A",
         contactNumber: pin.contactNumber || "N/A",
         totalAlerts: pin.totalAlerts,
         latestAlertTime: pin.latestAlertTime || "",
@@ -297,6 +301,7 @@ export function MapPins({ map, pins, mapContainer, onPinClick }: MapPinsProps) {
           terminalStatus: props?.terminalStatus || "N/A",
           timeSent,
           focalPerson: props?.focalPerson || "N/A",
+          address: props?.address || "N/A",
           contactNumber: props?.contactNumber || "N/A",
           totalAlerts: props?.totalAlerts || 0,
         });
