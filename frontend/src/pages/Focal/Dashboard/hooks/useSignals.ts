@@ -19,6 +19,41 @@ const initialOwnCommunitySignal: Signal = {
     },
 };
 
+/**
+ * Helper to parse coordinates from address JSON - standardized format
+ * Expected format: {"address":"...", "coordinates":"lng, lat"}
+ */
+function parseCoordinates(address: string | Record<string, unknown>): [number, number] {
+    try {
+        let addressObj: Record<string, unknown> | string = address;
+
+        // If address is a string, try to parse it
+        if (typeof addressObj === "string") {
+            try {
+                addressObj = JSON.parse(addressObj);
+            } catch {
+                return [0, 0]; // Invalid JSON
+            }
+        }
+
+        // Type guard: ensure addressObj is now an object
+        if (typeof addressObj !== "object" || addressObj === null) {
+            return [0, 0];
+        }
+
+        // Standardized format: Coordinates as a STRING "lng, lat"
+        if ("coordinates" in addressObj && typeof addressObj.coordinates === "string") {
+            const coords = addressObj.coordinates.split(",").map((s: string) => parseFloat(s.trim()));
+            if (coords.length === 2 && !isNaN(coords[0]) && !isNaN(coords[1])) {
+                return [coords[0], coords[1]]; // [lng, lat]
+            }
+        }
+    } catch {
+        // Silent error handling
+    }
+    return [0, 0];
+}
+
 export function useSignals() {
 
 
@@ -58,18 +93,21 @@ export function useSignals() {
             }>>(`/neighborhood/map/others`, { headers });
 
 
-            // Parse coordinates from address JSON string
+            // Parse coordinates from address JSON string using the flexible parser
             let ownCoords: [number, number] = [0, 0];
             let ownAddress = '';
             if (own.address) {
+                ownCoords = parseCoordinates(own.address);
+                // Extract address text from the JSON
                 try {
                     const addrObj = typeof own.address === 'string' ? JSON.parse(own.address) : own.address;
-                    if (addrObj && typeof addrObj.lat === 'number' && typeof addrObj.lng === 'number') {
-                        ownCoords = [addrObj.lng, addrObj.lat];
-                        ownAddress = addrObj.address || '';
+                    if (addrObj && typeof addrObj === 'object' && 'address' in addrObj) {
+                        ownAddress = addrObj.address as string || '';
+                    } else if (typeof own.address === 'string') {
+                        ownAddress = own.address;
                     }
                 } catch {
-                    ownAddress = own.address;
+                    ownAddress = typeof own.address === 'string' ? own.address : '';
                 }
             }
             setOwnCommunitySignal({
@@ -91,15 +129,18 @@ export function useSignals() {
 
             setOtherSignals(
                 (others || []).map((nb: { terminalID?: string; address?: string | Record<string, unknown>; groupName?: string; createdDate?: string }) => {
-                    // Parse coordinates from address JSON string
+                    // Parse coordinates using the flexible parser
                     let coords: [number, number] = [0, 0];
                     let address = '';
                     if (nb.address) {
+                        coords = parseCoordinates(nb.address);
+                        // Extract address text from the JSON
                         try {
                             const addrObj = typeof nb.address === 'string' ? JSON.parse(nb.address) : nb.address;
-                            if (addrObj && typeof addrObj.lat === 'number' && typeof addrObj.lng === 'number') {
-                                coords = [addrObj.lng, addrObj.lat];
-                                address = addrObj.address || '';
+                            if (addrObj && typeof addrObj === 'object' && 'address' in addrObj) {
+                                address = addrObj.address as string || '';
+                            } else if (typeof nb.address === 'string') {
+                                address = nb.address;
                             }
                         } catch {
                             address = typeof nb.address === 'string' ? nb.address : '';

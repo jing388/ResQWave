@@ -21,6 +21,7 @@ interface MapPinsProps {
 
 /**
  * Helper to parse coordinates from address JSON
+ * Standardized format: {"address":"...", "coordinates":"lng, lat"}
  */
 function parseCoordinates(address: string | Record<string, unknown>): [number, number] | null {
   try {
@@ -40,30 +41,11 @@ function parseCoordinates(address: string | Record<string, unknown>): [number, n
       return null;
     }
 
-    // Format 1: Direct lat/lng or latitude/longitude properties
-    if ("lng" in addressObj && "lat" in addressObj) {
-      return [addressObj.lng as number, addressObj.lat as number];
-    }
-    if ("longitude" in addressObj && "latitude" in addressObj) {
-      return [addressObj.longitude as number, addressObj.latitude as number];
-    }
-
-    // Format 2: Coordinates as a STRING "lng, lat" (backend format)
+    // Standardized format: Coordinates as a STRING "lng, lat"
     if ("coordinates" in addressObj && typeof addressObj.coordinates === "string") {
       const coords = addressObj.coordinates.split(",").map((s: string) => parseFloat(s.trim()));
       if (coords.length === 2 && !isNaN(coords[0]) && !isNaN(coords[1])) {
         return [coords[0], coords[1]]; // [lng, lat]
-      }
-    }
-
-    // Format 3: Nested coordinates object
-    if ("coordinates" in addressObj && typeof addressObj.coordinates === "object" && addressObj.coordinates !== null) {
-      const coords = addressObj.coordinates as Record<string, unknown>;
-      if ("longitude" in coords && "latitude" in coords) {
-        return [coords.longitude as number, coords.latitude as number];
-      }
-      if ("lng" in coords && "lat" in coords) {
-        return [coords.lng as number, coords.lat as number];
       }
     }
   } catch {
@@ -89,7 +71,7 @@ export function MapPins({ map, pins, mapContainer, onPinClick }: MapPinsProps) {
     const validPins = pinsData
       .map((pin) => {
         const coordinates = parseCoordinates(pin.address);
-        
+
         if (!coordinates) {
           return null;
         }
@@ -208,7 +190,7 @@ export function MapPins({ map, pins, mapContainer, onPinClick }: MapPinsProps) {
       });
 
       layersInitialized.current = true;
-      
+
       // Update data immediately after creating layers if we have pins
       if (pins.length > 0) {
         updatePinData(map, pins);
@@ -243,10 +225,10 @@ export function MapPins({ map, pins, mapContainer, onPinClick }: MapPinsProps) {
     // Cleanup only on unmount
     return () => {
       if (!map || typeof map.off !== 'function') return;
-      
+
       try {
         map.off("styledata", handleStyleData);
-        
+
         if (map.getLayer("admin-pins-layer")) {
           map.removeLayer("admin-pins-layer");
         }
@@ -262,7 +244,7 @@ export function MapPins({ map, pins, mapContainer, onPinClick }: MapPinsProps) {
         // Silent error handling
       }
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map]);
 
   // Attach event handlers only once
@@ -279,7 +261,7 @@ export function MapPins({ map, pins, mapContainer, onPinClick }: MapPinsProps) {
         const props = feature.properties;
         const coords = (feature.geometry as GeoJSON.Point).coordinates as [number, number];
 
-        const timeSent = props?.latestAlertTime 
+        const timeSent = props?.latestAlertTime
           ? new Date(props.latestAlertTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true })
           : "N/A";
 
@@ -322,14 +304,14 @@ export function MapPins({ map, pins, mapContainer, onPinClick }: MapPinsProps) {
       map.on("click", "admin-pins-layer", handleClick);
       map.on("mouseenter", "admin-pins-layer", handleMouseEnter);
       map.on("mouseleave", "admin-pins-layer", handleMouseLeave);
-      
+
       handlersAttached.current = true;
     }, 100);
 
     return () => {
       clearTimeout(timer);
       if (!map || typeof map.off !== 'function') return;
-      
+
       try {
         map.off("click", "admin-pins-layer", handleClick);
         map.off("mouseenter", "admin-pins-layer", handleMouseEnter);
@@ -344,7 +326,7 @@ export function MapPins({ map, pins, mapContainer, onPinClick }: MapPinsProps) {
   // Update pin data only when pins change
   useEffect(() => {
     if (!map || !layersInitialized.current) return;
-    
+
     updatePinData(map, pins);
   }, [map, pins]);
 

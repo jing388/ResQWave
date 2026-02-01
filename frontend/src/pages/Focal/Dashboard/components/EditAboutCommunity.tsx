@@ -297,11 +297,11 @@ const EditAbout = forwardRef<EditAboutHandle, EditAboutProps>(({ open, onClose, 
         const residentsValue = data?.stats?.noOfResidents ? String(data.stats.noOfResidents) : '';
         const floodwaterValue = data?.floodwaterSubsidenceDuration ?? '';
         const hazardsValue = Array.isArray(data?.hazards) ? data.hazards : [];
-        
+
         setHouseholdsRange(householdsValue);
         setResidentsRange(residentsValue);
         setFloodwaterRange(floodwaterValue);
-        
+
         // Store initial values for change detection
         setInitialValues({
             householdsRange: householdsValue,
@@ -746,12 +746,12 @@ const EditAbout = forwardRef<EditAboutHandle, EditAboutProps>(({ open, onClose, 
                         disabled={(() => {
                             // Check if there are any validation errors
                             const hasErrors = !!(nameError || contactError || emailError || altPhotoError);
-                            
+
                             // Check if alt focal fields are incomplete
                             const altFocalIncomplete = !altFocalName.trim() || !altFocalContact.trim() || !altFocalEmail.trim();
-                            
+
                             // Check if any changes have been made
-                            const hasChanges = 
+                            const hasChanges =
                                 householdsRange !== initialValues.householdsRange ||
                                 residentsRange !== initialValues.residentsRange ||
                                 floodwaterRange !== initialValues.floodwaterRange ||
@@ -762,7 +762,7 @@ const EditAbout = forwardRef<EditAboutHandle, EditAboutProps>(({ open, onClose, 
                                 altFocalEmail !== initialValues.altFocalEmail ||
                                 altPhotoFile !== null ||
                                 altPhotoDeleted;
-                            
+
                             // Disable if: has errors OR (alt focal incomplete AND no other changes)
                             return hasErrors || (altFocalIncomplete && !hasChanges);
                         })()}
