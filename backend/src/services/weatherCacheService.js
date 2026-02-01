@@ -1,7 +1,9 @@
 const { AppDataSource } = require('../config/dataSource');
 const weatherService = require('./weatherService');
+const { getCache, setCache } = require('../config/cache');
 
 const CACHE_DURATION_HOURS = 6;
+const REDIS_TTL_SECONDS = CACHE_DURATION_HOURS * 60 * 60; // 6 hours in seconds
 
 /**
  * Get weather cache repository
@@ -31,17 +33,30 @@ const isCacheValid = (cacheEntry) => {
  * @returns {Promise<Object>} Weather data
  */
 const getOrFetchWeather = async (terminalID, lat = null, lon = null) => {
+    // Check Redis cache first (fastest)
+    const redisCacheKey = `weather:${terminalID}`;
+    const redisData = await getCache(redisCacheKey);
+
+    if (redisData) {
+        console.log(`⚡ Redis cache HIT for terminal ${terminalID}`);
+        // Mark as cached since it came from Redis, not fresh API
+        return {
+            ...redisData,
+            cached: true
+        };
+    }
+
     const repository = getWeatherCacheRepository();
 
     try {
-        // Try to get cached data
+        // Try to get cached data from database
         const cachedWeather = await repository.findOne({
             where: { terminalID }
         });
 
         // If cache exists and is valid, return it
         if (cachedWeather && isCacheValid(cachedWeather)) {
-            console.log(`✅ Weather cache HIT for terminal ${terminalID}`);
+            console.log(`✅ Database cache HIT for terminal ${terminalID}`);
 
             // Update last accessed timestamp
             await repository.update(
@@ -87,15 +102,29 @@ const getOrFetchWeather = async (terminalID, lat = null, lon = null) => {
                 throw new Error('No hourly forecast data available in cache');
             }
 
-            return {
+            const weatherData = {
                 current: currentWeather,
                 hourly: cachedWeather.hourlyForecast,
                 weekly: cachedWeather.weeklyForecast,
                 location: { lat, lon },
                 cached: true,
                 fetchedAt: cachedWeather.fetchedAt,
-                expiresAt: cachedWeather.expiresAt
+                expiresAt: cachedWeather.expiresAt,
+                weatherCheckEnabled: cachedWeather.weatherCheckEnabled ?? true,
+                manualBlockEnabled: cachedWeather.manualBlockEnabled ?? false
             };
+
+            // Calculate remaining TTL based on DB expiration time
+            const nowForTTL = new Date();
+            const expiresAt = new Date(cachedWeather.expiresAt);
+            const remainingTTL = Math.max(0, Math.floor((expiresAt - nowForTTL) / 1000)); // in seconds
+
+            // Store in Redis with remaining TTL (not fresh 6 hours)
+            await setCache(redisCacheKey, weatherData, remainingTTL);
+
+            console.log(`📦 Stored in Redis with ${Math.floor(remainingTTL / 60)} minutes remaining TTL`);
+
+            return weatherData;
         }
 
         // Cache miss or expired - fetch fresh data
@@ -122,6 +151,7 @@ const getOrFetchWeather = async (terminalID, lat = null, lon = null) => {
  */
 const fetchAndStoreWeather = async (terminalID, lat, lon) => {
     const repository = getWeatherCacheRepository();
+    const redisCacheKey = `weather:${terminalID}`;
 
     try {
         // Fetch fresh weather data from OpenWeather API
@@ -133,8 +163,8 @@ const fetchAndStoreWeather = async (terminalID, lat, lon) => {
         // Use raw query for upsert to avoid race conditions
         // PostgreSQL's INSERT ... ON CONFLICT is atomic
         await repository.query(`
-            INSERT INTO weather_cache ("terminalID", "hourlyForecast", "weeklyForecast", "fetchedAt", "expiresAt", "apiCallCount", "lastAccessedAt")
-            VALUES ($1, $2, $3, $4, $5, 1, $6)
+            INSERT INTO weather_cache ("terminalID", "hourlyForecast", "weeklyForecast", "fetchedAt", "expiresAt", "apiCallCount", "lastAccessedAt", "weatherCheckEnabled", "manualBlockEnabled")
+            VALUES ($1, $2, $3, $4, $5, 1, $6, true, false)
             ON CONFLICT ("terminalID") 
             DO UPDATE SET
                 "hourlyForecast" = EXCLUDED."hourlyForecast",
@@ -154,15 +184,22 @@ const fetchAndStoreWeather = async (terminalID, lat, lon) => {
 
         console.log(`💾 Upserted weather cache for terminal ${terminalID}`);
 
-        return {
+        const responseData = {
             current: weatherData.current,
             hourly: weatherData.hourly,
             weekly: weatherData.weekly,
             location: { lat, lon },
-            cached: false,
+            cached: false, // Fresh from API, not cached yet
             fetchedAt: now,
-            expiresAt: expiresAt
+            expiresAt: expiresAt,
+            weatherCheckEnabled: true, // Default to enabled for new entries
+            manualBlockEnabled: false // Default to not blocked
         };
+
+        // Store in Redis with cached: false (will be overridden to true when read from Redis)
+        await setCache(redisCacheKey, responseData, REDIS_TTL_SECONDS);
+
+        return responseData;
 
     } catch (error) {
         console.error('Error in fetchAndStoreWeather:', error.message);
@@ -247,6 +284,124 @@ const cleanExpiredCaches = async () => {
     }
 };
 
+/**
+ * Toggle weather check for IoT terminal
+ * @param {string} terminalID - Terminal ID
+ * @param {boolean} enabled - true = check weather (risky only), false = always allow (bypass check)
+ * @returns {Promise<Object>} Updated setting
+ */
+const toggleWeatherCheck = async (terminalID, enabled) => {
+    const repository = getWeatherCacheRepository();
+    const redisCacheKey = `weather:${terminalID}`;
+
+    try {
+        // Find or create cache entry
+        let cacheEntry = await repository.findOne({ where: { terminalID } });
+
+        if (!cacheEntry) {
+            // Create new entry with default values
+            await repository.query(`
+                INSERT INTO weather_cache ("terminalID", "hourlyForecast", "weeklyForecast", "fetchedAt", "expiresAt", "apiCallCount", "lastAccessedAt", "weatherCheckEnabled")
+                VALUES ($1, '[]', '[]', NOW(), NOW(), 0, NOW(), $2)
+            `, [terminalID, enabled]);
+
+            console.log(`✨ Created weather cache entry for terminal ${terminalID} with weatherCheckEnabled=${enabled}`);
+        } else {
+            // Update existing entry
+            await repository.update(
+                { terminalID },
+                { weatherCheckEnabled: enabled }
+            );
+
+            console.log(`🔄 Updated weatherCheckEnabled=${enabled} for terminal ${terminalID}`);
+        }
+
+        // Update Redis cache if exists
+        const redisData = await getCache(redisCacheKey);
+        if (redisData) {
+            const updatedData = { ...redisData, weatherCheckEnabled: enabled };
+
+            // Calculate remaining TTL
+            const expiresAt = new Date(redisData.expiresAt);
+            const now = new Date();
+            const remainingTTL = Math.max(60, Math.floor((expiresAt - now) / 1000)); // Minimum 60s
+
+            await setCache(redisCacheKey, updatedData, remainingTTL);
+            console.log(`📦 Updated Redis cache with weatherCheckEnabled=${enabled}`);
+        }
+
+        return {
+            terminalID,
+            weatherCheckEnabled: enabled,
+            message: enabled
+                ? 'Weather check enabled - IoT will only send alerts during risky weather'
+                : 'Weather check disabled - IoT will always send alerts regardless of weather'
+        };
+    } catch (error) {
+        console.error('Error toggling weather check:', error.message);
+        throw error;
+    }
+};
+
+/**
+ * Toggle manual block for IoT terminal
+ * @param {string} terminalID - Terminal ID
+ * @param {boolean} blocked - true = block all alerts (manual override), false = allow normal operation
+ * @returns {Promise<Object>} Updated setting
+ */
+const toggleManualBlock = async (terminalID, blocked) => {
+    const repository = getWeatherCacheRepository();
+    const redisCacheKey = `weather:${terminalID}`;
+
+    try {
+        // Find or create cache entry
+        let cacheEntry = await repository.findOne({ where: { terminalID } });
+
+        if (!cacheEntry) {
+            // Create new entry with default values
+            await repository.query(`
+                INSERT INTO weather_cache ("terminalID", "hourlyForecast", "weeklyForecast", "fetchedAt", "expiresAt", "apiCallCount", "lastAccessedAt", "weatherCheckEnabled", "manualBlockEnabled")
+                VALUES ($1, '[]', '[]', NOW(), NOW(), 0, NOW(), true, $2)
+            `, [terminalID, blocked]);
+
+            console.log(`✨ Created weather cache entry for terminal ${terminalID} with manualBlockEnabled=${blocked}`);
+        } else {
+            // Update existing entry
+            await repository.update(
+                { terminalID },
+                { manualBlockEnabled: blocked }
+            );
+
+            console.log(`🚫 Updated manualBlockEnabled=${blocked} for terminal ${terminalID}`);
+        }
+
+        // Update Redis cache if exists
+        const redisData = await getCache(redisCacheKey);
+        if (redisData) {
+            const updatedData = { ...redisData, manualBlockEnabled: blocked };
+
+            // Calculate remaining TTL
+            const expiresAt = new Date(redisData.expiresAt);
+            const now = new Date();
+            const remainingTTL = Math.max(60, Math.floor((expiresAt - now) / 1000)); // Minimum 60s
+
+            await setCache(redisCacheKey, updatedData, remainingTTL);
+            console.log(`📦 Updated Redis cache with manualBlockEnabled=${blocked}`);
+        }
+
+        return {
+            terminalID,
+            manualBlockEnabled: blocked,
+            message: blocked
+                ? 'Manual block enabled - All IoT alerts blocked by dispatcher override'
+                : 'Manual block disabled - IoT alerts resume normal operation'
+        };
+    } catch (error) {
+        console.error('Error toggling manual block:', error.message);
+        throw error;
+    }
+};
+
 module.exports = {
     getOrFetchWeather,
     fetchAndStoreWeather,
@@ -254,5 +409,7 @@ module.exports = {
     getCacheStats,
     deleteWeatherCache,
     cleanExpiredCaches,
+    toggleWeatherCheck,
+    toggleManualBlock,
     isCacheValid
 };

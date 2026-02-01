@@ -1,17 +1,18 @@
 import {
-    Tooltip,
-    TooltipContent,
-    TooltipTrigger,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
 } from "@/components/ui/tooltip-white";
 // import { useAuth } from "@/contexts/AuthContext";
 import {
-    ClipboardCheck,
-    LayoutDashboard,
-    Radio,
-    RadioReceiver,
-    TriangleAlert,
-    UserCog,
-    Users,
+  ClipboardCheck,
+  LayoutDashboard,
+  Radio,
+  RadioReceiver,
+  TriangleAlert,
+  UserCog,
+  Users,
+  FolderKanban,
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import SettingsPopover from "./settingsPopover";
@@ -68,15 +69,15 @@ export default function Sidebar() {
   // Create role-based first navigation item
   const firstNavItem = isAdminUser
     ? {
-        icon: LayoutDashboard,
-        label: "Dashboard",
-        path: "/dashboard",
-      }
+      icon: LayoutDashboard,
+      label: "Dashboard",
+      path: "/dashboard",
+    }
     : {
-        icon: Radio,
-        label: "Visualization",
-        path: "/visualization",
-      };
+      icon: Radio,
+      label: "Visualization",
+      path: "/visualization",
+    };
 
   // Combine navigation items based on user role
   const navigationItems = [
@@ -84,6 +85,11 @@ export default function Sidebar() {
     ...otherNavigationItems,
     ...(isAdminUser ? adminOnlyItems : []),
   ];
+
+  // Handler for opening Sanity Studio
+  const handleOpenCMS = () => {
+    window.open("https://resqwave.sanity.studio", "_blank", "noopener,noreferrer");
+  };
 
   return (
     <>
@@ -107,11 +113,10 @@ export default function Sidebar() {
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <button
-                        className={`w-[50px] h-[50px] flex my-0.5 items-center justify-center gap-2.5 shrink-0 aspect-square rounded-[5px] border-[1.5px] border-[#404040] transition-colors ${
-                          isActive
+                        className={`w-[50px] h-[50px] flex my-0.5 items-center justify-center gap-2.5 shrink-0 aspect-square rounded-[5px] border-[1.5px] border-[#404040] transition-colors ${isActive
                             ? "bg-white text-black"
                             : "bg-[#171717] text-white/60 hover:bg-[#302F2F] hover:text-white"
-                        }`}
+                          }`}
                         onClick={() => navigate(item.path)}
                         aria-label={item.label}
                       >
@@ -128,7 +133,24 @@ export default function Sidebar() {
           </ul>
         </nav>
 
-        <div className="relative flex flex-col items-center">
+        <div className="relative flex flex-col items-center gap-2">
+          {isAdminUser && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  className="w-[50px] h-[50px] flex items-center justify-center gap-2.5 shrink-0 aspect-square rounded-[5px] border-[1.5px] border-[#404040] bg-[#171717] text-white/60 hover:bg-[#302F2F] hover:text-white transition-colors"
+                  onClick={handleOpenCMS}
+                  aria-label="Content Manager"
+                >
+                  <FolderKanban className="w-6 h-6" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right" sideOffset={8}>
+                Content Manager
+              </TooltipContent>
+            </Tooltip>
+          )}
+
           <SettingsPopover
             isActive={location.pathname === "/settings-dispatcher"}
             isMobile={false}
@@ -149,11 +171,10 @@ export default function Sidebar() {
             <Tooltip key={index}>
               <TooltipTrigger asChild>
                 <button
-                  className={`flex flex-col items-center justify-center transition-colors ${
-                    isActive
+                  className={`flex flex-col items-center justify-center transition-colors ${isActive
                       ? "text-black bg-white"
                       : "text-white/60 hover:text-white"
-                  }`}
+                    }`}
                   onClick={() => navigate(item.path)}
                   aria-label={item.label}
                 >
@@ -168,6 +189,23 @@ export default function Sidebar() {
           );
         })}
         <div className="relative flex flex-col items-center">
+          {isAdminUser && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  className="flex flex-col items-center justify-center text-white/60 hover:text-white transition-colors px-2"
+                  onClick={handleOpenCMS}
+                  aria-label="Content Manager"
+                >
+                  <FolderKanban className="w-6 h-6" />
+                  <span className="text-[10px] mt-1">CMS</span>
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top" sideOffset={8}>
+                Content Manager
+              </TooltipContent>
+            </Tooltip>
+          )}
           <SettingsPopover
             isActive={location.pathname === "/settings-dispatcher"}
             isMobile={true}
