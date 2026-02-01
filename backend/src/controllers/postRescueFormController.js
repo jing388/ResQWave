@@ -249,6 +249,7 @@ const getAggregatedRescueReports = catchAsync(async (req, res, next) => {
             "fp.address AS \"fpAddress\"",
             "fp.contactNumber AS \"fpContactNumber\"",
             "alert.id AS \"alertId\"",
+            "alert.dateTimeSent AS \"alertDateTimeSent\"",
             "rf.emergencyID AS \"emergencyId\"",
             "rf.waterLevel AS \"waterLevel\"",
             "rf.urgencyOfEvacuation AS \"urgencyOfEvacuation\"",
@@ -305,7 +306,8 @@ const getAggregatedRescueReports = catchAsync(async (req, res, next) => {
 
             emergencyId: r.emergencyId || r.alertId || null,
             alertId: r.alertId || r.emergencyId || null,
-            dateTimeOccurred: r.prfCreatedAt || null,
+            alertDateTimeSent: r.alertDateTimeSent || null,
+            dateTimeOccurred: r.alertDateTimeSent || null, // Use alert.dateTimeSent same as admin
             waterLevel: r.waterLevel || null,
             urgencyOfEvacuation: r.urgencyOfEvacuation || null,
             hazardPresent: r.hazardPresent || null,

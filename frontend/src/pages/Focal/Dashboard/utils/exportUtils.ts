@@ -30,6 +30,7 @@ export interface ExportData {
     alertType?: string;
   };
   rescueCompletion?: {
+    completionTimeRange?: string;
     rescueCompletionTime?: string;
     noOfPersonnel?: string;
     resourcesUsed?: string;
@@ -177,7 +178,7 @@ export const exportToDocx = async (data: ExportData) => {
   saveAs(blob, `${data.title}.docx`);
 };
 
-// Export to PDF
+// Export to PDF - simplified version
 export const exportToPdf = async (data: ExportData) => {
   const doc = new jsPDF();
   // Set margins: 1.25 inch left/right, 1 inch top/bottom
@@ -224,10 +225,10 @@ export const exportToPdf = async (data: ExportData) => {
   // Table: Community Info (dynamic)
   const comm = data.communityInfo || {};
   const commTable = [
-    ['Neighborhood ID', comm.neighborhoodId || 'N/A'],
-    ["Focal Person’s Name", comm.focalPersonName || 'N/A'],
-    ["Focal Person’s Address", comm.focalPersonAddress || 'N/A'],
-    ["Focal Person’s Contact Number", comm.focalPersonContactNumber || 'N/A'],
+    ['Neighborhood ID', String(comm.neighborhoodId || 'N/A')],
+    ["Focal Person's Name", String(comm.focalPersonName || 'N/A')],
+    ["Focal Person's Address", String(comm.focalPersonAddress || 'N/A')],
+    ["Focal Person's Contact Number", String(comm.focalPersonContactNumber || 'N/A')],
   ];
   doc.setFont('times', 'bold');
   doc.setFontSize(11);
@@ -281,15 +282,15 @@ export const exportToPdf = async (data: ExportData) => {
   // Table: Emergency Context (dynamic)
   const em = data.emergencyContext || {};
   const emTable = [
-    ['Emergency ID', em.emergencyId || 'N/A'],
-    ['Current Situation / Water Level', em.waterLevel || 'N/A'],
-    ['Urgency of Evacuation', em.urgencyOfEvacuation || 'N/A'],
-    ['Hazards Present', em.hazardPresent || 'N/A'],
-    ['Accessibility', em.accessibility || 'N/A'],
-    ['Resource Needs', em.resourceNeeds || 'N/A'],
-    ['Other Information', em.otherInformation || 'N/A'],
-    ['Time of Rescue', em.timeOfRescue || 'N/A'],
-    ['Alert Type', em.alertType || 'N/A'],
+    ['Emergency ID', String(em.emergencyId || 'N/A')],
+    ['Current Situation / Water Level', String(em.waterLevel || 'N/A')],
+    ['Urgency of Evacuation', String(em.urgencyOfEvacuation || 'N/A')],
+    ['Hazards Present', String(em.hazardPresent || 'N/A')],
+    ['Accessibility', String(em.accessibility || 'N/A')],
+    ['Resource Needs', String(em.resourceNeeds || 'N/A')],
+    ['Other Information', String(em.otherInformation || 'N/A')],
+    ['Date Time Occurred', String(em.timeOfRescue || 'N/A')],
+    ['Alert Type', String(em.alertType || 'N/A')],
   ];
   doc.setFont('times', 'bold');
   doc.setFontSize(11);
@@ -302,7 +303,9 @@ export const exportToPdf = async (data: ExportData) => {
   for (let i = 1; i < emTable.length; i++) {
     const cellPadX = 2;
     const labelLines = doc.splitTextToSize(emTable[i][0], col1w - cellPadX * 2);
-    const valueRawLines = emTable[i][1].split('\n');
+    // Ensure value is a string before splitting
+    const valueStr = String(emTable[i][1] || '');
+    const valueRawLines = valueStr.split('\n');
     let valueLines: string[] = [];
     valueRawLines.forEach(valLine => {
       valueLines = valueLines.concat(doc.splitTextToSize(valLine, col2w - cellPadX * 2));
@@ -349,10 +352,11 @@ export const exportToPdf = async (data: ExportData) => {
   y += 6;
   const rc = data.rescueCompletion || {};
   const rescueTable = [
-    ['Rescue Completion Time', rc.rescueCompletionTime || 'N/A'],
-    ['No. of Personnel Deployed', rc.noOfPersonnel || 'N/A'],
-    ['Resources Used', rc.resourcesUsed || 'N/A'],
-    ['Actions Taken', rc.actionsTaken || 'N/A'],
+    ['Response Duration', String(rc.completionTimeRange || 'N/A')],
+    ['Rescue Completion Time', String(rc.rescueCompletionTime || 'N/A')],
+    ['No. of Personnel Deployed', String(rc.noOfPersonnel || 'N/A')],
+    ['Resources Used', String(rc.resourcesUsed || 'N/A')],
+    ['Actions Taken', String(rc.actionsTaken || 'N/A')],
   ];
   doc.setFont('times', 'bold');
   doc.setFontSize(11);
@@ -365,7 +369,9 @@ export const exportToPdf = async (data: ExportData) => {
   for (let i = 1; i < rescueTable.length; i++) {
     const cellPadX = 2;
     const labelLines = doc.splitTextToSize(rescueTable[i][0], col1w - cellPadX * 2);
-    const valueRawLines = rescueTable[i][1].split('\n');
+    // Ensure value is a string before splitting
+    const valueStr = String(rescueTable[i][1] || '');
+    const valueRawLines = valueStr.split('\n');
     let valueLines: string[] = [];
     valueRawLines.forEach(valLine => {
       valueLines = valueLines.concat(doc.splitTextToSize(valLine, col2w - cellPadX * 2));
@@ -416,8 +422,15 @@ export const exportToPdf = async (data: ExportData) => {
     doc.text(pageNumText, xRight, yBottom, { align: 'right' });
   }
 
-  // Instead of download, open in new tab (for integration)
+  // Instead of download, open in new tab - SIMPLIFIED
   const pdfBlob = doc.output('blob');
   const blobUrl = URL.createObjectURL(pdfBlob);
+
+  // Just open the PDF directly
   window.open(blobUrl, '_blank');
+
+  // Clean up after delay
+  setTimeout(() => {
+    URL.revokeObjectURL(blobUrl);
+  }, 3000);
 };
