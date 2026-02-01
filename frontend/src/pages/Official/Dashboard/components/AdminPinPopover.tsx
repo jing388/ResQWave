@@ -173,6 +173,7 @@ export function AdminPinPopover({
                 onClick={() => {
                   if (onOpenInsights && popover) {
                     onOpenInsights(popover.terminalID, terminalName);
+                    onClose();
                   }
                 }}
                 className="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm font-medium transition-colors"
