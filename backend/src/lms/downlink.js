@@ -15,6 +15,7 @@ function mapPayloadByStatus(status) {
         case "Waitlisted": return "01";
         case "Dispatched": return "02";
         case "Completed": return "03";
+        case "FalseAlarm": return "04";
     }
 }
 
