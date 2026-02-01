@@ -41,6 +41,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })
   }, [navigate])
 
+  // Listen for token expiration from SocketContext
+  useEffect(() => {
+    const handleTokenExpired = () => {
+      console.log('[AuthContext] Token expired - logging out user')
+      setUser(null)
+      navigate('/login-official', { replace: true })
+    }
+
+    window.addEventListener('resqwave_token_expired', handleTokenExpired)
+
+    return () => {
+      window.removeEventListener('resqwave_token_expired', handleTokenExpired)
+    }
+  }, [navigate])
+
   // Validate token ONLY ONCE on mount
    
   useEffect(() => {
@@ -156,6 +171,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Store token and user data
       localStorage.setItem('resqwave_token', response.token)
 
+      // Notify SocketContext about token update (for same-tab updates)
+      window.dispatchEvent(new Event('resqwave_token_updated'));
+
       const userData: User = {
         id: response.user.id,
         role: response.user.role,
@@ -191,12 +209,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Clear user state
       setUser(null)
 
+      // Notify SocketContext about token removal
+      window.dispatchEvent(new Event('resqwave_token_updated'));
+
       // Navigate to login
       navigate('/login-official', { replace: true })
     } catch (error) {
       console.error('Logout error:', error)
       // Even if backend call fails, clear local state
       setUser(null)
+      // Notify SocketContext about token removal
+      window.dispatchEvent(new Event('resqwave_token_updated'));
       navigate('/login-official', { replace: true })
     } finally {
       setIsLoading(false)
