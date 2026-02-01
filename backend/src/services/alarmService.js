@@ -1,4 +1,5 @@
 const { AppDataSource } = require("../config/dataSource");
+const cron = require("node-cron");
 const alarmRepo = AppDataSource.getRepository("Alarm");
 const terminalRepo = AppDataSource.getRepository("Terminal");
 
@@ -116,9 +117,23 @@ async function checkExtendedDowntime() {
     }
 }
 
+// Start the scheduler
+function startDowntimeScheduler() {
+    // Run immediately on server start
+    checkExtendedDowntime().catch(err => console.error("[Cron] Startup Check Error:", err));
+
+    // Schedule: 00:00, 06:00, 12:00, 18:00
+    cron.schedule("0 0,6,12,18 * * *", () => {
+        checkExtendedDowntime().catch(err => console.error("[Cron] Error checking downtime:", err));
+    });
+
+    console.log("[Scheduler] Extended Downtime Checker initialized (12MN, 6AM, 12NN, 6PM)");
+}
+
 module.exports = {
     createOrUpdateAlarm,
     clearAlarm,
     handleBatteryAlarm,
-    checkExtendedDowntime
+    checkExtendedDowntime,
+    startDowntimeScheduler
 }

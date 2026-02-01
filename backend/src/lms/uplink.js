@@ -6,7 +6,7 @@ const Neighborhood = require("../models/Neighborhood");
 const FocalPerson = require("../models/FocalPerson");
 const { getOrFetchWeather } = require("../services/weatherCacheService");
 const { sendDownlink } = require("./downlink");
-const { handleBatteryAlarm } = require("../services/alarmService");
+const { handleBatteryAlarm, clearAlarm } = require("../services/alarmService");
 
 
 // Helper: generate incremental Alert ID like ALRT001
@@ -33,20 +33,24 @@ const handleUplink = async (req, res) => {
   try {
     const result = decodePayloadFromLMS(req.body);
 
+    const mappedTerminalId = mapTerminal(result.decoded.terminalID);
+
+    // GLOBAL: Any Uplink (Battery OR Alert) means the device is alive
+    // 1. Update Last Seen 
+    await AppDataSource.getRepository(Terminal).update(
+        { id: mappedTerminalId },
+        { lastSeenAt: new Date() }
+    );
+    // 2. Clear "Extended Downtime" if it exists
+    await clearAlarm(mappedTerminalId, "Extended Downtime");
+
+
     // Battery Payload - No Alert Logic
     if (result.type === "BATTERY") {
-      const mappedTerminalId = mapTerminal(result.decoded.terminalID);
-
       await handleBatteryAlarm({
         terminalID: mappedTerminalId,
         batteryPercent: result.decoded.batteryPercent
       });
-
-      // Update Last Seen
-      await AppDataSource.getRepository(Terminal).update(
-        { id: mappedTerminalId },
-        { lastSeenAt: new Date() }
-      );
 
       return res.status(200).json({
         success: true,
@@ -55,7 +59,6 @@ const handleUplink = async (req, res) => {
       });
     }
 
-    const mappedTerminalId = mapTerminal(result.decoded.terminalID);
     const alertType = result.decoded.alertType;
 
     // find the terminal object
