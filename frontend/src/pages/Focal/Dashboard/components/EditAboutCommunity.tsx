@@ -120,6 +120,18 @@ const EditAbout = forwardRef<EditAboutHandle, EditAboutProps>(({ open, onClose, 
     // New state for alt focal email (renamed for clarity)
     const [altFocalEmail, setAltFocalEmail] = useState('');
 
+    // Track initial values to detect changes
+    const [initialValues, setInitialValues] = useState({
+        householdsRange: '',
+        residentsRange: '',
+        floodwaterRange: '',
+        selectedHazards: [] as string[],
+        otherInfo: '',
+        altFocalName: '',
+        altFocalContact: '',
+        altFocalEmail: '',
+    });
+
     // Validation errors
     const [nameError, setNameError] = useState('');
     const [contactError, setContactError] = useState('');
@@ -252,12 +264,16 @@ const EditAbout = forwardRef<EditAboutHandle, EditAboutProps>(({ open, onClose, 
         if (!open) return;
         if (!data) return;
         // Removed unused: setGroupName, setNoOfResidents, setNoOfHouseholds
-        setOtherInfo(Array.isArray(data?.otherInfo) ? data.otherInfo.join('\n') : '');
+        const otherInfoValue = Array.isArray(data?.otherInfo) ? data.otherInfo.join('\n') : '';
+        setOtherInfo(otherInfoValue);
 
         // Removed unused: setFocalName, setFocalContact, setFocalEmail, setFocalAddress, setFocalCoordinates
-        setAltFocalName(data?.altFocal?.name ?? '');
-        setAltFocalContact(data?.altFocal?.contact ?? '');
-        setAltFocalEmail(data?.altFocal?.email ?? '');
+        const altNameValue = data?.altFocal?.name ?? '';
+        const altContactValue = data?.altFocal?.contact ?? '';
+        const altEmailValue = data?.altFocal?.email ?? '';
+        setAltFocalName(altNameValue);
+        setAltFocalContact(altContactValue);
+        setAltFocalEmail(altEmailValue);
         setPhotoUrl(data?.focal?.photo ?? null);
 
         // Clear validation errors when modal opens
@@ -277,9 +293,26 @@ const EditAbout = forwardRef<EditAboutHandle, EditAboutProps>(({ open, onClose, 
         }
 
         // Set dropdowns to show data if available
-        setHouseholdsRange(data?.stats?.noOfHouseholds ? String(data.stats.noOfHouseholds) : '');
-        setResidentsRange(data?.stats?.noOfResidents ? String(data.stats.noOfResidents) : '');
-        setFloodwaterRange(data?.floodwaterSubsidenceDuration ?? '');
+        const householdsValue = data?.stats?.noOfHouseholds ? String(data.stats.noOfHouseholds) : '';
+        const residentsValue = data?.stats?.noOfResidents ? String(data.stats.noOfResidents) : '';
+        const floodwaterValue = data?.floodwaterSubsidenceDuration ?? '';
+        const hazardsValue = Array.isArray(data?.hazards) ? data.hazards : [];
+        
+        setHouseholdsRange(householdsValue);
+        setResidentsRange(residentsValue);
+        setFloodwaterRange(floodwaterValue);
+        
+        // Store initial values for change detection
+        setInitialValues({
+            householdsRange: householdsValue,
+            residentsRange: residentsValue,
+            floodwaterRange: floodwaterValue,
+            selectedHazards: hazardsValue,
+            otherInfo: otherInfoValue,
+            altFocalName: altNameValue,
+            altFocalContact: altContactValue,
+            altFocalEmail: altEmailValue,
+        });
         // Hazards are now synced in a separate effect above
     }, [open, data, fetchAltFocalPhoto]);
 
@@ -710,7 +743,29 @@ const EditAbout = forwardRef<EditAboutHandle, EditAboutProps>(({ open, onClose, 
                                 setConfirmSaveOpen(true);
                             }
                         }}
-                        disabled={!!(nameError || contactError || emailError || altPhotoError || !altFocalName.trim() || !altFocalContact.trim() || !altFocalEmail.trim())}
+                        disabled={(() => {
+                            // Check if there are any validation errors
+                            const hasErrors = !!(nameError || contactError || emailError || altPhotoError);
+                            
+                            // Check if alt focal fields are incomplete
+                            const altFocalIncomplete = !altFocalName.trim() || !altFocalContact.trim() || !altFocalEmail.trim();
+                            
+                            // Check if any changes have been made
+                            const hasChanges = 
+                                householdsRange !== initialValues.householdsRange ||
+                                residentsRange !== initialValues.residentsRange ||
+                                floodwaterRange !== initialValues.floodwaterRange ||
+                                JSON.stringify(selectedHazards) !== JSON.stringify(initialValues.selectedHazards) ||
+                                otherInfo !== initialValues.otherInfo ||
+                                altFocalName !== initialValues.altFocalName ||
+                                altFocalContact !== initialValues.altFocalContact ||
+                                altFocalEmail !== initialValues.altFocalEmail ||
+                                altPhotoFile !== null ||
+                                altPhotoDeleted;
+                            
+                            // Disable if: has errors OR (alt focal incomplete AND no other changes)
+                            return hasErrors || (altFocalIncomplete && !hasChanges);
+                        })()}
                         className="w-full bg-gradient-to-t from-[#3B82F6] to-[#70A6FF] transition-colors duration-150 cursor-pointer hover:from-[#2563eb] hover:to-[#60a5fa] text-white py-3 px-4.5 rounded-md font-medium text-[15px] tracking-[0.6px] border-0 disabled:opacity-50 disabled:cursor-not-allowed"
                         style={{ width: '100%' }}
                     >
