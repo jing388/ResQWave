@@ -14,6 +14,7 @@ interface AdminPinPopoverProps {
     terminalStatus: string;
     timeSent: string;
     focalPerson: string;
+    address: string;
     contactNumber: string;
     totalAlerts: number;
   } | null;
@@ -66,8 +67,8 @@ export function AdminPinPopover({
 
   const popoverWidth = 390;
   const popoverHeight = 320;
-  const offsetX = popoverWidth / 1.47;
-  const offsetY = popoverHeight + 116;
+  const offsetX = popoverWidth / 1.40;
+  const offsetY = popoverHeight + 135;
 
   return (
     <>
@@ -88,13 +89,13 @@ export function AdminPinPopover({
               backgroundColor: "rgba(0,0,0,0.80)",
               color: "#fff",
               boxShadow: "0 8px 28px rgba(0,0,0,0.45)",
-              padding: "20px 18px 20px 18px",
+              padding: "15px 18px 15px 18px",
               fontFamily: "inherit",
               borderRadius: 5,
             }}
           >
             {/* Header with close button */}
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-2">
               <div className="font-bold uppercase text-base">
                 {terminalName}
               </div>
@@ -140,7 +141,7 @@ export function AdminPinPopover({
               <div className="flex gap-3">
                 <div className="w-[180px] text-sm font-medium">House Address</div>
                 <div className="ml-auto text-right text-sm max-w-[170px] whitespace-normal break-words">
-                  N/A
+                  {popover.address || "N/A"}
                 </div>
               </div>
 

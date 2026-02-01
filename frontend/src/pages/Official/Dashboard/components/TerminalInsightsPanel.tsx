@@ -1,10 +1,3 @@
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
     AlertDialog,
@@ -16,7 +9,13 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import { apiFetch } from "@/lib/api";
 import { getNeighborhoodByTerminalId } from "@/pages/Official/CommunityGroups/api/communityGroupApi";
 import type { CommunityGroupDetails } from "@/pages/Official/CommunityGroups/types";
@@ -41,14 +40,13 @@ import {
     Loader2,
     MessageSquarePlus,
     Moon,
-    Phone,
     Shield,
     ShieldOff,
     Sun,
     Thermometer,
     Wind,
     X,
-    Zap,
+    Zap
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type ReactElement } from "react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
@@ -236,9 +234,6 @@ export function TerminalInsightsPanel({
     const [isTogglingWeatherCheck, setIsTogglingWeatherCheck] = useState(false);
     const [manualBlockEnabled, setManualBlockEnabled] = useState<boolean>(false);
     const [isTogglingManualBlock, setIsTogglingManualBlock] = useState(false);
-    const [iotButtonBlinking, setIotButtonBlinking] = useState(false);
-    const [iotBlinkColor, setIotBlinkColor] = useState<'red' | 'orange'>('red');
-    const [iotTestResult, setIotTestResult] = useState<string | null>(null);
     const [isAlertingFocalPerson, setIsAlertingFocalPerson] = useState(false);
     const [recentAlerts, setRecentAlerts] = useState<number[]>([]);
     const [confirmAlertOpen, setConfirmAlertOpen] = useState(false);
@@ -321,7 +316,6 @@ export function TerminalInsightsPanel({
             // Find oldest alert in the window
             const oldestAlert = Math.min(...recentAlertsList);
             const waitTime = Math.ceil((oldestAlert + 600000 - now) / 60000);
-            const remaining = 5 - recentAlertsList.length;
             setSuccessMessage(`Rate limit reached. Please wait ${waitTime} minute(s) before sending another alert. (5 alerts per 10 minutes)`);
             setShowSuccessSnackbar(true);
             setTimeout(() => setShowSuccessSnackbar(false), 4000);
