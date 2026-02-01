@@ -129,7 +129,7 @@ export function MapPins({ map, pins, mapContainer, onPinClick }: MapPinsProps) {
         focalPerson: pin.focalPerson || "N/A",
         address: typeof pin.address === "string" 
           ? pin.address 
-          : (pin.address as any)?.address || "N/A",
+          : (pin.address as Record<string, unknown>)?.address as string || "N/A",
         contactNumber: pin.contactNumber || "N/A",
         totalAlerts: pin.totalAlerts,
         latestAlertTime: pin.latestAlertTime || "",
