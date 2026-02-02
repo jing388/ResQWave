@@ -1002,12 +1002,7 @@ export default function Dashboard() {
             <HistoryCommunity open={historyOpen} onClose={() => { setHistoryOpen(false); setActiveTab('community'); }} center={historyCenter} />
 
             <AccountSettingsModal open={accountSettingsOpen} onClose={() => setAccountSettingsOpen(false)} center={accountSettingsCenter} onSaved={() => {
-                // show saved alert (bump trigger) when account password updated
-                setAccountSettingsOpen(false);
-                setSavedMessage('Password Updated Successfully!');
-                setSavedShowViewLogs(true);
-                setSavedTrigger(prev => (prev == null ? 1 : prev + 1));
-                // Refresh activity logs to show password change
+                // Refresh activity logs when changes are made
                 if (activityLogRef.current) {
                     activityLogRef.current.refresh();
                 }

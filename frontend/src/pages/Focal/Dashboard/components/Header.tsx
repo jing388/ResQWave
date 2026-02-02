@@ -13,6 +13,9 @@ export default function Header({ editBoundaryOpen = false, editAboutOpen = false
     const [popoverOpen, setPopoverOpen] = React.useState(false);
     const { logout, focalId } = useFocalAuth();
     const [profileUrl, setProfileUrl] = useState<string | null>(null);
+    const [firstName, setFirstName] = useState<string>("");
+    const [lastName, setLastName] = useState<string>("");
+
     // Helper to log out and navigate before clearing tokens
     const handleLogout = () => {
         navigate('/');
@@ -20,6 +23,31 @@ export default function Header({ editBoundaryOpen = false, editAboutOpen = false
             logout();
         }, 100);
     };
+
+    // Helper to fetch focal person data
+    const fetchFocalData = useCallback(() => {
+        if (!focalId) {
+            setFirstName("");
+            setLastName("");
+            return;
+        }
+        fetch(`${API_BASE_URL}/focalperson/${focalId}`, {
+            credentials: 'include',
+            headers: {
+                Authorization: `Bearer ${localStorage.getItem('focalToken') || localStorage.getItem('resqwave_token') || ''}`
+            }
+        })
+            .then(async (res) => {
+                if (!res.ok) throw new Error('Failed to fetch focal data');
+                const data = await res.json();
+                setFirstName(data.firstName || "");
+                setLastName(data.lastName || "");
+            })
+            .catch(() => {
+                setFirstName("");
+                setLastName("");
+            });
+    }, [focalId]);
 
     // Helper to fetch focal profile photo
     const fetchProfilePhoto = useCallback(() => {
@@ -49,15 +77,19 @@ export default function Header({ editBoundaryOpen = false, editAboutOpen = false
 
     // Fetch on mount and when focalId changes
     useEffect(() => {
+        fetchFocalData();
         fetchProfilePhoto();
-    }, [fetchProfilePhoto]);
+    }, [fetchFocalData, fetchProfilePhoto]);
 
     // Listen for custom event to refresh profile photo
     useEffect(() => {
-        const handler = () => fetchProfilePhoto();
+        const handler = () => {
+            fetchFocalData();
+            fetchProfilePhoto();
+        };
         window.addEventListener('focal-profile-photo-updated', handler);
         return () => window.removeEventListener('focal-profile-photo-updated', handler);
-    }, [fetchProfilePhoto]);
+    }, [fetchFocalData, fetchProfilePhoto]);
     // When editing is active, render the editing header UI (previously inline in index.tsx)
     if (editBoundaryOpen) {
         return (
@@ -220,19 +252,43 @@ export default function Header({ editBoundaryOpen = false, editAboutOpen = false
             <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
                 <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
                     <PopoverTrigger asChild>
-                        <img
-                            src={profileUrl || "https://avatars.githubusercontent.com/u/1?v=4"}
-                            alt="Profile"
-                            style={{
-                                width: 50,
-                                height: 50,
-                                borderRadius: "50%",
-                                objectFit: "cover",
-                                cursor: "pointer",
-                                boxShadow: popoverOpen ? "0 0 0 3px rgba(107, 114, 128, 0.4)" : "none",
-                                transition: "box-shadow 0.2s ease",
-                            }}
-                        />
+                        {profileUrl ? (
+                            <img
+                                src={profileUrl}
+                                alt="Profile"
+                                style={{
+                                    width: 50,
+                                    height: 50,
+                                    borderRadius: "50%",
+                                    objectFit: "cover",
+                                    cursor: "pointer",
+                                    boxShadow: popoverOpen ? "0 0 0 3px rgba(107, 114, 128, 0.4)" : "none",
+                                    transition: "box-shadow 0.2s ease",
+                                }}
+                            />
+                        ) : (
+                            <div
+                                style={{
+                                    width: 50,
+                                    height: 50,
+                                    borderRadius: "50%",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    backgroundColor: "#4a4a4a",
+                                    color: "#e0e0e0",
+                                    fontSize: "1.25rem",
+                                    fontWeight: 600,
+                                    cursor: "pointer",
+                                    boxShadow: popoverOpen ? "0 0 0 3px rgba(107, 114, 128, 0.4)" : "none",
+                                    transition: "box-shadow 0.2s ease",
+                                }}
+                            >
+                                {firstName && lastName
+                                    ? `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
+                                    : "?"}
+                            </div>
+                        )}
                     </PopoverTrigger>
                     <PopoverContent align="end" sideOffset={13}>
                         <PopoverItem icon={<User size={16} />} onClick={() => { setPopoverOpen(false); onAccountSettingsClick?.(); }}>
