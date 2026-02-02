@@ -6,32 +6,33 @@ import { useEffect, useRef, useState } from "react";
 import { CommunityGroupInfoSheet } from "../CommunityGroups/components/CommunityGroupInfoSheet";
 
 import DistressSignalAlert, {
-    type DistressSignalAlertHandle,
+  type DistressSignalAlertHandle,
 } from "./components/DistressSignalAlert";
 import { HazardLegend } from "./components/HazardLegend";
 import LiveReportSidebar from "./components/LiveReportSidebar";
 import MapControls from "./components/MapControls";
+import { TerminalInsightsPanel } from "../Dashboard/components/TerminalInsightsPanel";
 import RescueFormAlerts, {
-    type RescueFormAlertsHandle,
+  type RescueFormAlertsHandle,
 } from "./components/RescueFormAlerts";
 import RescueFormPreview from "./components/RescueFormPreview";
 import SignalPopover from "./components/SignalPopover";
 import SignalStatusLegend from "./components/SignalStatusLegend";
 import {
-    RescueWaitlistProvider,
-    useRescueWaitlist,
-    type WaitlistedRescueForm,
+  RescueWaitlistProvider,
+  useRescueWaitlist,
+  type WaitlistedRescueForm,
 } from "./contexts/RescueWaitlistContext";
 import useSignals from "./hooks/useSignals";
 import { useWaitlistWebSocket } from "./hooks/useWaitlistWebSocket";
 import type { Signal, VisualizationSignals } from "./types/signals";
 import { cinematicMapEntrance, flyToSignal } from "./utils/flyingEffects";
 import {
-    addCustomLayers,
-    createGeoJSONCircle,
-    getPinColor,
-    makeTooltip,
-    stopPinPulse,
+  addCustomLayers,
+  createGeoJSONCircle,
+  getPinColor,
+  makeTooltip,
+  stopPinPulse,
 } from "./utils/mapHelpers";
 
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN;
@@ -46,6 +47,13 @@ function VisualizationContent() {
     useRescueWaitlist();
   const [showWaitlistPreview, setShowWaitlistPreview] = useState(false);
   const [heatmapVisible, setHeatmapVisible] = useState(false);
+
+  // Terminal Insights Panel state
+  const [insightsPanelOpen, setInsightsPanelOpen] = useState(false);
+  const [selectedTerminal, setSelectedTerminal] = useState<{
+    terminalID: string;
+    terminalName: string;
+  } | null>(null);
 
   // Rescue Form Alerts ref
   const rescueFormAlertsRef = useRef<RescueFormAlertsHandle>(null);
@@ -79,6 +87,12 @@ function VisualizationContent() {
       // Execute the original callback
       onConfirm();
     });
+  };
+
+  // Handle opening Terminal Insights Panel
+  const handleOpenInsights = (terminalID: string, terminalName: string) => {
+    setSelectedTerminal({ terminalID, terminalName });
+    setInsightsPanelOpen(true);
   };
 
   // Keep a ref to the latest sidebar state so map event handlers can see the current value
@@ -646,6 +660,7 @@ function VisualizationContent() {
         onShowDispatchAlert={handleShowDispatchAlert}
         onShowErrorAlert={handleShowErrorAlert}
         onShowDispatchConfirmation={handleShowDispatchConfirmation}
+        onOpenInsights={handleOpenInsights}
       />
 
       <MapControls
@@ -809,6 +824,16 @@ function VisualizationContent() {
 
       {/* Signal Status Legend */}
       <SignalStatusLegend />
+
+      {/* Terminal Insights Panel - slides up from bottom */}
+      {selectedTerminal && (
+        <TerminalInsightsPanel
+          isOpen={insightsPanelOpen}
+          onClose={() => setInsightsPanelOpen(false)}
+          terminalID={selectedTerminal.terminalID}
+          terminalName={selectedTerminal.terminalName}
+        />
+      )}
     </div>
   );
 }
