@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { TestWebSocketButton } from "../TestWebSocketButton";
 
 export function Header({
   isVisualizationOpen,
@@ -69,7 +70,9 @@ export function Header({
                 </button>
               </div>
             ) : (
-             <div></div>
+             <div className="flex items-center ml-[-6px]">
+               <TestWebSocketButton />
+             </div>
             )}
           </>
         )}

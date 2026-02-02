@@ -8,6 +8,7 @@ const dispatcherRepo = AppDataSource.getRepository("Dispatcher");
 const neighborhoodRepo = AppDataSource.getRepository("Neighborhood");
 const alertRepo = AppDataSource.getRepository("Alert");
 const postRescueRepo = AppDataSource.getRepository("PostRescueForm");
+const rescueFormRepo = AppDataSource.getRepository("RescueForm");
 
 const getAdminDashboardStats = catchAsync(async (req, res) => {
         const cacheKey = "adminDashboardStats";
@@ -32,8 +33,14 @@ const getAdminDashboardStats = catchAsync(async (req, res) => {
         });
 
         // 4. Completed Operations (Alerts with Post Rescue Form)
-        // We count all post rescue forms as they represent completed operations
-        const completedOperations = await postRescueRepo.count();
+        // We count non-archived post rescue forms where rescue form status is "Completed"
+        // This matches exactly what the Reports module shows in the completed tab
+        const completedOperations = await postRescueRepo
+            .createQueryBuilder("prf")
+            .leftJoin("RescueForm", "rescueForm", "rescueForm.emergencyID = prf.alertID")
+            .where("rescueForm.status = :status", { status: "Completed" })
+            .andWhere("(prf.archived IS NULL OR prf.archived = :archived)", { archived: false })
+            .getCount();
 
         // 5. Alert Types
         const criticalAlerts = await alertRepo.count({

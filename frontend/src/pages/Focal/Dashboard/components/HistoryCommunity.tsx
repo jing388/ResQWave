@@ -198,12 +198,12 @@ export default function HistoryModal({ open, onClose, center = null }: HistoryMo
     };
 
 
-    // PDF export: use exportToPdf utility for correct layout
-    // Export the first (most recent) report with full backend details
+    // PDF export: use data from aggregated endpoint with proper formatting
     const handleExportPdf = async (reportId?: string) => {
-        setPdfExporting(true);
+        setPdfExporting(false);
+
         try {
-            // Find the most recent report or by ID
+            // Find the report
             const flatReports = reports || [];
             let selected = null;
             if (reportId) {
@@ -211,32 +211,36 @@ export default function HistoryModal({ open, onClose, center = null }: HistoryMo
             } else {
                 selected = flatReports.length > 0 ? flatReports[0] : null;
             }
-            if (!selected) throw new Error('No report data found.');
+
+            if (!selected) {
+                alert('No report data found.');
+                setPdfExporting(false);
+                return;
+            }
 
             const exportData: ExportData = {
                 title: `Rescue Operation Report - ${selected.emergencyId || selected.alertId || ''}`,
                 totalItems: 1,
                 summary: ' This document serves as the official report of the rescue operation conducted for the affected community. It records the key information, emergency context, and actions taken to ensure accountability, transparency, and reference for future disaster response efforts.',
                 items: [
-                    { term: selected.emergencyId || selected.alertId || 'N/A', definition: `Type: ${selected.alertType || 'N/A'} | Date: ${selected.prfCompletedAt || selected.timeOfRescue || 'N/A'}` }
+                    { term: selected.emergencyId || selected.alertId || 'N/A', definition: `Type: ${selected.alertType || 'N/A'} | Date: ${selected.dateTimeOccurred || 'N/A'}` }
                 ],
                 communityInfo: {
-                    neighborhoodId: selected.neighborhoodId || '',
-                    focalPersonName: selected.focalPersonName || '',
+                    neighborhoodId: String(selected.neighborhoodId || ''),
+                    focalPersonName: `${selected.focalFirstName || ''} ${selected.focalLastName || ''}`.trim() || '',
                     focalPersonAddress: (() => {
-                        // If address is a JSON string/object, extract only the address field
-                        const addr = selected.focalPersonAddress;
+                        const addr = selected.focalAddress;
                         if (addr && typeof addr === 'string') {
                             try {
                                 const parsed = JSON.parse(addr);
                                 if (parsed && typeof parsed === 'object' && parsed.address) {
-                                    return parsed.address;
+                                    return String(parsed.address);
                                 }
-                            } catch { /* Ignore URL revoke errors */ }
+                            } catch { /* ignore */ }
                         }
-                        return addr || '';
+                        return String(addr || '');
                     })(),
-                    focalPersonContactNumber: selected.focalPersonContactNumber || '',
+                    focalPersonContactNumber: String(selected.focalPersonContactNumber || ''),
                 },
                 emergencyContext: {
                     emergencyId: selected.emergencyId || selected.alertId || '',
@@ -247,11 +251,11 @@ export default function HistoryModal({ open, onClose, center = null }: HistoryMo
                     resourceNeeds: selected.resourceNeeds || '',
                     otherInformation: selected.otherInformation || '',
                     timeOfRescue: (() => {
-                        const val = selected.timeOfRescue;
+                        // Format dateTimeOccurred from backend (alert.dateTimeSent)
+                        const val = selected.dateTimeOccurred;
                         if (!val) return '';
                         try {
-                            const dt = new Date(val);
-                            // Convert to UTC+8 (Philippine Time)
+                            const dt = new Date(String(val));
                             const options: Intl.DateTimeFormatOptions = {
                                 year: 'numeric', month: 'long', day: 'numeric',
                                 hour: '2-digit', minute: '2-digit', second: '2-digit',
@@ -260,24 +264,91 @@ export default function HistoryModal({ open, onClose, center = null }: HistoryMo
                             };
                             return dt.toLocaleString('en-PH', options);
                         } catch {
-                            return val;
+                            return String(val);
                         }
                     })(),
                     alertType: selected.alertType || '',
                 },
                 rescueCompletion: {
-                    rescueCompletionTime: selected.rescueCompletionTime || '',
+                    completionTimeRange: (() => {
+                        // Calculate duration from alert time (dateTimeOccurred) to completion time
+                        const start = selected.dateTimeOccurred; // When alert was created
+                        const end = selected.completionDate;     // When rescue was completed
+
+                        if (!start || !end) {
+                            return '';
+                        }
+
+                        try {
+                            const startTime = new Date(String(start)).getTime();
+                            const endTime = new Date(String(end)).getTime();
+                            const diffMs = endTime - startTime;
+
+                            if (diffMs < 0) {
+                                return 'N/A';
+                            }
+
+                            // Convert to hours, minutes, seconds in HH:MM:SS format
+                            const totalSeconds = Math.floor(diffMs / 1000);
+                            const hours = Math.floor(totalSeconds / 3600);
+                            const minutes = Math.floor((totalSeconds % 3600) / 60);
+                            const seconds = totalSeconds % 60;
+
+                            // Format as HH:MM:SS
+                            return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+                        } catch {
+                            return '';
+                        }
+                    })(),
+                    rescueCompletionTime: (() => {
+                        // Format completionDate from backend
+                        const val = selected.completionDate;
+                        if (!val) return '';
+                        try {
+                            const dt = new Date(String(val));
+                            const options: Intl.DateTimeFormatOptions = {
+                                year: 'numeric', month: 'long', day: 'numeric',
+                                hour: '2-digit', minute: '2-digit', second: '2-digit',
+                                hour12: true,
+                                timeZone: 'Asia/Manila',
+                            };
+                            return dt.toLocaleString('en-PH', options);
+                        } catch {
+                            return String(val);
+                        }
+                    })(),
                     noOfPersonnel: selected.noOfPersonnel ? String(selected.noOfPersonnel) : '',
-                    resourcesUsed: selected.resourcesUsed || '',
+                    resourcesUsed: (() => {
+                        const resources = selected.resourcesUsed as any;
+                        if (!resources) return '';
+                        if (typeof resources === 'string') return resources;
+                        if (Array.isArray(resources)) {
+                            return resources.map((r: any) => {
+                                if (typeof r === 'string') return r;
+                                if (typeof r === 'object' && r !== null) {
+                                    const parts = [];
+                                    if (r.resource || r.name) parts.push(r.resource || r.name);
+                                    if (r.quantity) parts.push(`Quantity: ${r.quantity}`);
+                                    if (r.description) parts.push(r.description);
+                                    return parts.length > 0 ? parts.join(' - ') : JSON.stringify(r);
+                                }
+                                return String(r);
+                            }).join('; ');
+                        }
+                        return String(resources);
+                    })(),
                     actionsTaken: selected.actionsTaken || '',
                 },
             };
+
+            // Generate and open PDF
             await exportToPdf(exportData);
-            console.log('PDF opened in new tab.');
-        } catch {
-            // PDF export failed
+        } catch (err) {
+            console.error('PDF export failed:', err);
+            alert('Failed to generate PDF. Please try again.');
+        } finally {
+            setPdfExporting(false);
         }
-        setPdfExporting(false);
     };
 
     return (

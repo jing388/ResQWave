@@ -43,6 +43,10 @@ module.exports = new EntitySchema ({
             length: 50,
             default: "Available",
             comment: "Valid values: Available, Occupied"
+        },
+        lastSeenAt: {
+            type: "timestamp",
+            nullable: true,
         }
     },
 

@@ -34,6 +34,7 @@ export function MapView() {
     terminalStatus: string;
     timeSent: string;
     focalPerson: string;
+    address: string;
     contactNumber: string;
     totalAlerts: number;
   } | null>(null);

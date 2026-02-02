@@ -1,42 +1,37 @@
 import { useLiveReport } from "@/components/Official/LiveReportContext";
 import { useRescueForm } from "@/components/Official/RescueFormContext";
-import { TestWebSocketButton } from "@/components/TestWebSocketButton";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { useEffect, useRef, useState } from "react";
 import { CommunityGroupInfoSheet } from "../CommunityGroups/components/CommunityGroupInfoSheet";
-import { AdminPinPopover } from "../Dashboard/components/AdminPinPopover";
-import { MapPins } from "../Dashboard/components/MapPins";
-import { TerminalInsightsPanel } from "../Dashboard/components/TerminalInsightsPanel";
-import { useMapPins } from "../Dashboard/hooks/useMapPins";
 
 import DistressSignalAlert, {
-  type DistressSignalAlertHandle,
+    type DistressSignalAlertHandle,
 } from "./components/DistressSignalAlert";
 import { HazardLegend } from "./components/HazardLegend";
 import LiveReportSidebar from "./components/LiveReportSidebar";
 import MapControls from "./components/MapControls";
 import RescueFormAlerts, {
-  type RescueFormAlertsHandle,
+    type RescueFormAlertsHandle,
 } from "./components/RescueFormAlerts";
 import RescueFormPreview from "./components/RescueFormPreview";
 import SignalPopover from "./components/SignalPopover";
 import SignalStatusLegend from "./components/SignalStatusLegend";
 import {
-  RescueWaitlistProvider,
-  useRescueWaitlist,
-  type WaitlistedRescueForm,
+    RescueWaitlistProvider,
+    useRescueWaitlist,
+    type WaitlistedRescueForm,
 } from "./contexts/RescueWaitlistContext";
 import useSignals from "./hooks/useSignals";
 import { useWaitlistWebSocket } from "./hooks/useWaitlistWebSocket";
 import type { Signal, VisualizationSignals } from "./types/signals";
 import { cinematicMapEntrance, flyToSignal } from "./utils/flyingEffects";
 import {
-  addCustomLayers,
-  createGeoJSONCircle,
-  getPinColor,
-  makeTooltip,
-  stopPinPulse,
+    addCustomLayers,
+    createGeoJSONCircle,
+    getPinColor,
+    makeTooltip,
+    stopPinPulse,
 } from "./utils/mapHelpers";
 
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN;
@@ -51,26 +46,6 @@ function VisualizationContent() {
     useRescueWaitlist();
   const [showWaitlistPreview, setShowWaitlistPreview] = useState(false);
   const [heatmapVisible, setHeatmapVisible] = useState(false);
-
-  // Terminal pins data and state
-  const { pins: terminalPins, loading: pinsLoading } = useMapPins();
-  const [insightsPanelOpen, setInsightsPanelOpen] = useState(false);
-  const [selectedTerminal, setSelectedTerminal] = useState<{
-    terminalID: string;
-    terminalName: string;
-  } | null>(null);
-  const [terminalPopover, setTerminalPopover] = useState<{
-    lng: number;
-    lat: number;
-    screen: { x: number; y: number };
-    terminalID: string;
-    terminalName: string;
-    terminalStatus: string;
-    timeSent: string;
-    focalPerson: string;
-    contactNumber: string;
-    totalAlerts: number;
-  } | null>(null);
 
   // Rescue Form Alerts ref
   const rescueFormAlertsRef = useRef<RescueFormAlertsHandle>(null);
@@ -671,10 +646,6 @@ function VisualizationContent() {
         onShowDispatchAlert={handleShowDispatchAlert}
         onShowErrorAlert={handleShowErrorAlert}
         onShowDispatchConfirmation={handleShowDispatchConfirmation}
-        onOpenInsights={(terminalID, terminalName) => {
-          setSelectedTerminal({ terminalID, terminalName });
-          setInsightsPanelOpen(true);
-        }}
       />
 
       <MapControls
@@ -690,11 +661,6 @@ function VisualizationContent() {
         onToggleLiveReport={() => setIsLiveReportOpen(!isLiveReportOpen)}
         isLiveReportOpen={isLiveReportOpen}
       />
-
-      {/* Test WebSocket Button - Remove after testing */}
-      <div style={{ position: "absolute", top: 20, right: 280, zIndex: 50 }}>
-        <TestWebSocketButton />
-      </div>
 
       {/* Live Report Sidebar */}
       <LiveReportSidebar
@@ -843,42 +809,6 @@ function VisualizationContent() {
 
       {/* Signal Status Legend */}
       <SignalStatusLegend />
-
-      {/* Terminal Pins - rendered when data is loaded */}
-      {!pinsLoading && (
-        <MapPins
-          map={mapRef.current}
-          pins={terminalPins}
-          mapContainer={mapContainer}
-          onPinClick={(popoverData) => {
-            setTerminalPopover(popoverData);
-          }}
-        />
-      )}
-
-      {/* Terminal Pin Popover */}
-      <AdminPinPopover
-        popover={terminalPopover}
-        onClose={() => setTerminalPopover(null)}
-        onOpenInsights={(terminalID, terminalName) => {
-          setSelectedTerminal({ terminalID, terminalName });
-          setInsightsPanelOpen(true);
-          setTerminalPopover(null);
-        }}
-      />
-
-      {/* Terminal Insights Panel */}
-      {selectedTerminal && (
-        <TerminalInsightsPanel
-          isOpen={insightsPanelOpen}
-          onClose={() => {
-            setInsightsPanelOpen(false);
-            setSelectedTerminal(null);
-          }}
-          terminalID={selectedTerminal.terminalID}
-          terminalName={selectedTerminal.terminalName}
-        />
-      )}
     </div>
   );
 }

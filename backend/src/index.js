@@ -27,12 +27,14 @@ const adminDashboardRoutes = require("./routes/adminDashboardRoutes");
 const sensorDataRoutes = require("./routes/sensorDataRoutes");
 const lmsRoutes = require("./routes/lmsRoutes");
 const weatherRoutes = require("./routes/weatherRoutes");
+const focalAlertRoutes = require("./routes/focalAlertRoutes");
 const { authMiddleware, requireRole } = require("./middleware/authMiddleware");
 const { getTerminalsForMap } = require("./controllers/terminalController");
 const {
   createCriticalAlert,
   createUserInitiatedAlert,
 } = require("./controllers/alertController");
+const { startDowntimeScheduler } = require("./services/alarmService");
 const { testSanityConnection } = require("./services/sanity-chatbot-service");
 const errorHandler = require("./middleware/errorMiddleware");
 const { NotFoundError } = require("./exceptions/index");
@@ -66,6 +68,9 @@ app.use(express.json());
 AppDataSource.initialize()
   .then(async () => {
     console.log("Database Connected and Synced!");
+
+    // Initialize Extended Downtime Scheduler (Runs at 00:00, 06:00, 12:00, 18:00)
+    startDowntimeScheduler();
 
     // Test Sanity connection
     try {
@@ -129,6 +134,7 @@ AppDataSource.initialize()
     app.use("/ai/prediction", aiPredictionRoutes);
     app.use("/", graphRoutes);
     app.use("/", documentRoutes);
+    app.use("/api/focal-alert", focalAlertRoutes);
 
     // Handle 404
     app.use((req, res, next) => {
