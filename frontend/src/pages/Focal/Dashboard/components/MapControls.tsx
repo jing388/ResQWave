@@ -9,6 +9,48 @@ export default function MapControls({ mapRef, mapLoaded, addCustomLayers, editBo
     const [selectedLayer, setSelectedLayer] = useState<'street' | 'terrain' | 'satellite'>('street');
     const [heatmapVisible, setHeatmapVisible] = useState(true);
 
+    // Function to add flood heatmap layers
+    const addFloodLayers = (map: mapboxgl.Map, visible = true) => {
+        try {
+            const sourceId = "floods-metro-manila";
+            const polygonLayerId = "flood-polygons-metro-manila";
+
+            // Add vector tile source from Mapbox
+            if (!map.getSource(sourceId)) {
+                map.addSource(sourceId, {
+                    type: "vector",
+                    url: "mapbox://rodelll.3lm08j9b"
+                });
+            }
+
+            // Add polygon fill layer
+            if (!map.getLayer(polygonLayerId)) {
+                map.addLayer({
+                    id: polygonLayerId,
+                    type: "fill",
+                    source: sourceId,
+                    "source-layer": "MetroManila_Flood",
+                    paint: {
+                        "fill-color": [
+                            "match",
+                            ["get", "Var"],
+                            1, "#ffff00",   // Low hazard → Yellow
+                            2, "#ff9900",   // Medium hazard → Orange
+                            3, "#ff0000",   // High hazard → Red
+                            "#000000"       // fallback → Black
+                        ],
+                        "fill-opacity": 0.5
+                    },
+                    layout: {
+                        'visibility': visible ? 'visible' : 'none'
+                    }
+                }, "waterway-label");
+            }
+        } catch (e) {
+            console.warn("[MapControls] could not add flood polygons", e);
+        }
+    };
+
     const toggleHeatmap = () => {
         const map = mapRef.current;
         if (!map) return;
@@ -147,6 +189,7 @@ export default function MapControls({ mapRef, mapLoaded, addCustomLayers, editBo
                                         m.setStyle('mapbox://styles/mapbox/streets-v12');
                                         m.once('styledata', () => {
                                             addCustomLayers(m);
+                                            addFloodLayers(m, heatmapVisible);
                                         });
                                     }
                                 }}
@@ -172,6 +215,7 @@ export default function MapControls({ mapRef, mapLoaded, addCustomLayers, editBo
                                         m.setStyle('mapbox://styles/mapbox/outdoors-v12');
                                         m.once('styledata', () => {
                                             addCustomLayers(m);
+                                            addFloodLayers(m, heatmapVisible);
                                         });
                                     }
                                 }}
@@ -197,6 +241,7 @@ export default function MapControls({ mapRef, mapLoaded, addCustomLayers, editBo
                                         m.setStyle('mapbox://styles/mapbox/satellite-streets-v12');
                                         m.once('styledata', () => {
                                             addCustomLayers(m);
+                                            addFloodLayers(m, heatmapVisible);
                                         });
                                     }
                                 }}
