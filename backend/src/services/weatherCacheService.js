@@ -162,7 +162,7 @@ const fetchAndStoreWeather = async (terminalID, lat, lon) => {
 
         // Use raw query for upsert to avoid race conditions
         // PostgreSQL's INSERT ... ON CONFLICT is atomic
-        await repository.query(`
+        const result = await repository.query(`
             INSERT INTO weather_cache ("terminalID", "hourlyForecast", "weeklyForecast", "fetchedAt", "expiresAt", "apiCallCount", "lastAccessedAt", "weatherCheckEnabled", "manualBlockEnabled")
             VALUES ($1, $2, $3, $4, $5, 1, $6, true, false)
             ON CONFLICT ("terminalID") 
@@ -173,6 +173,7 @@ const fetchAndStoreWeather = async (terminalID, lat, lon) => {
                 "expiresAt" = EXCLUDED."expiresAt",
                 "apiCallCount" = weather_cache."apiCallCount" + 1,
                 "lastAccessedAt" = EXCLUDED."lastAccessedAt"
+            RETURNING "weatherCheckEnabled", "manualBlockEnabled"
         `, [
             terminalID,
             JSON.stringify(weatherData.hourly),
@@ -184,6 +185,8 @@ const fetchAndStoreWeather = async (terminalID, lat, lon) => {
 
         console.log(`💾 Upserted weather cache for terminal ${terminalID}`);
 
+        const { weatherCheckEnabled, manualBlockEnabled } = result[0];
+
         const responseData = {
             current: weatherData.current,
             hourly: weatherData.hourly,
@@ -192,8 +195,8 @@ const fetchAndStoreWeather = async (terminalID, lat, lon) => {
             cached: false, // Fresh from API, not cached yet
             fetchedAt: now,
             expiresAt: expiresAt,
-            weatherCheckEnabled: true, // Default to enabled for new entries
-            manualBlockEnabled: false // Default to not blocked
+            weatherCheckEnabled: weatherCheckEnabled,
+            manualBlockEnabled: manualBlockEnabled
         };
 
         // Store in Redis with cached: false (will be overridden to true when read from Redis)

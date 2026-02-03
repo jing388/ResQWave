@@ -7,6 +7,8 @@ const FocalPerson = require("../models/FocalPerson");
 const { getOrFetchWeather } = require("../services/weatherCacheService");
 const { sendDownlink } = require("./downlink");
 const { handleBatteryAlarm, clearAlarm } = require("../services/alarmService");
+const { getIO } = require("../realtime/socket");
+const { deleteCache } = require("../config/cache");
 
 
 // Helper: generate incremental Alert ID like ALRT001
@@ -69,100 +71,103 @@ const handleUplink = async (req, res) => {
       throw new Error(`Terminal not found: ${mappedTerminalId}`);
     }
 
-    // --- WEATHER VERIFICATION START ---
-    // Only verify "Critical" (Sensor) alerts. User-Initiated (Panic Button) are always valid.
-    if (alertType === "Critical") {
-        try {
-            // Default coordinates for Caloocan if terminal has no location
-            let LAT = 14.7565;
-            let LON = 121.0174;
+    // --- CONTEXT & VERIFICATION START ---
+    // Checks Manual Block (for ALL alerts) and Weather Risks (for Critical alerts)
+    try {
+        // 1. Fetch Context (Neighborhood/FocalPerson) for Coordinates
+        let LAT = 14.7565;
+        let LON = 121.0174;
 
-            try {
-                // Fetch Neighborhood to get Focal Person
-                const neighborhood = await AppDataSource.getRepository(Neighborhood).findOne({
-                    where: { terminalID: mappedTerminalId }
+        try {
+            const neighborhood = await AppDataSource.getRepository(Neighborhood).findOne({
+                where: { terminalID: mappedTerminalId }
+            });
+
+            if (neighborhood && neighborhood.focalPersonID) {
+                const focalPerson = await AppDataSource.getRepository(FocalPerson).findOne({
+                    where: { id: neighborhood.focalPersonID }
                 });
 
-                if (neighborhood && neighborhood.focalPersonID) {
-                    const focalPerson = await AppDataSource.getRepository(FocalPerson).findOne({
-                        where: { id: neighborhood.focalPersonID }
-                    });
-
-                    // Parse coordinates from FocalPerson address (stored as JSON string)
-                    // Format: {"address":"...", "coordinates":"LON, LAT"}
-                    if (focalPerson && focalPerson.address) {
-                        try {
-                            const addressData = JSON.parse(focalPerson.address);
-                            if (addressData.coordinates) {
-                                const parts = addressData.coordinates.split(',').map(s => s.trim());
-                                if (parts.length === 2) {
-                                  // Assuming "121.xxx, 14.xxx" -> Lon, Lat
-                                  const parsedLon = parseFloat(parts[0]);
-                                  const parsedLat = parseFloat(parts[1]);
-                                  if (!isNaN(parsedLon) && !isNaN(parsedLat)) {
-                                      LON = parsedLon;
-                                      LAT = parsedLat;
-                                      console.log(`[Uplink] Using dynamic coordinates for ${mappedTerminalId} (FP): ${LAT}, ${LON}`);
-                                  }
+                if (focalPerson && focalPerson.address) {
+                    try {
+                        const addressData = JSON.parse(focalPerson.address);
+                        if (addressData.coordinates) {
+                            const parts = addressData.coordinates.split(',').map(s => s.trim());
+                            if (parts.length === 2) {
+                                const parsedLon = parseFloat(parts[0]);
+                                const parsedLat = parseFloat(parts[1]);
+                                if (!isNaN(parsedLon) && !isNaN(parsedLat)) {
+                                    LON = parsedLon;
+                                    LAT = parsedLat;
+                                    console.log(`[Uplink] Using dynamic coordinates for ${mappedTerminalId} (FP): ${LAT}, ${LON}`);
                                 }
                             }
-                        } catch (parseErr) {
-                           // If address is not JSON, ignore (use defaults)
                         }
-                    }
+                    } catch (parseErr) { /* ignore */ }
                 }
-            } catch (dbErr) {
-                console.error("[Uplink] Error fetching neighborhood/focal person:", dbErr.message);
-                // Continue with default generic coordinates
             }
+        } catch (dbErr) {
+            console.error("[Uplink] Error fetching neighborhood/focal person:", dbErr.message);
+        }
 
-            // 1. Get Weather Data (using Cache Service)
-            const weatherData = await getOrFetchWeather(mappedTerminalId, LAT, LON);
+        // 2. CHECK: Manual Block & Weather Verification
+        // Get Weather Data (needed for both Manual Block check and Weather Risk)
+        const weatherData = await getOrFetchWeather(mappedTerminalId, LAT, LON);
 
-            // 2. Simplified Risk Analysis (Is it raining?)
-            const currentDescription = weatherData.current.description.toLowerCase();
-            const isCurrentlyRaining = currentDescription.includes('rain') || 
-                                       currentDescription.includes('drizzle') || 
-                                       currentDescription.includes('thunderstorm');
-
-            // Optional: Also check forecast probability (e.g., > 50%) if you want to be proactive
-            const nextForecast = weatherData.hourly[0];
-            const precipitationProbability = nextForecast?.precipitation || 0;
+        // A. Manual Block (Dispatcher Override) - Blocks ALL alerts (Critical & User-Initiated)
+        if (weatherData.manualBlockEnabled) {
+            console.log(`[Uplink] 🚫 Manual Block ENABLED for terminal ${mappedTerminalId}. Blocking alert.`);
             
-            // "Risky" if it is physically raining OR high probability of rain (>50%)
-            const isWeatherRisky = isCurrentlyRaining || precipitationProbability >= 50;
+            const devEUI = result.devEUI || terminal.devEUI;
+            if (devEUI) await sendDownlink(devEUI, "FalseAlarm");
+            
+            return res.status(200).json({
+                success: true,
+                status: "ignored_manual_block",
+                message: "Alert blocked by dispatcher manual override."
+            });
+        }
 
-            console.log(`[Uplink] Weather Check: ${isWeatherRisky ? "RISKY" : "NORMAL"} (IsRaining: ${isCurrentlyRaining}, RainProb: ${precipitationProbability}%)`);
+        // B. Weather Verification (Only for Critical/Sensor alerts)
+        if (alertType === "Critical") {
+            let isWeatherRisky = false;
+
+            if (weatherData.weatherCheckEnabled === false) {
+                 console.log(`[Uplink] ⚠️ Weather Check DISABLED for terminal ${mappedTerminalId}. Allowing alert regardless of weather.`);
+                 isWeatherRisky = true; // Bypass check
+            } else {
+                // Simplified Risk Analysis
+                const currentDescription = weatherData.current.description.toLowerCase();
+                const isCurrentlyRaining = currentDescription.includes('rain') || 
+                                           currentDescription.includes('drizzle') || 
+                                           currentDescription.includes('thunderstorm');
+
+                const nextForecast = weatherData.hourly[0];
+                const precipitationProbability = nextForecast?.precipitation || 0;
+                
+                isWeatherRisky = isCurrentlyRaining || precipitationProbability >= 50;
+                console.log(`[Uplink] Weather Check: ${isWeatherRisky ? "RISKY" : "NORMAL"} (IsRaining: ${isCurrentlyRaining}, RainProb: ${precipitationProbability}%)`);
+            }
 
             if (!isWeatherRisky) {
                 console.log(`[Uplink] False Alarm detected for ${mappedTerminalId}. Sending Downlink (FalseAlarm).`);
                 
                 const devEUI = result.devEUI || terminal.devEUI;
-                if (devEUI) {
-                    await sendDownlink(devEUI, "FalseAlarm");
-                }
+                if (devEUI) await sendDownlink(devEUI, "FalseAlarm");
 
-                // STOP HERE: Return success but do NOT save to DB
                 return res.status(200).json({
                     success: true,
                     status: "ignored_false_alarm",
                     message: "Alert blocked by weather verification. Downlink sent."
                 });
             }
-
-        } catch (weatherErr) {
-            console.error("\n[Uplink] ⚠️ WEATHER VERIFICATION ERROR:", weatherErr.message);
-            console.error("Defaulting to ALLOW ALERT to ensure safety during system failure.\n");
-            // On error, we allow the alert to ensure safety
-
-            return res.status(200).json({
-              success: true,
-              status: "ignored_weather_unverified",
-              message: "Alert blocked due to the weather verification failure."
-            })
         }
+
+    } catch (weatherErr) {
+        console.error("\n[Uplink] ⚠️ WEATHER VERIFICATION ERROR:", weatherErr.message);
+        console.error("Defaulting to ALLOW ALERT to ensure safety during system failure.\n");
     }
-    // --- WEATHER VERIFICATION END ---
+    // --- CONTEXT & VERIFICATION END ---
 
     const alertId = await generateAlertId();
 
@@ -176,6 +181,63 @@ const handleUplink = async (req, res) => {
     });
 
     await AppDataSource.getRepository(Alert).save(newAlert);
+
+    // --- REALTIME BROADCAST & CACHE INVALIDATION ---
+    try {
+        // Fetch neighborhood & focal person for the payload
+        const neighborhood = await AppDataSource.getRepository(Neighborhood).findOne({
+            where: { terminalID: mappedTerminalId }
+        });
+
+        let focalPerson = null;
+        if (neighborhood && neighborhood.focalPersonID) {
+            focalPerson = await AppDataSource.getRepository(FocalPerson).findOne({
+                where: { id: neighborhood.focalPersonID }
+            });
+        }
+
+        const livePayload = {
+            alertId: alertId,
+            terminalId: mappedTerminalId,
+            communityGroupName: null, 
+            alertType: alertType,
+            status: "Waitlist",
+            lastSignalTime: result.decoded.dateTimeSent,
+            address: focalPerson?.address || null,
+        };
+
+        const mapPayload = {
+            alertId: alertId,
+            alertType: alertType,
+            timeSent: result.decoded.dateTimeSent,
+            alertStatus: "Waitlist",
+            terminalId: terminal.id,
+            terminalName: terminal.name || `Terminal ${mappedTerminalId}`,
+            terminalStatus: terminal.status || 'Offline',
+            focalPersonId: focalPerson?.id || null,
+            focalFirstName: focalPerson?.firstName || 'N/A',
+            focalLastName: focalPerson?.lastName || '',
+            focalAddress: focalPerson?.address || null,
+            focalContactNumber: focalPerson?.contactNumber || 'N/A',
+        };
+
+        const io = getIO();
+        io.to("alerts:all").emit("liveReport:new", livePayload);
+        io.to("alerts:all").emit("mapReport:new", mapPayload);
+        io.to(`terminal:${mappedTerminalId}`).emit("liveReport:new", livePayload);
+        io.to(`terminal:${mappedTerminalId}`).emit("mapReport:new", mapPayload);
+
+        console.log(`[LMS Uplink] Broadcasted socket events for ${alertId}`);
+
+        await deleteCache("adminDashboardStats");
+        await deleteCache("adminDashboard:aggregatedMap");
+        await deleteCache("mapAlerts:allOccupied");
+
+    } catch (realtimeErr) {
+        console.error("[LMS Uplink] Realtime update failed:", realtimeErr.message);
+        // Continue, do not fail the request
+    }
+    // -----------------------------------------------
 
     res.status(200).json({
       success: true,
