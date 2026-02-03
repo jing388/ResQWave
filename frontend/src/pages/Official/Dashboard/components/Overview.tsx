@@ -19,10 +19,15 @@ export function Overview() {
   const [activeChart, setActiveChart] = useState<ChartType>("bar");
   const [userInitiatedCount, setUserInitiatedCount] = useState(0);
   const [criticalCount, setCriticalCount] = useState(0);
-  const [dateRange, setDateRange] = useState({
-    startDate: new Date(new Date().setDate(new Date().getDate() - 29)),
-    endDate: new Date(),
+  const [dateRange, setDateRange] = useState(() => {
+    const start = new Date();
+    start.setDate(start.getDate() - 29);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date();
+    end.setHours(23, 59, 59, 999);
+    return { startDate: start, endDate: end };
   });
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const chartRef = useRef<HTMLDivElement>(null);
   const { socket, isConnected } = useSocket();
 
@@ -33,27 +38,25 @@ export function Overview() {
         const daysDiff = Math.ceil((dateRange.endDate.getTime() - dateRange.startDate.getTime()) / (1000 * 60 * 60 * 24));
         const granularity = daysDiff <= 31 ? "daily" : "monthly";
         
+        console.log('[Overview] Fetching legend data:', {
+          granularity,
+          startDate: dateRange.startDate.toISOString(),
+          endDate: dateRange.endDate.toISOString()
+        });
+        
         const response = await fetchCompletedOperationsStats(
           granularity,
           dateRange.startDate,
           dateRange.endDate
         );
         
-        // Filter data to only include dates within the selected range
-        const filteredEntries = Object.entries(response.stats).filter(([date]) => {
-          const entryDate = new Date(date);
-          const startOfDay = new Date(dateRange.startDate);
-          startOfDay.setHours(0, 0, 0, 0);
-          const endOfDay = new Date(dateRange.endDate);
-          endOfDay.setHours(23, 59, 59, 999);
-          return entryDate >= startOfDay && entryDate <= endOfDay;
-        });
+        console.log('[Overview] Received data:', response);
         
-        // Calculate totals from filtered time periods
+        // Calculate totals from all time periods in response
         let totalUserInitiated = 0;
         let totalCritical = 0;
         
-        filteredEntries.forEach(([, values]) => {
+        Object.values(response.stats).forEach((values) => {
           totalUserInitiated += values.userInitiated;
           totalCritical += values.critical;
         });
@@ -66,7 +69,7 @@ export function Overview() {
     };
 
     loadLegendData();
-  }, [dateRange]);
+  }, [dateRange, refreshTrigger]);
 
   // Socket listener for real-time updates
   useEffect(() => {
@@ -74,9 +77,8 @@ export function Overview() {
 
     const handlePostRescueCreated = () => {
       console.log('[Overview] Post-rescue form created, refreshing legend...');
-      // Reset counts to trigger re-fetch
-      setUserInitiatedCount(0);
-      setCriticalCount(0);
+      // Trigger a reload by incrementing the refresh trigger
+      setRefreshTrigger(prev => prev + 1);
     };
 
     socket.on('postRescue:created', handlePostRescueCreated);

@@ -153,7 +153,10 @@ const getCompletedOperationsStats = catchAsync(async (req, res, next) => {
       ])
       .getRawMany();
 
+    // Initialize stats object - only add dates that have actual data
     const stats = {};
+    
+    // Fill in actual data
     for (const form of completedForms) {
       const completedAt = form.prf_completedAt;
       const alertType = form.rf_originalAlertType;
@@ -166,15 +169,20 @@ const getCompletedOperationsStats = catchAsync(async (req, res, next) => {
       } else if (type === "weekly") {
         groupKey = dayjs(completedAt).format("YYYY-MM-DD");
       } else if (type === "monthly") {
-        const weekStart = dayjs(completedAt).startOf("week").format("MMM D");
-        const weekEnd = dayjs(completedAt).endOf("week").format("D");
+        const completedDate = dayjs(completedAt);
+        const weekStart = completedDate.clone().startOf("week").format("MMM D");
+        const weekEnd = completedDate.clone().endOf("week").format("D");
         groupKey = `${weekStart}-${weekEnd}`;
       } else {
         groupKey = dayjs(completedAt).format("MMMM");
       }
 
-      if (!stats[groupKey]) stats[groupKey] = { userInitiated: 0, critical: 0 };
+      // Create entry if it doesn't exist
+      if (!stats[groupKey]) {
+        stats[groupKey] = { userInitiated: 0, critical: 0 };
+      }
       
+      // Increment the appropriate counter
       if (alertType === "User-Initiated") {
         stats[groupKey].userInitiated++;
       } else if (alertType === "Critical") {
@@ -184,12 +192,13 @@ const getCompletedOperationsStats = catchAsync(async (req, res, next) => {
 
     const payload = { type, stats };
 
-    // TTL Selection
+    // TTL Selection - shorter TTL for real-time accuracy
+    // Use 10 seconds for daily, 15 for weekly, 30 for monthly, 60 for yearly
     const ttlSeconds = 
-      type === "daily" ? 30 :
-      type === "weekly" ? 45 :
-      type === "monthly" ? 120 :
-      300;
+      type === "daily" ? 10 :
+      type === "weekly" ? 15 :
+      type === "monthly" ? 30 :
+      60;
 
   await setCache(cacheKey, payload, ttlSeconds);
   return res.json(payload);

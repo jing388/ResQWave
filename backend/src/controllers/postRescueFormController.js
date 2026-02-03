@@ -90,6 +90,15 @@ const createPostRescueForm = catchAsync(async (req, res, next) => {
     await deleteCache(`aggregatedReports:${alertID}`);
     await deleteCache(`aggregatedPRF:${alertID}`);
     await deleteCache("adminDashboardStats");
+    
+    // Clear all graph stats caches (pattern-based deletion)
+    const cachePatterns = [
+      "completedOpsStats:*",
+      "alertStats:*"
+    ];
+    for (const pattern of cachePatterns) {
+      await deleteCache(pattern);
+    }
 
     return res.status(201).json({ message: "Post Rescue Form Created", newForm });
 });
