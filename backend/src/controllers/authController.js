@@ -136,6 +136,39 @@ const focalLogin = catchAsync(async (req, res, next) => {
   // Do NOT reset failedAttempts or lockUntil on successful login
   // Only reset after successful OTP verification
 
+  // ----------------------------------------------------
+  // TEST MODE BYPASS: If NODE_ENV is 'test', skip 2FA and return full token immediately
+  // ----------------------------------------------------
+  if (process.env.NODE_ENV === 'test') {
+    const sessionID = crypto.randomUUID();
+    const sessionExpiry = new Date(Date.now() + 8 * 60 * 60 * 1000);
+
+    // Create session for logout compatibility
+    await loginVerificationRepo.save({
+      userID: focal.id,
+      userType: "focalPerson",
+      code: "999999",
+      sessionID,
+      expiry: sessionExpiry,
+    });
+
+    const token = jwt.sign(
+      { id: focal.id, role: "focalPerson", name: focal.name, sessionID },
+      process.env.JWT_SECRET,
+      { expiresIn: "8h" }
+    );
+
+    return res.status(200).json({
+      message: "Focal login successful (Test Mode)",
+      token,
+      user: {
+        id: focal.id,
+        role: "focalPerson"
+      }
+    });
+  }
+  // ----------------------------------------------------
+
   // Generate Code
   var focalCode = crypto.randomInt(100000, 999999).toString();
   var focalExpiry = new Date(Date.now() + 5 * 60 * 1000); // 5 Minutes
@@ -451,6 +484,52 @@ const adminDispatcherLogin = catchAsync(async (req, res, next) => {
 
   // Clean previous OTPs for this user
   await loginVerificationRepo.delete({ userID: user.id, userType: role });
+
+  // ----------------------------------------------------
+  // TEST MODE BYPASS: If NODE_ENV is 'test', skip 2FA and return full token immediately
+  // ----------------------------------------------------
+  if (process.env.NODE_ENV === 'test') {
+    try {
+      const sessionID = crypto.randomUUID();
+      const sessionExpiry = new Date(Date.now() + 8 * 60 * 60 * 1000);
+      
+      console.log('Test Mode Login: Generating session for', user.id);
+      
+      await loginVerificationRepo.save({
+        userID: user.id,
+        userType: role,
+        code: "999999",
+        sessionID,
+        expiry: sessionExpiry,
+      });
+
+      if (!process.env.JWT_SECRET) {
+        throw new Error("JWT_SECRET is missing in Test Environment");
+      }
+
+      const token = jwt.sign(
+        { id: user.id, role, name: user.name, sessionID },
+        process.env.JWT_SECRET,
+        { expiresIn: "8h" }
+      );
+
+      return res.json({
+        message: "Login successful (Test Mode)",
+        token,
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: role
+        }
+      });
+    } catch (bypassError) {
+      console.error("Test Mode Bypass Failed:", bypassError);
+      return next(new Error(`Test Bypass Failed: ${bypassError.message}`));
+    }
+  }
+  // ----------------------------------------------------
+
 
   // Generate and save OTP
   const code = crypto.randomInt(100000, 999999).toString();
