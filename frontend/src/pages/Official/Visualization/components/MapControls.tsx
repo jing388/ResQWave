@@ -22,8 +22,8 @@ export default function MapControls({
   isLiveReportOpen,
 }: MapControlsProps) {
   const [layersOpen, setLayersOpen] = useState(false);
-  const [selectedLayer, setSelectedLayer] = useState<"default" | "satellite">(
-    "default",
+  const [selectedLayer, setSelectedLayer] = useState<"street" | "terrain" | "satellite">(
+    "street",
   );
 
   const toggleHeatmap = () => {
@@ -239,7 +239,7 @@ export default function MapControls({
               >
                 <button
                   onClick={() => {
-                    setSelectedLayer("default");
+                    setSelectedLayer("street");
                     const m = mapRef.current;
                     if (!m) return;
                     m.setStyle("mapbox://styles/mapbox/streets-v12");
@@ -261,21 +261,63 @@ export default function MapControls({
                     }, 1000);
                   }}
                   style={{
-                    padding: "8px 16px",
+                    padding: "8px 14px",
                     borderRadius: 8,
                     background:
-                      selectedLayer === "default" ? "#111827" : "transparent",
-                    color: selectedLayer === "default" ? "#fff" : "#9ca3af",
+                      selectedLayer === "street" ? "#111827" : "transparent",
+                    color: selectedLayer === "street" ? "#fff" : "#9ca3af",
                     border: "none",
                     fontWeight: 500,
                     cursor: "pointer",
                     boxShadow:
-                      selectedLayer === "default"
+                      selectedLayer === "street"
                         ? "0 6px 12px rgba(0,0,0,0.25)"
                         : "none",
+                    fontSize: 14
                   }}
                 >
-                  Default
+                  Street
+                </button>
+                <button
+                  onClick={() => {
+                    setSelectedLayer("terrain");
+                    const m = mapRef.current;
+                    if (!m) return;
+                    m.setStyle("mapbox://styles/mapbox/outdoors-v12");
+
+                    // Use both styledata event and timeout as fallback
+                    const handleStyleData = () => {
+                      if (addBoundaryAndFloodLayers) addBoundaryAndFloodLayers(m);
+                      addCustomLayers(m);
+                      m.off("styledata", handleStyleData);
+                    };
+                    m.on("styledata", handleStyleData);
+
+                    // Fallback timeout in case styledata doesn't fire
+                    setTimeout(() => {
+                      if (m.isStyleLoaded()) {
+                        if (addBoundaryAndFloodLayers) addBoundaryAndFloodLayers(m);
+                        addCustomLayers(m);
+                      }
+                    }, 1000);
+                  }}
+                  style={{
+                    padding: "8px 14px",
+                    borderRadius: 8,
+                    background:
+                      selectedLayer === "terrain" ? "#111827" : "transparent",
+                    color: selectedLayer === "terrain" ? "#fff" : "#9ca3af",
+                    border: "none",
+                    fontWeight: 500,
+                    cursor: "pointer",
+                    boxShadow:
+                      selectedLayer === "terrain"
+                        ? "0 6px 12px rgba(0,0,0,0.25)"
+                        : "none",
+                    fontSize: 14
+                  }}
+                >
+                  Terrain
                 </button>
                 <button
                   onClick={() => {
@@ -301,7 +343,7 @@ export default function MapControls({
                     }, 1000);
                   }}
                   style={{
-                    padding: "8px 16px",
+                    padding: "8px 14px",
                     borderRadius: 8,
                     background:
                       selectedLayer === "satellite" ? "#111827" : "transparent",
@@ -313,6 +355,7 @@ export default function MapControls({
                       selectedLayer === "satellite"
                         ? "0 6px 12px rgba(0,0,0,0.25)"
                         : "none",
+                    fontSize: 14
                   }}
                 >
                   Satellite

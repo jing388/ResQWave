@@ -166,11 +166,28 @@ const ActivityLogModal = forwardRef<ActivityLogModalHandle, ActivityLogModalProp
         refresh: () => fetchLogs(false),
     }));
 
-    // Filtered logs by search (date string)
+    // Filtered logs by search (date string), month, and year
     const filteredLogs = useMemo(() => {
-        if (!query.trim()) return activityLogs;
+        let logs = activityLogs;
+
+        // Filter by month and year if selected
+        if (selectedMonth !== 'Month' || selectedYear !== 'Year') {
+            logs = logs.map((month: MonthGroup) => {
+                // Check if this month matches the filter
+                const monthMatches = selectedMonth === 'Month' || month.monthLabel.includes(selectedMonth);
+                const yearMatches = selectedYear === 'Year' || month.monthLabel.includes(selectedYear);
+
+                if (monthMatches && yearMatches) {
+                    return month;
+                }
+                return { ...month, days: [] }; // Empty days if month doesn't match
+            }).filter((month) => month.days.length > 0);
+        }
+
+        // Then filter by search query
+        if (!query.trim()) return logs;
         const q = query.trim().toLowerCase();
-        return activityLogs.map((month: MonthGroup) => ({
+        return logs.map((month: MonthGroup) => ({
             ...month,
             days: month.days
                 .map((day) => ({
@@ -179,7 +196,7 @@ const ActivityLogModal = forwardRef<ActivityLogModalHandle, ActivityLogModalProp
                 }))
                 .filter((day) => day.dayLabel.toLowerCase().includes(q))
         })).filter((month) => month.days.length > 0);
-    }, [query, activityLogs]);
+    }, [query, activityLogs, selectedMonth, selectedYear]);
 
     if (!mounted) return null;
 
@@ -360,6 +377,37 @@ const ActivityLogModal = forwardRef<ActivityLogModalHandle, ActivityLogModalProp
                                 <svg width="36" height="36" fill="none" stroke="#8b8b8b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="18" r="16" /><line x1="32" y1="32" x2="25" y2="25" /></svg>
                                 <div style={{ fontWeight: 700, fontSize: 18, marginTop: 6, color: '#fff' }}>No activity logs</div>
                                 <div style={{ fontSize: 13, maxWidth: 420, textAlign: 'center', color: '#cfcfcf' }}>There are no activity logs for your community. Try widening the date range or clearing filters.</div>
+                                {(selectedMonth !== 'Month' || selectedYear !== 'Year' || query.trim()) && (
+                                    <button
+                                        onClick={() => {
+                                            setSelectedMonth('Month');
+                                            setSelectedYear('Year');
+                                            setQuery('');
+                                        }}
+                                        style={{
+                                            marginTop: 16,
+                                            padding: '10px 24px',
+                                            background: 'transparent',
+                                            border: '1px solid #404040',
+                                            borderRadius: 6,
+                                            color: '#fff',
+                                            fontSize: 14,
+                                            fontWeight: 500,
+                                            cursor: 'pointer',
+                                            transition: 'all 0.2s',
+                                        }}
+                                        onMouseEnter={(e) => {
+                                            e.currentTarget.style.background = '#262626';
+                                            e.currentTarget.style.borderColor = '#6b7280';
+                                        }}
+                                        onMouseLeave={(e) => {
+                                            e.currentTarget.style.background = 'transparent';
+                                            e.currentTarget.style.borderColor = '#404040';
+                                        }}
+                                    >
+                                        Clear filters
+                                    </button>
+                                )}
                             </div>
                         ) : filteredLogs.map(month => {
                             const monthExpanded = expandedMonth.includes(month.monthLabel);

@@ -1,5 +1,6 @@
 import MapboxDraw from "@mapbox/mapbox-gl-draw";
 import mapboxgl from "mapbox-gl";
+import { Eye, EyeOff } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import AboutCommunity from "./components/AboutCommunity";
 import AccountSettingsModal from "./components/AccountSettingsModal";
@@ -9,6 +10,7 @@ import { HazardLegend } from './components/HazardLegend';
 import Header from "./components/Header";
 import HistoryCommunity from "./components/HistoryCommunity";
 import MapControls from './components/MapControls';
+import { RangeSelector } from './components/RangeSelector';
 import SignalPopover from './components/SignalPopover';
 import SignalStatusLegend from './components/SignalStatusLegend';
 import { CommunityDataProvider } from "./context/CommunityDataContext";
@@ -41,9 +43,10 @@ export default function Dashboard() {
     const mapContainer = useRef<HTMLDivElement | null>(null);
     const mapRef = useRef<mapboxgl.Map | null>(null);
     const [mapLoaded, setMapLoaded] = useState(false);
+    const [showRangeCircle, setShowRangeCircle] = useState(false);
     // signal & UI state provided by the useSignals hook (centralized)
     const signals = useSignals();
-    const { otherSignals, ownCommunitySignal: OwnCommunitySignal, editBoundaryOpen, setEditBoundaryOpen, popover, setPopover, infoBubble, setInfoBubble, infoBubbleVisible, setInfoBubbleVisible, setSavedGeoJson, canSave, setCanSave, getDistressCoord } = signals as unknown as DashboardSignals;
+    const { otherSignals, allOtherSignals, ownCommunitySignal: OwnCommunitySignal, nearbyRange, setNearbyRange, editBoundaryOpen, setEditBoundaryOpen, popover, setPopover, infoBubble, setInfoBubble, infoBubbleVisible, setInfoBubbleVisible, setSavedGeoJson, canSave, setCanSave, getDistressCoord } = signals as unknown as DashboardSignals;
     const distressCoord: [number, number] = getDistressCoord();
 
 
@@ -292,7 +295,7 @@ export default function Dashboard() {
                             if (deviceId === OwnCommunitySignal.properties.deviceId) {
                                 color = '#22c55e'; // green for own community
                             } else {
-                                const found = otherSignals.find(s => s.properties.deviceId === deviceId);
+                                const found = allOtherSignals.find(s => s.properties.deviceId === deviceId);
                                 if (found && found.properties.status === 'offline') {
                                     color = '#6b7280'; // gray for other offline signals
                                 }
@@ -474,6 +477,106 @@ export default function Dashboard() {
         addCustomLayers(mapRef.current, otherSignals, OwnCommunitySignal);
     }, [otherSignals, OwnCommunitySignal, mapLoaded]);
 
+    // Show range circle overlay when a distance is selected
+    useEffect(() => {
+        const map = mapRef.current;
+        if (!map || !mapLoaded || !OwnCommunitySignal.coordinates) return;
+
+        const layerId = 'nearby-range-circle';
+        const sourceId = 'nearby-range-circle';
+        const borderLayerId = `${layerId}-border`;
+
+        // If range is unlimited (null) or user toggled it off, remove circle
+        if (nearbyRange === null || !showRangeCircle) {
+            if (map.getLayer(borderLayerId)) map.removeLayer(borderLayerId);
+            if (map.getLayer(layerId)) map.removeLayer(layerId);
+            if (map.getSource(sourceId)) map.removeSource(sourceId);
+            return;
+        }
+
+        // Helper to create a GeoJSON circle polygon from center and radius (km)
+        const createCircle = (center: [number, number], radiusKm: number, points = 64): GeoJSON.Feature<GeoJSON.Polygon> => {
+            const coords: [number, number][] = [];
+            const radiusMeters = radiusKm * 1000;
+            const earthRadius = 6378137;
+            const lat = center[1] * Math.PI / 180;
+            const lon = center[0] * Math.PI / 180;
+            for (let i = 0; i < points; i++) {
+                const angle = (i * 360 / points) * Math.PI / 180;
+                const dx = Math.cos(angle) * radiusMeters / earthRadius;
+                const dy = Math.sin(angle) * radiusMeters / earthRadius;
+                const latOffset = lat + dy;
+                const lonOffset = lon + dx / Math.cos(lat);
+                coords.push([
+                    lonOffset * 180 / Math.PI,
+                    latOffset * 180 / Math.PI
+                ]);
+            }
+            coords.push(coords[0]); // close the polygon
+            return {
+                type: "Feature",
+                geometry: {
+                    type: "Polygon",
+                    coordinates: [coords]
+                },
+                properties: {}
+            };
+        };
+
+        const circleFeature = createCircle(OwnCommunitySignal.coordinates, nearbyRange);
+
+        // Check if layers already exist (for updating)
+        const sourceExists = map.getSource(sourceId);
+        const layerExists = map.getLayer(layerId);
+
+        if (sourceExists && layerExists) {
+            // Update existing source data with smooth transition
+            const source = map.getSource(sourceId) as mapboxgl.GeoJSONSource;
+            source.setData(circleFeature);
+        } else {
+            // Remove any existing layers first
+            if (map.getLayer(borderLayerId)) map.removeLayer(borderLayerId);
+            if (map.getLayer(layerId)) map.removeLayer(layerId);
+            if (map.getSource(sourceId)) map.removeSource(sourceId);
+
+            // Create new layers
+            map.addSource(sourceId, {
+                type: 'geojson',
+                data: circleFeature
+            });
+
+            map.addLayer({
+                id: layerId,
+                type: 'fill',
+                source: sourceId,
+                paint: {
+                    'fill-color': '#3b82f6',
+                    'fill-opacity': ['interpolate', ['linear'], ['zoom'], 10, 0.15, 15, 0.08],
+                    'fill-opacity-transition': { duration: 600 }
+                }
+            });
+
+            // Add border for the circle with animation
+            map.addLayer({
+                id: borderLayerId,
+                type: 'line',
+                source: sourceId,
+                paint: {
+                    'line-color': '#3b82f6',
+                    'line-width': 2,
+                    'line-opacity': 0.5,
+                    'line-opacity-transition': { duration: 600 }
+                }
+            });
+        }
+
+        return () => {
+            if (map.getLayer(borderLayerId)) map.removeLayer(borderLayerId);
+            if (map.getLayer(layerId)) map.removeLayer(layerId);
+            if (map.getSource(sourceId)) map.removeSource(sourceId);
+        };
+    }, [mapLoaded, nearbyRange, showRangeCircle, OwnCommunitySignal.coordinates]);
+
     // Set info bubble position when map loads and own community signal is available
     // Also update position when map moves or zooms
     useEffect(() => {
@@ -636,7 +739,7 @@ export default function Dashboard() {
                         signalCoord = OwnCommunitySignal.coordinates as [number, number];
                     }
                 } else {
-                    const found = otherSignals.find((s: Signal) => s.properties?.deviceId === targetDeviceId);
+                    const found = allOtherSignals.find((s: Signal) => s.properties?.deviceId === targetDeviceId);
                     if (found) {
                         sourceSignalFeature = found;
                         if (found.coordinates) signalCoord = found.coordinates as [number, number];
@@ -954,6 +1057,13 @@ export default function Dashboard() {
 
             <div ref={mapContainer} style={{ position: "absolute", top: 80, left: 0, right: 0, bottom: 0, zIndex: 1 }} />
 
+            {/* Range Selector - positioned in top-left */}
+            {!editBoundaryOpen && (
+                <div style={{ position: 'absolute', top: 100, left: 20, zIndex: 10 }}>
+                    <RangeSelector value={nearbyRange} onChange={setNearbyRange} />
+                </div>
+            )}
+
             <SignalPopover
                 popover={popover}
                 setPopover={setPopover}
@@ -971,6 +1081,45 @@ export default function Dashboard() {
             />
 
             <MapControls mapRef={mapRef} mapLoaded={mapLoaded} makeTooltip={makeTooltip} addCustomLayers={(m) => addCustomLayers(m, otherSignals, OwnCommunitySignal)} editBoundaryOpen={editBoundaryOpen} handleDeleteBoundary={handleDeleteBoundary} onChatbotToggle={() => setChatbotOpen(!chatbotOpen)} />
+
+            {/* Range Selector with Circle Toggle */}
+            <div style={{ position: 'absolute', top: '100px', left: '20px', zIndex: 10, display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+                <RangeSelector value={nearbyRange} onChange={setNearbyRange} />
+                {nearbyRange !== null && (
+                    <button
+                        onClick={() => setShowRangeCircle(!showRangeCircle)}
+                        title={showRangeCircle ? 'Hide range circle' : 'Show range circle'}
+                        style={{
+                            padding: '12px',
+                            background: showRangeCircle ? '#1a1a1a' : '#252525',
+                            border: '1px solid #333',
+                            borderRadius: '8px',
+                            color: '#888',
+                            fontSize: '18px',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s',
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: '48px',
+                            height: '48px'
+                        }}
+                        onMouseEnter={(e) => {
+                            e.currentTarget.style.background = '#252525';
+                            e.currentTarget.style.borderColor = '#444';
+                            e.currentTarget.style.transform = 'scale(1.05)';
+                        }}
+                        onMouseLeave={(e) => {
+                            e.currentTarget.style.background = showRangeCircle ? '#1a1a1a' : '#252525';
+                            e.currentTarget.style.borderColor = '#333';
+                            e.currentTarget.style.transform = 'scale(1)';
+                        }}
+                    >
+                        {showRangeCircle ? <Eye size={20} /> : <EyeOff size={20} />}
+                    </button>
+                )}
+            </div>
 
             <HazardLegend />
 
@@ -1002,12 +1151,7 @@ export default function Dashboard() {
             <HistoryCommunity open={historyOpen} onClose={() => { setHistoryOpen(false); setActiveTab('community'); }} center={historyCenter} />
 
             <AccountSettingsModal open={accountSettingsOpen} onClose={() => setAccountSettingsOpen(false)} center={accountSettingsCenter} onSaved={() => {
-                // show saved alert (bump trigger) when account password updated
-                setAccountSettingsOpen(false);
-                setSavedMessage('Password Updated Successfully!');
-                setSavedShowViewLogs(true);
-                setSavedTrigger(prev => (prev == null ? 1 : prev + 1));
-                // Refresh activity logs to show password change
+                // Refresh activity logs when changes are made
                 if (activityLogRef.current) {
                     activityLogRef.current.refresh();
                 }

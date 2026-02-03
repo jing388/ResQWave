@@ -215,7 +215,17 @@ const getPendingReports = catchAsync(async (req, res, next) => {
 const getAggregatedRescueReports = catchAsync(async (req, res, next) => {
     const { alertID } = req.query || {};
     const bypassCache = req.query.refresh === 'true';
-    const cacheKey = alertID ? `aggregatedReports:${alertID}` : `aggregatedReports:all`;
+
+    // Check if request is from focal person - filter by their neighborhood
+    const isFocalPerson = req.user?.role?.toLowerCase() === "focalperson";
+    const focalPersonID = isFocalPerson ? req.user.id : null;
+
+    // Adjust cache key based on user type
+    const cacheKey = alertID
+        ? `aggregatedReports:${alertID}`
+        : focalPersonID
+            ? `aggregatedReports:focal:${focalPersonID}`
+            : `aggregatedReports:all`;
 
     // Check cache only if not bypassing
     if (!bypassCache) {
@@ -239,6 +249,11 @@ const getAggregatedRescueReports = catchAsync(async (req, res, next) => {
         qb = qb.where("rf.status = :rfStatus", { rfStatus: "Completed" })
             .andWhere("prf.id IS NOT NULL")
             .andWhere("(prf.archived IS NULL OR prf.archived = :archived)", { archived: false });
+    }
+
+    // Filter by focal person's neighborhood if request is from focal person
+    if (isFocalPerson && focalPersonID) {
+        qb = qb.andWhere("fp.id = :focalPersonID", { focalPersonID });
     }
 
     const rows = await qb
