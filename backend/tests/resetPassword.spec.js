@@ -12,8 +12,8 @@ test.describe('Reset Password Controller - Complete Test Suite', () => {
 
     test.beforeAll(async ({ request }) => {
         // Get admin credentials from env
-        adminID = process.env.ADMIN_ID || 'ADM001';
-        const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
+        adminID = process.env.ADMIN_ID;
+        const adminPassword = process.env.ADMIN_PASSWORD;
 
         // Login as admin to get admin email
         const adminLoginRes = await request.post('/login', {
@@ -40,8 +40,8 @@ test.describe('Reset Password Controller - Complete Test Suite', () => {
         }
 
         // Get dispatcher info
-        dispatcherID = process.env.DISPATCHER_ID || 'DSP011';
-        const dispatcherPassword = process.env.DISPATCHER_PASSWORD || 'rodel';
+        dispatcherID = process.env.DISPATCHER_ID;
+        const dispatcherPassword = process.env.DISPATCHER_PASSWORD;
         
         const dispatcherLoginRes = await request.post('/login', {
             data: { 

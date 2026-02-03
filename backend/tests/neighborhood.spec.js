@@ -13,8 +13,8 @@ test.describe('Neighborhood Management', () => {
     // 1. Setup: Create environment
     test.beforeAll(async ({ request }) => {
         // A. Admin Login
-        const adminID = process.env.ADMIN_ID || 'ADM001';
-        const password = process.env.ADMIN_PASSWORD || 'admin123';
+        const adminID = process.env.ADMIN_ID;
+        const password = process.env.ADMIN_PASSWORD;
         const loginRes = await request.post('/login', {
             data: { userID: adminID, password: password }
         });

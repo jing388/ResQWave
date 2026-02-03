@@ -11,16 +11,16 @@ test.describe('Post Rescue Form Controller - Complete Test Suite', () => {
         // Admin Login
         const adminRes = await request.post('/login', {
             data: { 
-                userID: process.env.ADMIN_ID || 'ADM001', 
-                password: process.env.ADMIN_PASSWORD || 'admin123' 
+                userID: process.env.ADMIN_ID, 
+                password: process.env.ADMIN_PASSWORD 
             }
         });
         expect(adminRes.ok()).toBeTruthy();
         adminToken = `Bearer ${(await adminRes.json()).token}`;
 
         // Use existing dispatcher from environment or get from list
-        const dispatcherID = process.env.DISPATCHER_ID || 'DSP011';
-        const dispatcherPassword = process.env.DISPATCHER_PASSWORD || 'rodel';
+        const dispatcherID = process.env.DISPATCHER_ID;
+        const dispatcherPassword = process.env.DISPATCHER_PASSWORD;
         
         console.log(`Using Dispatcher ID: ${dispatcherID}`);
 

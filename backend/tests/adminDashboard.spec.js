@@ -6,8 +6,8 @@ test.describe('Admin Dashboard', () => {
   // Authenticate as Admin before running dashboard tests
   test.beforeAll(async ({ request }) => {
     // Use environment variables or default to the known test admin
-    const adminID = process.env.ADMIN_ID || 'ADM001';
-    const password = process.env.ADMIN_PASSWORD || 'admin123';
+    const adminID = process.env.ADMIN_ID;
+    const password = process.env.ADMIN_PASSWORD;
     
     const res = await request.post('/login', {
       data: { userID: adminID, password: password }

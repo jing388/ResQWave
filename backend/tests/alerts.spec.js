@@ -8,8 +8,8 @@ test.describe('Alert Management', () => {
 
     test.beforeAll(async ({ request }) => {
         // 1. Admin Login
-        const adminID = process.env.ADMIN_ID || 'ADM001';
-        const password = process.env.ADMIN_PASSWORD || 'admin123';
+        const adminID = process.env.ADMIN_ID;
+        const password = process.env.ADMIN_PASSWORD;
         const loginRes = await request.post('/login', {
             data: { userID: adminID, password: password }
         });

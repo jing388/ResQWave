@@ -10,8 +10,8 @@ test.describe('Focal Person Management', () => {
 
     // 1. Admin Login & Get Available Terminal
     test.beforeAll(async ({ request }) => {
-        const adminID = process.env.ADMIN_ID || 'ADM001';
-        const password = process.env.ADMIN_PASSWORD || 'admin123';
+        const adminID = process.env.ADMIN_ID;
+        const password = process.env.ADMIN_PASSWORD;
         const loginRes = await request.post('/login', {
             data: { userID: adminID, password: password }
         });

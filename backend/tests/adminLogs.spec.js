@@ -5,8 +5,8 @@ test.describe('Admin Logs', () => {
 
     // Login as Admin
     test.beforeAll(async ({ request }) => {
-        const adminID = process.env.ADMIN_ID || 'ADM001';
-        const password = process.env.ADMIN_PASSWORD || 'admin123';
+        const adminID = process.env.ADMIN_ID;
+        const password = process.env.ADMIN_PASSWORD;
 
         const res = await request.post('/login', {
             data: { userID: adminID, password: password }

@@ -10,8 +10,8 @@ test.describe('Focal Person Logs', () => {
     // 1. Setup: Create Focal Person via Admin
     test.beforeAll(async ({ request }) => {
         // Admin Login
-        const adminID = process.env.ADMIN_ID || 'ADM001';
-        const password = process.env.ADMIN_PASSWORD || 'admin123';
+        const adminID = process.env.ADMIN_ID;
+        const password = process.env.ADMIN_PASSWORD;
         const loginRes = await request.post('/login', {
             data: { userID: adminID, password: password }
         });

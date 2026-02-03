@@ -11,22 +11,22 @@ test.describe('Profile Controller - Complete Test Suite', () => {
 
     test.beforeAll(async ({ request }) => {
         // Admin Login
-        adminID = process.env.ADMIN_ID || 'ADM001';
+        adminID = process.env.ADMIN_ID;
         const adminRes = await request.post('/login', {
             data: { 
                 userID: adminID, 
-                password: process.env.ADMIN_PASSWORD || 'admin123' 
+                password: process.env.ADMIN_PASSWORD
             }
         });
         expect(adminRes.ok()).toBeTruthy();
         adminToken = `Bearer ${(await adminRes.json()).token}`;
 
         // Dispatcher Login
-        dispatcherID = process.env.DISPATCHER_ID || 'DSP011';
+        dispatcherID = process.env.DISPATCHER_ID;
         const dispatcherRes = await request.post('/login', {
             data: { 
                 userID: dispatcherID, 
-                password: process.env.DISPATCHER_PASSWORD || 'rodel' 
+                password: process.env.DISPATCHER_PASSWORD 
             }
         });
         expect(dispatcherRes.ok()).toBeTruthy();
@@ -279,7 +279,7 @@ test.describe('Profile Controller - Complete Test Suite', () => {
             const res = await request.post('/profile/change-password', {
                 headers: { 'Authorization': adminToken },
                 data: {
-                    currentPassword: process.env.ADMIN_PASSWORD || 'admin123',
+                    currentPassword: process.env.ADMIN_PASSWORD,
                     newPassword: 'Short1!'
                 }
             });
@@ -293,7 +293,7 @@ test.describe('Profile Controller - Complete Test Suite', () => {
             const res = await request.post('/profile/change-password', {
                 headers: { 'Authorization': adminToken },
                 data: {
-                    currentPassword: process.env.ADMIN_PASSWORD || 'admin123',
+                    currentPassword: process.env.ADMIN_PASSWORD,
                     newPassword: 'weakpassword123!'
                 }
             });
@@ -307,7 +307,7 @@ test.describe('Profile Controller - Complete Test Suite', () => {
             const res = await request.post('/profile/change-password', {
                 headers: { 'Authorization': adminToken },
                 data: {
-                    currentPassword: process.env.ADMIN_PASSWORD || 'admin123',
+                    currentPassword: process.env.ADMIN_PASSWORD,
                     newPassword: 'WEAKPASSWORD123!'
                 }
             });
@@ -321,7 +321,7 @@ test.describe('Profile Controller - Complete Test Suite', () => {
             const res = await request.post('/profile/change-password', {
                 headers: { 'Authorization': adminToken },
                 data: {
-                    currentPassword: process.env.ADMIN_PASSWORD || 'admin123',
+                    currentPassword: process.env.ADMIN_PASSWORD,
                     newPassword: 'WeakPassword!'
                 }
             });
@@ -335,7 +335,7 @@ test.describe('Profile Controller - Complete Test Suite', () => {
             const res = await request.post('/profile/change-password', {
                 headers: { 'Authorization': adminToken },
                 data: {
-                    currentPassword: process.env.ADMIN_PASSWORD || 'admin123',
+                    currentPassword: process.env.ADMIN_PASSWORD,
                     newPassword: 'WeakPassword123'
                 }
             });

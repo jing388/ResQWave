@@ -10,11 +10,11 @@ test.describe('Rescue Form Controller - Complete Test Suite', () => {
 
     test.beforeAll(async ({ request }) => {
         // Admin Login
-        adminID = process.env.ADMIN_ID || 'ADM001';
+        adminID = process.env.ADMIN_ID;
         const adminRes = await request.post('/login', {
             data: { 
                 userID: adminID, 
-                password: process.env.ADMIN_PASSWORD || 'admin123' 
+                password: process.env.ADMIN_PASSWORD
             }
         });
         expect(adminRes.ok()).toBeTruthy();
@@ -22,11 +22,11 @@ test.describe('Rescue Form Controller - Complete Test Suite', () => {
         adminToken = `Bearer ${adminData.token}`;
 
         // Dispatcher Login
-        dispatcherID = process.env.DISPATCHER_ID || 'DSP011';
+        dispatcherID = process.env.DISPATCHER_ID;
         const dispatcherRes = await request.post('/login', {
             data: { 
                 userID: dispatcherID, 
-                password: process.env.DISPATCHER_PASSWORD || 'rodel' 
+                password: process.env.DISPATCHER_PASSWORD 
             }
         });
         expect(dispatcherRes.ok()).toBeTruthy();
