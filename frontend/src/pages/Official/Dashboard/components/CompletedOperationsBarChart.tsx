@@ -35,6 +35,7 @@ interface CompletedOperationsBarChartProps {
 
 export function CompletedOperationsBarChart({ dateRange }: CompletedOperationsBarChartProps) {
   const [chartData, setChartData] = useState<ChartData[]>([]);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const { socket, isConnected } = useSocket();
 
   useEffect(() => {
@@ -46,36 +47,79 @@ export function CompletedOperationsBarChart({ dateRange }: CompletedOperationsBa
         // Use daily granularity if range is 31 days or less, otherwise monthly
         const granularity = daysDiff <= 31 ? "daily" : "monthly";
         
+        console.log('[BarChart] Fetching data:', {
+          granularity,
+          startDate: dateRange.startDate.toISOString(),
+          endDate: dateRange.endDate.toISOString()
+        });
+        
         const response = await fetchCompletedOperationsStats(
           granularity,
           dateRange.startDate,
           dateRange.endDate
         );
         
-        // Filter data to only include dates within the selected range
-        const filteredData = Object.entries(response.stats)
-          .filter(([date]) => {
-            const entryDate = new Date(date);
-            const startOfDay = new Date(dateRange.startDate);
-            startOfDay.setHours(0, 0, 0, 0);
-            const endOfDay = new Date(dateRange.endDate);
-            endOfDay.setHours(23, 59, 59, 999);
-            return entryDate >= startOfDay && entryDate <= endOfDay;
-          })
+        console.log('[BarChart] Received data:', response);
+        
+        // Helper function to parse date strings
+        const parseChartDate = (dateStr: string) => {
+          let parsed = new Date(dateStr);
+          
+          // If parsing fails (like "Jan 5-11"), extract the first date
+          if (isNaN(parsed.getTime())) {
+            const match = dateStr.match(/(\w+)\s+(\d+)/);
+            if (match) {
+              const monthName = match[1];
+              const day = parseInt(match[2]);
+              
+              const startYear = dateRange.startDate.getFullYear();
+              const endYear = dateRange.endDate.getFullYear();
+              const startMonth = dateRange.startDate.getMonth();
+              
+              // Get month number
+              const testDate = new Date(`${monthName} 1, 2000`);
+              const monthNum = testDate.getMonth();
+              
+              // If spanning years, use month to determine year
+              if (startYear !== endYear) {
+                if (monthNum >= startMonth) {
+                  parsed = new Date(`${monthName} ${day}, ${startYear}`);
+                } else {
+                  parsed = new Date(`${monthName} ${day}, ${endYear}`);
+                }
+              } else {
+                parsed = new Date(`${monthName} ${day}, ${startYear}`);
+              }
+            }
+          }
+          
+          return parsed.getTime();
+        };
+        
+        // Map data with parsed timestamps and sort by timestamp
+        const chartData = Object.entries(response.stats)
           .map(([date, values]) => ({
             date,
             userInitiated: values.userInitiated,
             critical: values.critical,
+            timestamp: parseChartDate(date),
+          }))
+          .sort((a, b) => a.timestamp - b.timestamp)
+          .map(({ date, userInitiated, critical }) => ({
+            date,
+            userInitiated,
+            critical,
           }));
         
-        setChartData(filteredData);
+        console.log('[BarChart] Sorted data:', chartData);
+        setChartData(chartData);
       } catch (error) {
         console.error("Error fetching alert stats:", error);
       }
     };
 
     loadData();
-  }, [dateRange]);
+  }, [dateRange, refreshTrigger]);
 
   // Socket listener for real-time updates
   useEffect(() => {
@@ -83,9 +127,8 @@ export function CompletedOperationsBarChart({ dateRange }: CompletedOperationsBa
 
     const handlePostRescueCreated = () => {
       console.log('[BarChart] Post-rescue form created, refreshing chart...');
-      // Trigger a reload by updating the key or forcing a re-fetch
-      setChartData([]); // Clear data temporarily
-      // The dateRange dependency will trigger a reload
+      // Trigger a reload by incrementing the refresh trigger
+      setRefreshTrigger(prev => prev + 1);
     };
 
     socket.on('postRescue:created', handlePostRescueCreated);

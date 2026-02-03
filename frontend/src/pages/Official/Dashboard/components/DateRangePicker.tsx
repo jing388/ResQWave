@@ -13,9 +13,13 @@ interface DateRangePickerProps {
 export function DateRangePicker({ onDateChange }: DateRangePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [showCustomRange, setShowCustomRange] = useState(false);
-  const [dateRange, setDateRange] = useState<DateRange>({
-    startDate: new Date(new Date().setDate(new Date().getDate() - 29)),
-    endDate: new Date(),
+  const [dateRange, setDateRange] = useState<DateRange>(() => {
+    const start = new Date();
+    start.setDate(start.getDate() - 29);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date();
+    end.setHours(23, 59, 59, 999);
+    return { startDate: start, endDate: end };
   });
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
@@ -67,8 +71,12 @@ export function DateRangePicker({ onDateChange }: DateRangePickerProps) {
 
   const handleApplyCustomRange = () => {
     if (customStart && customEnd) {
+      // Parse dates and set to start/end of day to avoid timezone issues
       const start = new Date(customStart);
+      start.setHours(0, 0, 0, 0);
+      
       const end = new Date(customEnd);
+      end.setHours(23, 59, 59, 999);
       
       if (start <= end) {
         setDateRange({ startDate: start, endDate: end });
@@ -86,49 +94,68 @@ export function DateRangePicker({ onDateChange }: DateRangePickerProps) {
   const presetRanges = [
     {
       label: "Today",
-      getRange: () => ({
-        start: new Date(),
-        end: new Date(),
-      }),
+      getRange: () => {
+        const start = new Date();
+        start.setHours(0, 0, 0, 0);
+        const end = new Date();
+        end.setHours(23, 59, 59, 999);
+        return { start, end };
+      },
     },
     {
       label: "Yesterday",
       getRange: () => {
         const yesterday = new Date();
         yesterday.setDate(yesterday.getDate() - 1);
-        return { start: yesterday, end: yesterday };
+        yesterday.setHours(0, 0, 0, 0);
+        const end = new Date();
+        end.setDate(end.getDate() - 1);
+        end.setHours(23, 59, 59, 999);
+        return { start: yesterday, end };
       },
     },
     {
       label: "Last 7 Days",
-      getRange: () => ({
-        start: new Date(new Date().setDate(new Date().getDate() - 6)),
-        end: new Date(),
-      }),
+      getRange: () => {
+        const start = new Date();
+        start.setDate(start.getDate() - 6);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date();
+        end.setHours(23, 59, 59, 999);
+        return { start, end };
+      },
     },
     {
       label: "Last 30 Days",
-      getRange: () => ({
-        start: new Date(new Date().setDate(new Date().getDate() - 29)),
-        end: new Date(),
-      }),
+      getRange: () => {
+        const start = new Date();
+        start.setDate(start.getDate() - 29);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date();
+        end.setHours(23, 59, 59, 999);
+        return { start, end };
+      },
     },
     {
       label: "This Month",
-      getRange: () => ({
-        start: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
-        end: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0),
-      }),
+      getRange: () => {
+        const start = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0);
+        end.setHours(23, 59, 59, 999);
+        return { start, end };
+      },
     },
     {
       label: "Last Month",
       getRange: () => {
         const lastMonth = new Date();
         lastMonth.setMonth(lastMonth.getMonth() - 1);
-        return {
-          start: new Date(lastMonth.getFullYear(), lastMonth.getMonth(), 1),
-          end: new Date(lastMonth.getFullYear(), lastMonth.getMonth() + 1, 0),
-        };
+        const start = new Date(lastMonth.getFullYear(), lastMonth.getMonth(), 1);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(lastMonth.getFullYear(), lastMonth.getMonth() + 1, 0);
+        end.setHours(23, 59, 59, 999);
+        return { start, end };
       },
     },
   ];

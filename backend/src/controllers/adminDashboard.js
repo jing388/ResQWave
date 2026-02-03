@@ -33,11 +33,12 @@ const getAdminDashboardStats = catchAsync(async (req, res) => {
         });
 
         // 4. Completed Operations (Alerts with Post Rescue Form)
-        // We count non-archived post rescue forms where rescue form status is "Completed"
+        // We count alerts where rescue form status is "Completed" and has non-archived post rescue form
         // This matches exactly what the Reports module shows in the completed tab
-        const completedOperations = await postRescueRepo
-            .createQueryBuilder("prf")
-            .leftJoin("RescueForm", "rescueForm", "rescueForm.emergencyID = prf.alertID")
+        const completedOperations = await alertRepo
+            .createQueryBuilder("alert")
+            .leftJoin("RescueForm", "rescueForm", "rescueForm.emergencyID = alert.id")
+            .leftJoin("PostRescueForm", "prf", "prf.alertID = alert.id")
             .where("rescueForm.status = :status", { status: "Completed" })
             .andWhere("(prf.archived IS NULL OR prf.archived = :archived)", { archived: false })
             .getCount();

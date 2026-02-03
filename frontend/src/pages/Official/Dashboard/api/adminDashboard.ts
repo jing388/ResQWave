@@ -84,6 +84,9 @@ export async function fetchCompletedOperationsStats(
     const startDateStr = startDate.toISOString().split('T')[0]; // Format: YYYY-MM-DD
     const endDateStr = endDate.toISOString().split('T')[0];
     url += `&startDate=${startDateStr}&endDate=${endDateStr}`;
+    
+    // Add timestamp to prevent browser caching
+    url += `&_t=${Date.now()}`;
   }
   
   return await apiFetch<AlertStatsResponse>(url);

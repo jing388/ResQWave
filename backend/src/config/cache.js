@@ -39,7 +39,7 @@ async function deleteCache(patternOrKey) {
         await redis.del(patternOrKey);
         return;
     }
-    const stream = redis.scanStream({watch: patternOrKey, count: 100});
+    const stream = redis.scanStream({match: patternOrKey, count: 100});
     for await (const keys of stream) {
         if (keys.length) {
             keys.forEach(k => lru.delete(k));

@@ -1,16 +1,16 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
-import { ChevronDown, Search } from 'lucide-react';
-import { exportToPdf } from '../utils/exportUtils';
-import type { ExportData } from '../utils/exportUtils';
-import { Input } from '@/components/ui/input';
 import {
     DropdownMenu,
-    DropdownMenuTrigger,
     DropdownMenuContent,
     DropdownMenuItem,
+    DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import type { ReportGroup, ReportItem } from '../types/history';
+import { Input } from '@/components/ui/input';
+import { ChevronDown, Search } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAggregatedRescueReports, type RescueReport } from '../hooks/useAggregatedRescueReports';
+import type { ReportGroup, ReportItem } from '../types/history';
+import type { ExportData } from '../utils/exportUtils';
+import { exportToPdf } from '../utils/exportUtils';
 
 
 type HistoryModalProps = {
@@ -319,11 +319,11 @@ export default function HistoryModal({ open, onClose, center = null }: HistoryMo
                     })(),
                     noOfPersonnel: selected.noOfPersonnel ? String(selected.noOfPersonnel) : '',
                     resourcesUsed: (() => {
-                        const resources = selected.resourcesUsed as any;
+                        const resources = selected.resourcesUsed as string | unknown[] | Record<string, unknown> | null | undefined;
                         if (!resources) return '';
                         if (typeof resources === 'string') return resources;
                         if (Array.isArray(resources)) {
-                            return resources.map((r: any) => {
+                            return resources.map((r: unknown) => {
                                 if (typeof r === 'string') return r;
                                 if (typeof r === 'object' && r !== null) {
                                     const parts = [];

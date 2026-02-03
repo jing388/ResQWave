@@ -90,6 +90,15 @@ const createPostRescueForm = catchAsync(async (req, res, next) => {
     await deleteCache(`aggregatedReports:${alertID}`);
     await deleteCache(`aggregatedPRF:${alertID}`);
     await deleteCache("adminDashboardStats");
+    
+    // Clear all graph stats caches (pattern-based deletion)
+    const cachePatterns = [
+      "completedOpsStats:*",
+      "alertStats:*"
+    ];
+    for (const pattern of cachePatterns) {
+      await deleteCache(pattern);
+    }
 
     return res.status(201).json({ message: "Post Rescue Form Created", newForm });
 });
@@ -128,7 +137,7 @@ const getCompletedReports = catchAsync(async (req, res, next) => {
             "prf.completedAt AS \"completedAt\"",
             "fp.address AS \"address\"",
         ])
-        .orderBy("alert.dateTimeSent", "ASC")
+        .orderBy("prf.completedAt", "ASC")
         .getRawMany();
 
     // Update cache with fresh data (shorter TTL for faster refresh after new reports)

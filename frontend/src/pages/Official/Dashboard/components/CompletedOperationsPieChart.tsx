@@ -39,6 +39,7 @@ export function CompletedOperationsPieChart({ dateRange }: CompletedOperationsPi
     { name: "userInitiated", value: 0, fill: "var(--color-userInitiated)" },
     { name: "critical", value: 0, fill: "var(--color-critical)" },
   ]);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const { socket, isConnected } = useSocket();
 
   useEffect(() => {
@@ -50,27 +51,25 @@ export function CompletedOperationsPieChart({ dateRange }: CompletedOperationsPi
         // Use daily granularity if range is 31 days or less, otherwise monthly
         const granularity = daysDiff <= 31 ? "daily" : "monthly";
         
+        console.log('[PieChart] Fetching data:', {
+          granularity,
+          startDate: dateRange.startDate.toISOString(),
+          endDate: dateRange.endDate.toISOString()
+        });
+        
         const response = await fetchCompletedOperationsStats(
           granularity,
           dateRange.startDate,
           dateRange.endDate
         );
         
-        // Filter data to only include dates within the selected range
-        const filteredEntries = Object.entries(response.stats).filter(([date]) => {
-          const entryDate = new Date(date);
-          const startOfDay = new Date(dateRange.startDate);
-          startOfDay.setHours(0, 0, 0, 0);
-          const endOfDay = new Date(dateRange.endDate);
-          endOfDay.setHours(23, 59, 59, 999);
-          return entryDate >= startOfDay && entryDate <= endOfDay;
-        });
+        console.log('[PieChart] Received data:', response);
         
-        // Calculate totals from filtered time periods
+        // Calculate totals from all time periods in response
         let totalUserInitiated = 0;
         let totalCritical = 0;
         
-        filteredEntries.forEach(([, values]) => {
+        Object.values(response.stats).forEach((values) => {
           totalUserInitiated += values.userInitiated;
           totalCritical += values.critical;
         });
@@ -87,7 +86,7 @@ export function CompletedOperationsPieChart({ dateRange }: CompletedOperationsPi
     };
 
     loadData();
-  }, [dateRange]);
+  }, [dateRange, refreshTrigger]);
 
   // Socket listener for real-time updates
   useEffect(() => {
@@ -95,10 +94,8 @@ export function CompletedOperationsPieChart({ dateRange }: CompletedOperationsPi
 
     const handlePostRescueCreated = () => {
       console.log('[PieChart] Post-rescue form created, refreshing chart...');
-      setChartData([
-        { name: "userInitiated", value: 0, fill: "var(--color-userInitiated)" },
-        { name: "critical", value: 0, fill: "var(--color-critical)" },
-      ]);
+      // Trigger a reload by incrementing the refresh trigger
+      setRefreshTrigger(prev => prev + 1);
     };
 
     socket.on('postRescue:created', handlePostRescueCreated);
