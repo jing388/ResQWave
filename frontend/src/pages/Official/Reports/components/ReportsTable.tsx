@@ -349,7 +349,7 @@ export function ReportsTable({
       ? [
           {
             accessorKey: "accomplishedOn",
-            header: ({ column }: any) => (
+            header: ({ column }: { column: { toggleSorting: (ascending?: boolean) => void; getIsSorted: () => false | 'asc' | 'desc' } }) => (
               <Button
                 variant="ghost"
                 onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}

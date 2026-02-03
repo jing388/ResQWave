@@ -394,9 +394,9 @@ export function TerminalInsightsPanel({
                 setRecentAlerts(prev => [...prev, now]);
                 console.log(`📢 Focal person alerted: ${focalPerson.name} via ${sentMethods.join(', ')}`);
             }
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('❌ Error alerting focal person:', err);
-            setSuccessMessage(`Failed to send alert: ${err.message || 'Unknown error'}`);
+            setSuccessMessage(`Failed to send alert: ${err instanceof Error ? err.message : 'Unknown error'}`);
             setShowSuccessSnackbar(true);
             setTimeout(() => setShowSuccessSnackbar(false), 4000);
         } finally {

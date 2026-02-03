@@ -1,8 +1,7 @@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog-focal';
 import { Input } from '@/components/ui/input';
 import { API_BASE_URL, apiFetch } from '@/pages/Official/Reports/api/api';
-import { ArrowLeft, Camera, Check, Eye, EyeOff, Loader2, User, X } from 'lucide-react';
-import { RefreshCw } from 'lucide-react';
+import { ArrowLeft, Camera, Check, Eye, EyeOff, Loader2, RefreshCw, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useFocalAuth } from '../../context/focalAuthContext';
 import type { AccountSettingsModalProps } from '../types/accountSettings';
@@ -110,7 +109,6 @@ export default function AccountSettingsModal({ open, onClose, onSaved, onSavePro
     const [phoneNumber, setPhoneNumber] = useState('');
     const [email, setEmail] = useState('');
     const [lastUpdated, setLastUpdated] = useState<string | null>(null);
-    const [isVerified, setIsVerified] = useState(false);
 
     // Validation errors
     const [firstNameError, setFirstNameError] = useState('');
