@@ -137,7 +137,7 @@ const getCompletedReports = catchAsync(async (req, res, next) => {
             "prf.completedAt AS \"completedAt\"",
             "fp.address AS \"address\"",
         ])
-        .orderBy("alert.dateTimeSent", "ASC")
+        .orderBy("prf.completedAt", "ASC")
         .getRawMany();
 
     // Update cache with fresh data (shorter TTL for faster refresh after new reports)

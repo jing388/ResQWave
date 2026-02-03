@@ -1,4 +1,6 @@
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs-focal";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRef, useState } from "react";
@@ -9,6 +11,8 @@ import { useReports } from "./hooks/useReports";
 export function Reports() {
   const { isAdmin } = useAuth();
   const [activeTab, setActiveTab] = useState(isAdmin() ? "completed" : "pending");
+  const [searchVisible, setSearchVisible] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const alertsRef = useRef<ReportAlertsHandle>(null);
   const {
     pendingReports,
@@ -67,6 +71,25 @@ export function Reports() {
       }
     });
   };
+
+  // Filter function for search
+  const filterReports = <T extends { emergencyId: string; communityName: string; alertType: string; dispatcher: string; address: string }>(reports: T[]) => {
+    if (!searchQuery.trim()) return reports;
+
+    return reports.filter(
+      (report) =>
+        report.emergencyId.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        report.communityName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        report.alertType.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        report.dispatcher.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        report.address.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  };
+
+  // Apply filters to each report type
+  const filteredPendingReports = filterReports(pendingReports);
+  const filteredCompletedReports = filterReports(completedReports);
+  const filteredArchivedReports = filterReports(archivedReports);
 
   return (
     <div className="p-2 px-6 flex flex-col bg-[#171717] gap-0 h-[calc(100vh-73px)] max-h-[calc(100vh-73px)] overflow-hidden">
@@ -132,11 +155,11 @@ export function Reports() {
 
           {/* Reports Table - Full height now */}
           <Card className="!flex !flex-col !border-0 !flex-1 !min-h-0 !overflow-hidden !gap-0 !py-0 !px-0 !bg-[#171717] !shadow-none !rounded-none">
-            <CardHeader className="!shrink-0 !flex !flex-row !items-center !gap-2 !py-3 !px-0 !grid-cols-1 !auto-rows-auto">
-              <CardTitle className="text-foreground text-2xl">
-                Reports
-              </CardTitle>
+            <CardHeader className="!shrink-0 !flex !flex-row !items-center !justify-between !gap-2 !py-3 !px-0 !grid-cols-1 !auto-rows-auto">
               <div className="flex items-center gap-3">
+                <CardTitle className="text-foreground text-2xl">
+                  Reports
+                </CardTitle>
                 <Tabs
                   value={activeTab}
                   defaultValue={isAdmin() ? "completed" : "pending"}
@@ -189,19 +212,81 @@ export function Reports() {
                   </TabsList>
                 </Tabs>
               </div>
+              <div className="flex items-center gap-3">
+                <div
+                  className={`transition-all duration-300 ease-in-out overflow-hidden ${
+                    searchVisible ? "w-64 opacity-100" : "w-0 opacity-0"
+                  }`}
+                >
+                  <Input
+                    type="text"
+                    placeholder="Search reports..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-64 bg-[#262626] border-[#404040] text-white placeholder:text-[#a1a1a1] focus:border-[#4285f4] transition-all duration-300"
+                    autoFocus={searchVisible}
+                  />
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={`text-[#a1a1a1] hover:text-white hover:bg-[#262626] transition-all duration-200 ${searchVisible ? "bg-[#262626] text-white" : ""}`}
+                  onClick={() => {
+                    setSearchVisible(!searchVisible);
+                    if (searchVisible) {
+                      setSearchQuery("");
+                    }
+                  }}
+                >
+                  <svg
+                    className="h-5 w-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                    />
+                  </svg>
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-[#a1a1a1] hover:text-white hover:bg-[#262626]"
+                  onClick={refreshAllReports}
+                  title="Refresh data"
+                >
+                  <svg
+                    className="h-5 w-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0V9a8.002 8.002 0 0115.356 2M4.582 9H9M15 15v5h.582m0-5.582A8.001 8.001 0 0019.418 15M15 20.582V15a8.002 8.002 0 00-4.418-7.164"
+                    />
+                  </svg>
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="!flex-1 !flex !flex-col !min-h-0 !overflow-hidden !p-0 !m-0">
               {activeTab === "completed" ? (
                 <ReportsTable
                   type="completed"
-                  data={completedReports}
+                  data={filteredCompletedReports}
                   onReportCreated={refreshAllReports}
                   onArchive={handleArchive}
                 />
               ) : activeTab === "archive" ? (
                 <ReportsTable
                   type="archive"
-                  data={archivedReports}
+                  data={filteredArchivedReports}
                   onReportCreated={refreshAllReports}
                   onRestore={handleRestore}
                   onDelete={handleDelete}
@@ -209,7 +294,7 @@ export function Reports() {
               ) : (
                 <ReportsTable
                   type="pending"
-                  data={pendingReports}
+                  data={filteredPendingReports}
                   onReportCreated={refreshAllReports}
                 />
               )}
