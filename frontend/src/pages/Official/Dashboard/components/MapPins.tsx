@@ -14,6 +14,7 @@ interface MapPinsProps {
     terminalStatus: string;
     timeSent: string;
     focalPerson: string;
+    address: string;
     contactNumber: string;
     totalAlerts: number;
   }) => void;
@@ -140,6 +141,7 @@ export function MapPins({ map, pins, mapContainer, onPinClick }: MapPinsProps) {
         terminalName: pin.terminalName,
         terminalStatus: pin.terminalStatus,
         focalPerson: pin.focalPerson || "N/A",
+        address: pin.address,
         contactNumber: pin.contactNumber || "N/A",
         totalAlerts: pin.totalAlerts,
         latestAlertTime: pin.latestAlertTime || "",
@@ -290,6 +292,17 @@ export function MapPins({ map, pins, mapContainer, onPinClick }: MapPinsProps) {
         const absX = (rect?.left ?? 0) + pt.x;
         const absY = (rect?.top ?? 0) + pt.y;
 
+        // Extract address string
+        let addressString = "";
+        if (props?.address) {
+          if (typeof props.address === "string") {
+            addressString = props.address;
+          } else if (typeof props.address === "object") {
+            const addr = (props.address as Record<string, unknown>).address;
+            addressString = (typeof addr === "string" ? addr : "") || "";
+          }
+        }
+
         onPinClick({
           lng: coords[0],
           lat: coords[1],
@@ -299,6 +312,7 @@ export function MapPins({ map, pins, mapContainer, onPinClick }: MapPinsProps) {
           terminalStatus: props?.terminalStatus || "N/A",
           timeSent,
           focalPerson: props?.focalPerson || "N/A",
+          address: addressString,
           contactNumber: props?.contactNumber || "N/A",
           totalAlerts: props?.totalAlerts || 0,
         });
