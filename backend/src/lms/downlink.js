@@ -51,8 +51,10 @@ async function sendDownlink(devEUI, status) {
 
     console.log(`[Downlink] Successfully queued payload "${payload}" for DevEUI: ${devEUI}`);
     
-    // Optional: Immediately check the status
-    await checkDownlinkStatus(devEUI);
+    // Optional: Immediately check the status (non-blocking, errors ignored)
+    checkDownlinkStatus(devEUI).catch(err => {
+        console.error(`[Downlink] Queue status check failed (non-fatal): ${err.message}`);
+    });
     
     return { payloadSent: payload, statusCode: response.status };
 }
@@ -96,12 +98,15 @@ async function checkDownlinkStatus(devEUI) {
             return data;
         } catch (e) {
             // If it's not JSON, it's likely an HTML error page or XML
-            console.error(`[Queue Status] Server returned non-JSON response.`);
-            console.log(`[Queue Status] Raw Response: ${rawResponse.substring(0, 200)}...`); 
+            console.error(`[Queue Status] Server returned non-JSON response for DevEUI: ${devEUI}`);
+            console.error(`[Queue Status] HTTP Status: ${response.status}`);
+            console.error(`[Queue Status] Raw Response: ${rawResponse.substring(0, 200)}...`);
+            // Don't throw - this is just a status check, not critical 
             return null;
         }
     } catch (err) {
         console.error(`[Queue Status] Fetch error: ${err.message}`);
+        return null;
     }
 }
 

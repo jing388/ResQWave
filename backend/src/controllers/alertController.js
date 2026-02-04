@@ -383,10 +383,16 @@ const updateAlertStatus = catchAsync(async (req, res, next) => {
           `[Downlink Skipped] Terminal has no DevEUI for alert ${alert.id}`
         );
       } else {
-        await sendDownlink(
-          alert.terminal.devEUI,
-          alert.status
-        );
+        try {
+          await sendDownlink(
+            alert.terminal.devEUI,
+            alert.status
+          );
+        } catch (downlinkError) {
+          console.error('[Downlink] LoRaWAN queuing failed:', downlinkError.message);
+          // We don't block the HTTP response if LoRaWAN fails, 
+          // but we log it for debugging.
+        }
       }
     }
 

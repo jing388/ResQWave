@@ -1,6 +1,8 @@
 // utils/decoder.js
 function decodePayloadFromLMS(lmsData) {
   if (!lmsData || !lmsData.DevEUI_uplink || !lmsData.DevEUI_uplink.payload_hex) {
+    console.error("[Decoder] Invalid LMS data structure received:");
+    console.error(JSON.stringify(lmsData, null, 2));
     throw new Error("Invalid LMS JSON: payload_hex not found");
   }
 
