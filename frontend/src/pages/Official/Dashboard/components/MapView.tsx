@@ -328,7 +328,8 @@ export function MapView() {
               addressString = targetPin.address;
             } else if (targetPin.address && typeof targetPin.address === "object" && "address" in targetPin.address) {
               // If it's an object, try to extract the address property
-              addressString = (targetPin.address as Record<string, unknown>).address as string || "";
+              const addr = (targetPin.address as Record<string, unknown>).address;
+              addressString = (typeof addr === "string" ? addr : "") || "";
             }
 
             setPopover({
