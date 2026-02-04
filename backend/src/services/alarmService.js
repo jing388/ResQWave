@@ -96,8 +96,19 @@ async function checkExtendedDowntime() {
         if (!terminal.lastSeenAt) continue; // Skip if never seen
 
         const lastSeen = new Date(terminal.lastSeenAt).getTime();
-        const diffDays = (now - lastSeen) / (1000 * 60 * 60 * 24);
+        const diffMs = now - lastSeen;
+        const diffHours = diffMs / (1000 * 60 * 60);
+        const diffDays = diffMs / (1000 * 60 * 60 * 24);
 
+        // 1. Status Check: Mark Offline if silent for >= 1 Hour
+        if (diffHours >= 7) {
+            if (terminal.status !== "Offline") {
+                terminal.status = "Offline";
+                await terminalRepo.save(terminal);
+            }
+        }
+
+        // 2. Alarm Check: Extended Downtime Alarms
         if (diffDays >= 5) {
             await createOrUpdateAlarm({
                 terminalID: terminal.id,
@@ -122,12 +133,12 @@ function startDowntimeScheduler() {
     // Run immediately on server start
     checkExtendedDowntime().catch(err => console.error("[Cron] Startup Check Error:", err));
 
-    // Schedule: 00:00, 06:00, 12:00, 18:00
-    cron.schedule("0 0,6,12,18 * * *", () => {
+    // Schedule: Runs every hour at minute 0 (e.g., 1:00, 2:00...)
+    cron.schedule("0 * * * *", () => {
         checkExtendedDowntime().catch(err => console.error("[Cron] Error checking downtime:", err));
     });
 
-    console.log("[Scheduler] Extended Downtime Checker initialized (12MN, 6AM, 12NN, 6PM)");
+    console.log("[Scheduler] Extended Downtime Checker initialized (Every 1 Hour)");
 }
 
 module.exports = {
