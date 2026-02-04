@@ -1,8 +1,7 @@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog-focal';
 import { Input } from '@/components/ui/input';
 import { API_BASE_URL, apiFetch } from '@/pages/Official/Reports/api/api';
-import { ArrowLeft, Camera, Check, Eye, EyeOff, Loader2, User, X } from 'lucide-react';
-import { RefreshCw } from 'lucide-react';
+import { ArrowLeft, Camera, Check, Eye, EyeOff, Loader2, RefreshCw, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useFocalAuth } from '../../context/focalAuthContext';
 import type { AccountSettingsModalProps } from '../types/accountSettings';
@@ -24,15 +23,15 @@ export default function AccountSettingsModal({ open, onClose, onSaved, onSavePro
                 lastName?: string;
                 contactNumber?: string;
                 email?: string;
-                updatedAt?: string;
+                passwordLastUpdated?: string;
                 approvedBy?: string;
             }>(`/focalperson/${focalId}`);
             setFirstName(data.firstName || '');
             setLastName(data.lastName || '');
             setPhoneNumber(data.contactNumber || '');
             setEmail(data.email || '');
-            setLastUpdated(data.updatedAt || null);
-            setIsVerified(!!data.approvedBy);
+            setLastUpdated(data.passwordLastUpdated || null);
+            // setIsVerified(!!data.approvedBy); // Removed: not used in UI
             setInitialProfile((prev) => ({
                 ...prev,
                 firstName: data.firstName || '',
@@ -95,6 +94,7 @@ export default function AccountSettingsModal({ open, onClose, onSaved, onSavePro
     const [photoError, setPhotoError] = useState('');
     const [photoDeleted, setPhotoDeleted] = useState(false);
     const [photoLoading, setPhotoLoading] = useState(false);
+    const [saving, setSaving] = useState(false);
     const fileInputRef = useRef<HTMLInputElement | null>(null);
     // const [isDragging, setIsDragging] = useState(false); // Removed unused variable
     const { focalId } = useFocalAuth();
@@ -109,7 +109,6 @@ export default function AccountSettingsModal({ open, onClose, onSaved, onSavePro
     const [phoneNumber, setPhoneNumber] = useState('');
     const [email, setEmail] = useState('');
     const [lastUpdated, setLastUpdated] = useState<string | null>(null);
-    const [isVerified, setIsVerified] = useState(false);
 
     // Validation errors
     const [firstNameError, setFirstNameError] = useState('');
@@ -280,7 +279,7 @@ export default function AccountSettingsModal({ open, onClose, onSaved, onSavePro
             lastName?: string;
             contactNumber?: string;
             email?: string;
-            updatedAt?: string;
+            passwordLastUpdated?: string;
             approvedBy?: string;
         }>(`/focalperson/${focalId}`)
             .then((data) => {
@@ -288,8 +287,8 @@ export default function AccountSettingsModal({ open, onClose, onSaved, onSavePro
                 setLastName(data.lastName || '');
                 setPhoneNumber(data.contactNumber || '');
                 setEmail(data.email || '');
-                setLastUpdated(data.updatedAt || null);
-                setIsVerified(!!data.approvedBy);
+                setLastUpdated(data.passwordLastUpdated || null);
+                // setIsVerified(!!data.approvedBy); // Removed: not used in UI
                 setInitialProfile((prev) => ({
                     ...prev,
                     firstName: data.firstName || '',
@@ -354,6 +353,7 @@ export default function AccountSettingsModal({ open, onClose, onSaved, onSavePro
     // Error state for password change
     const [passwordError, setPasswordError] = useState<string | null>(null);
     const [samePasswordError, setSamePasswordError] = useState<string | null>(null);
+    const [changingPassword, setChangingPassword] = useState(false);
 
     // Change Password handler
     const handleChangePassword = async () => {
@@ -364,6 +364,7 @@ export default function AccountSettingsModal({ open, onClose, onSaved, onSavePro
             setSamePasswordError('New password must be different from the current password.');
             return;
         }
+        setChangingPassword(true);
         try {
             const token = localStorage.getItem('focalToken') || localStorage.getItem('resqwave_token');
             const headers: Record<string, string> = {
@@ -394,6 +395,10 @@ export default function AccountSettingsModal({ open, onClose, onSaved, onSavePro
             setCurrentPassword('');
             setNewPassword('');
             setConfirmPassword('');
+            // Update the lastUpdated timestamp to current time
+            setLastUpdated(new Date().toISOString());
+            // Dispatch password change success event
+            window.dispatchEvent(new CustomEvent('dashboard:show-saved', { detail: { message: 'Password Updated Successfully!', showViewLogs: true } }));
             if (onSaved) onSaved();
         } catch (err: unknown) {
             // Show error below password field if incorrect password
@@ -403,6 +408,8 @@ export default function AccountSettingsModal({ open, onClose, onSaved, onSavePro
             } else {
                 alert(error.message || 'Failed to change password.');
             }
+        } finally {
+            setChangingPassword(false);
         }
     };
     const [hasMinLength, setHasMinLength] = useState(false);
@@ -688,8 +695,10 @@ export default function AccountSettingsModal({ open, onClose, onSaved, onSavePro
                                                 <Loader2 className="w-10 h-10 text-blue-500 animate-spin" />
                                             </div>
                                         ) : photoFile === null && !photoUrl ? (
-                                            <div className="w-full h-full bg-[#262626] rounded-full flex items-center justify-center">
-                                                <User className="w-16 h-16 text-[#BABABA] opacity-60" />
+                                            <div className="w-full h-full bg-[#4a4a4a] rounded-full flex items-center justify-center">
+                                                <span className="text-[#e0e0e0] text-4xl font-semibold">
+                                                    {firstName.charAt(0).toUpperCase()}{lastName.charAt(0).toUpperCase()}
+                                                </span>
                                             </div>
                                         ) : photoFile ? (
                                             <img
@@ -809,34 +818,23 @@ export default function AccountSettingsModal({ open, onClose, onSaved, onSavePro
                                         <img src="/phFlag.png" alt="PH" className="w-4 h-3 mr-2" />
                                         <span className="text-[#A3A3A3] text-[15px] font-medium">+63</span>
                                     </span>
-                                    <div style={{ position: 'relative', flex: 1 }}>
-                                        <Input
-                                            type="text"
-                                            value={phoneNumber}
-                                            onChange={(e) => handlePhoneNumberChange((e.target as HTMLInputElement).value)}
-                                            placeholder="Phone Number"
-                                            style={{
-                                                padding: '24px 17px',
-                                                border: `1px solid ${phoneError ? '#ef4444' : '#404040'}`,
-                                                borderRadius: 6,
-                                                background: 'transparent',
-                                                color: '#fff',
-                                                fontSize: 15,
-                                                height: 44,
-                                                width: '100%'
-                                            }}
-                                            className="bg-input/10 text-white"
-                                        />
-                                        <span style={{
-                                            position: 'absolute',
-                                            right: 15,
-                                            top: '50%',
-                                            transform: 'translateY(-50%)',
-                                            color: isVerified ? '#3b82f6' : '#e11d48',
-                                            fontWeight: 600,
-                                            fontSize: 15
-                                        }}>{isVerified ? 'VERIFIED' : 'NOT VERIFIED'}</span>
-                                    </div>
+                                    <Input
+                                        type="text"
+                                        value={phoneNumber}
+                                        onChange={(e) => handlePhoneNumberChange((e.target as HTMLInputElement).value)}
+                                        placeholder="Phone Number"
+                                        style={{
+                                            padding: '24px 17px',
+                                            border: `1px solid ${phoneError ? '#ef4444' : '#404040'}`,
+                                            borderRadius: 6,
+                                            background: 'transparent',
+                                            color: '#fff',
+                                            fontSize: 15,
+                                            height: 44,
+                                            flex: 1
+                                        }}
+                                        className="bg-input/10 text-white"
+                                    />
                                 </div>
                                 {phoneError && (
                                     <div style={{ color: '#ef4444', fontSize: 13, marginTop: 4 }}>{phoneError}</div>
@@ -870,26 +868,31 @@ export default function AccountSettingsModal({ open, onClose, onSaved, onSavePro
                             {/* Save Changes Button */}
                             <button
                                 onClick={() => setConfirmSaveOpen(true)}
-                                disabled={!isAnyDirty() || firstNameError !== '' || lastNameError !== '' || phoneError !== '' || emailError !== '' || photoError !== ''}
+                                disabled={saving || !isAnyDirty() || firstNameError !== '' || lastNameError !== '' || phoneError !== '' || emailError !== '' || photoError !== ''}
                                 style={{
                                     padding: '8px 24px',
                                     borderRadius: 6,
-                                    background: (isAnyDirty() && !firstNameError && !lastNameError && !phoneError && !emailError && !photoError) ? '#ffffff' : '#414141',
-                                    color: (isAnyDirty() && !firstNameError && !lastNameError && !phoneError && !emailError && !photoError) ? '#000' : '#171717',
+                                    background: (isAnyDirty() && !firstNameError && !lastNameError && !phoneError && !emailError && !photoError && !saving) ? '#ffffff' : '#414141',
+                                    color: (isAnyDirty() && !firstNameError && !lastNameError && !phoneError && !emailError && !photoError && !saving) ? '#000' : '#171717',
                                     border: 'none',
                                     fontSize: 14,
                                     fontWeight: 600,
-                                    cursor: (isAnyDirty() && !firstNameError && !lastNameError && !phoneError && !emailError && !photoError) ? 'pointer' : 'not-allowed',
+                                    cursor: (isAnyDirty() && !firstNameError && !lastNameError && !phoneError && !emailError && !photoError && !saving) ? 'pointer' : 'not-allowed',
                                     transition: 'background 0.15s',
                                     marginBottom: 24,
                                     width: 145,
                                     height: 40,
-                                    alignSelf: 'flex-end'
+                                    alignSelf: 'flex-end',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: 8
                                 }}
-                                onMouseEnter={e => { if (isAnyDirty() && !firstNameError && !lastNameError && !phoneError && !emailError && !photoError) e.currentTarget.style.background = '#e5e5e5'; }}
-                                onMouseLeave={e => { if (isAnyDirty() && !firstNameError && !lastNameError && !phoneError && !emailError && !photoError) e.currentTarget.style.background = '#ffffff'; }}
+                                onMouseEnter={e => { if (isAnyDirty() && !firstNameError && !lastNameError && !phoneError && !emailError && !photoError && !saving) e.currentTarget.style.background = '#e5e5e5'; }}
+                                onMouseLeave={e => { if (isAnyDirty() && !firstNameError && !lastNameError && !phoneError && !emailError && !photoError && !saving) e.currentTarget.style.background = '#ffffff'; }}
                             >
-                                Save Changes
+                                {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+                                {saving ? 'Saving...' : 'Save Changes'}
                             </button>
 
                             {/* Save confirmation dialog */}
@@ -905,7 +908,15 @@ export default function AccountSettingsModal({ open, onClose, onSaved, onSavePro
                                         </AlertDialogCancel>
                                         <AlertDialogAction
                                             onClick={async () => {
+                                                setSaving(true);
                                                 try {
+                                                    // Track what changed
+                                                    const changedFields: string[] = [];
+                                                    const emailChanged = email !== initialProfile.email;
+                                                    const infoChanged = firstName !== initialProfile.firstName ||
+                                                        lastName !== initialProfile.lastName ||
+                                                        phoneNumber !== initialProfile.phoneNumber;
+
                                                     await apiFetch(`/focalperson/${focalId}`, {
                                                         method: 'PUT',
                                                         body: JSON.stringify({
@@ -915,6 +926,10 @@ export default function AccountSettingsModal({ open, onClose, onSaved, onSavePro
                                                             email
                                                         })
                                                     });
+
+                                                    if (emailChanged) changedFields.push('email');
+                                                    if (infoChanged) changedFields.push('profile information');
+
                                                     // Handle photo deletion or update
                                                     let photoUpdated = false;
 
@@ -928,6 +943,7 @@ export default function AccountSettingsModal({ open, onClose, onSaved, onSavePro
                                                             }
                                                         });
                                                         photoUpdated = true;
+                                                        changedFields.push('profile photo');
                                                     }
                                                     // If new photo file, upload it
                                                     else if (photoFile) {
@@ -942,21 +958,47 @@ export default function AccountSettingsModal({ open, onClose, onSaved, onSavePro
                                                             body: formData
                                                         });
                                                         photoUpdated = true;
+                                                        changedFields.push('profile photo');
                                                     }
+
+                                                    // Build message based on what changed
+                                                    let message = '';
+                                                    if (changedFields.length === 1) {
+                                                        const field = changedFields[0];
+                                                        if (field === 'email') {
+                                                            message = 'Email Updated Successfully!';
+                                                        } else if (field === 'profile photo') {
+                                                            message = 'Profile Photo Updated Successfully!';
+                                                        } else {
+                                                            message = 'Profile Information Updated Successfully!';
+                                                        }
+                                                    } else if (changedFields.length === 2) {
+                                                        message = `${changedFields[0].charAt(0).toUpperCase() + changedFields[0].slice(1)} and ${changedFields[1]} updated successfully!`;
+                                                    } else if (changedFields.length > 2) {
+                                                        const lastField = changedFields.pop();
+                                                        message = `${changedFields.map(f => f.charAt(0).toUpperCase() + f.slice(1)).join(', ')}, and ${lastField} updated successfully!`;
+                                                    } else {
+                                                        message = 'Profile Updated Successfully!';
+                                                    }
+
                                                     setConfirmSaveOpen(false);
 
                                                     // Call onSaveProfile to update popover instantly with new name
                                                     onSaveProfile?.({ firstName, lastName });
 
+                                                    // Dispatch success message
+                                                    window.dispatchEvent(new CustomEvent('dashboard:show-saved', { detail: { message, showViewLogs: true } }));
+
                                                     // Wait for confirmation modal to close before closing parent
                                                     setTimeout(() => {
+                                                        setSaving(false);
                                                         if (onClose) onClose();
-                                                        try { onSaved?.(); } catch { /* Ignore callback errors */ }
                                                         if (photoFile || photoUpdated) {
                                                             window.dispatchEvent(new Event('focal-profile-photo-updated'));
                                                         }
                                                     }, 200);
                                                 } catch {
+                                                    setSaving(false);
                                                     alert('Failed to save changes.');
                                                 }
                                             }}
@@ -1086,16 +1128,17 @@ export default function AccountSettingsModal({ open, onClose, onSaved, onSavePro
 
                             <div style={{ marginTop: 12 }}>
                                 <button
-                                    disabled={!allRulesSatisfied || !currentPassword}
+                                    disabled={changingPassword || !allRulesSatisfied || !currentPassword}
                                     onClick={() => setConfirmSaveOpen(true)}
                                     className={
-                                        allRulesSatisfied && currentPassword
-                                            ? "w-full py-3 px-4 rounded-[6px] bg-gradient-to-t from-[#3B82F6] to-[#70A6FF] transition-colors duration-150 hover:from-[#2563eb] hover:to-[#60a5fa] text-white font-semibold border border-[#2b2b2b]"
-                                            : "w-full py-3 px-4 rounded-[6px] bg-[#414141] text-[#9ca3af] font-semibold border border-[#2b2b2b] cursor-not-allowed"
+                                        allRulesSatisfied && currentPassword && !changingPassword
+                                            ? "w-full py-3 px-4 rounded-[6px] bg-gradient-to-t from-[#3B82F6] to-[#70A6FF] transition-colors duration-150 hover:from-[#2563eb] hover:to-[#60a5fa] text-white font-semibold border border-[#2b2b2b] flex items-center justify-center gap-2"
+                                            : "w-full py-3 px-4 rounded-[6px] bg-[#414141] text-[#9ca3af] font-semibold border border-[#2b2b2b] cursor-not-allowed flex items-center justify-center gap-2"
                                     }
                                     style={{ width: '100%' }}
                                 >
-                                    Update Password
+                                    {changingPassword && <Loader2 className="w-4 h-4 animate-spin" />}
+                                    {changingPassword ? 'Updating...' : 'Update Password'}
                                 </button>
                                 {/* Confirm dialog for password change */}
                                 <AlertDialog open={confirmSaveOpen} onOpenChange={setConfirmSaveOpen}>

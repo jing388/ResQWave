@@ -28,12 +28,18 @@ export type SignalPopover = {
 
 export type InfoBubble = { x: number; y: number };
 
+// Type for nearby range values
+import type { RangeValue } from '../utils/distanceUtils';
+
 // Full shape returned by the useSignals() hook on this page. Centralized here
 // so other components can import the hook return type instead of repeating
 // the structure inline.
 export type DashboardSignals = {
     otherSignals: Signal[];
+    allOtherSignals: Signal[];
     ownCommunitySignal: Signal;
+    nearbyRange: RangeValue;
+    setNearbyRange: (value: RangeValue) => void;
     editBoundaryOpen: boolean;
     setEditBoundaryOpen: (v: boolean) => void;
     savedGeoJson: GeoJSON.FeatureCollection | null;

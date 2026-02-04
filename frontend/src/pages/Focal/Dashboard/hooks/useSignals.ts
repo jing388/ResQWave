@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { apiFetch } from '../../../../lib/api';
 import { useFocalAuth } from '../../context/focalAuthContext';
 import type { Signal, SignalPopover, InfoBubble } from '../types/signals';
+import { filterSignalsByDistance, type RangeValue } from '../utils/distanceUtils';
 
 
 // Fallback initial values (empty)
@@ -60,6 +61,7 @@ export function useSignals() {
     const { token } = useFocalAuth();
     const [otherSignals, setOtherSignals] = useState<Signal[]>(initialOtherSignals);
     const [ownCommunitySignal, setOwnCommunitySignal] = useState<Signal>(initialOwnCommunitySignal);
+    const [nearbyRange, setNearbyRange] = useState<RangeValue>(5); // Default 5km
 
     const [editBoundaryOpen, setEditBoundaryOpen] = useState(false);
     const [savedGeoJson, setSavedGeoJson] = useState<GeoJSON.FeatureCollection | null>(null);
@@ -184,14 +186,24 @@ export function useSignals() {
 
     const getDistressCoord = () => ownCommunitySignal.coordinates as [number, number];
 
+    // Filter other signals based on nearby range
+    const filteredOtherSignals = filterSignalsByDistance(
+        otherSignals,
+        ownCommunitySignal.coordinates,
+        nearbyRange
+    );
+
     // Expose refetch function for manual refresh
     const refetchSignals = () => {
         fetchSignals();
     };
 
     return {
-        otherSignals,
+        otherSignals: filteredOtherSignals, // Return filtered signals
+        allOtherSignals: otherSignals, // Expose unfiltered for reference
         ownCommunitySignal,
+        nearbyRange,
+        setNearbyRange,
         editBoundaryOpen,
         setEditBoundaryOpen,
         savedGeoJson,

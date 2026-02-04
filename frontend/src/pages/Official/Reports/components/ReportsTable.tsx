@@ -1,33 +1,36 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
 } from "@/components/ui/select";
 import {
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
 } from "@/components/ui/table";
 import { useAuth } from "@/contexts/AuthContext";
 import {
-  getCoreRowModel,
-  getPaginationRowModel,
-  useReactTable,
-  type CellContext,
-  type ColumnDef,
+    getCoreRowModel,
+    getPaginationRowModel,
+    getSortedRowModel,
+    useReactTable,
+    type CellContext,
+    type ColumnDef,
+    type Row,
+    type SortingState,
 } from "@tanstack/react-table";
 import { Archive, ArchiveRestore, FileText, Info, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
@@ -36,8 +39,8 @@ import { CommunityGroupInfoSheet } from "../../CommunityGroups/components/Commun
 import type { CommunityGroupDetails } from "../../CommunityGroups/types";
 import { fetchDetailedReportData, type DetailedReportData } from "../api/api";
 import {
-  exportOfficialReportToPdf,
-  type OfficialReportData,
+    exportOfficialReportToPdf,
+    type OfficialReportData,
 } from "../utils/reportExportUtils";
 import { PostRescueFormInfoSheet } from "./PostRescueFormInfoSheet";
 import "./ReportsTable.css";
@@ -96,6 +99,7 @@ export function ReportsTable({
     useState<DetailedReportData | null>(null);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
+  const [sorting, setSorting] = useState<SortingState>([]);
 
   // Community info sheet state
   const [communityInfoOpen, setCommunityInfoOpen] = useState(false);
@@ -292,23 +296,109 @@ export function ReportsTable({
     },
     {
       accessorKey: "dateTimeOccurred",
-      header: "Date & Time Occurred",
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="h-auto p-0 font-medium text-black hover:text-white hover:bg-transparent focus:bg-transparent active:bg-transparent"
+        >
+          Date & Time Occurred
+          <svg
+            className="h-3 w-3"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"
+            />
+          </svg>
+        </Button>
+      ),
       cell: ({ row }) => (
         <div className="text-foreground truncate" title={row.getValue("dateTimeOccurred")}>
           {row.getValue("dateTimeOccurred")}
         </div>
       ),
+      sortingFn: (rowA, rowB, columnId) => {
+        try {
+          // Parse format: "12/08/2025 | 02:30 PM"
+          const valueA = String(rowA.getValue(columnId));
+          const valueB = String(rowB.getValue(columnId));
+          
+          const dateA = new Date(valueA.replace(" | ", " "));
+          const dateB = new Date(valueB.replace(" | ", " "));
+
+          if (isNaN(dateA.getTime()) && isNaN(dateB.getTime())) return 0;
+          if (isNaN(dateA.getTime())) return 1;
+          if (isNaN(dateB.getTime())) return -1;
+
+          return dateA.getTime() - dateB.getTime();
+        } catch (error) {
+          console.error("Error sorting dates:", error);
+          const a = String(rowA.getValue(columnId));
+          const b = String(rowB.getValue(columnId));
+          return a.localeCompare(b);
+        }
+      },
+      sortDescFirst: false,
     },
     ...(isCompleted
       ? [
           {
             accessorKey: "accomplishedOn",
-            header: "Accomplished on",
+            header: ({ column }: { column: { toggleSorting: (ascending?: boolean) => void; getIsSorted: () => false | 'asc' | 'desc' } }) => (
+              <Button
+                variant="ghost"
+                onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+                className="h-auto p-0 font-medium text-black hover:text-white hover:bg-transparent focus:bg-transparent active:bg-transparent"
+              >
+                Accomplished on
+                <svg
+                  className="h-3 w-3"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"
+                  />
+                </svg>
+              </Button>
+            ),
             cell: ({ row }: CellContext<ReportData, unknown>) => (
               <div className="text-foreground truncate" title={(row.original as CompletedReport).accomplishedOn}>
                 {(row.original as CompletedReport).accomplishedOn}
               </div>
             ),
+            sortingFn: (rowA: Row<ReportData>, rowB: Row<ReportData>, columnId: string) => {
+              try {
+                // Parse format: "12/08/2025 | 02:30 PM"
+                const valueA = String(rowA.getValue(columnId));
+                const valueB = String(rowB.getValue(columnId));
+                
+                const dateA = new Date(valueA.replace(" | ", " "));
+                const dateB = new Date(valueB.replace(" | ", " "));
+
+                if (isNaN(dateA.getTime()) && isNaN(dateB.getTime())) return 0;
+                if (isNaN(dateA.getTime())) return 1;
+                if (isNaN(dateB.getTime())) return -1;
+
+                return dateA.getTime() - dateB.getTime();
+              } catch (error) {
+                console.error("Error sorting dates:", error);
+                const a = String(rowA.getValue(columnId));
+                const b = String(rowB.getValue(columnId));
+                return a.localeCompare(b);
+              }
+            },
+            sortDescFirst: false,
           },
         ]
       : []),
@@ -553,7 +643,11 @@ export function ReportsTable({
     columns,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
-    state: {},
+    getSortedRowModel: getSortedRowModel(),
+    onSortingChange: setSorting,
+    state: {
+      sorting,
+    },
     initialState: {
       pagination: {
         pageSize: 8,

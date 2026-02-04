@@ -241,6 +241,18 @@ const createRescueForm = catchAsync(async (req, res, next) => {
         console.log(`[Cache] Invalidated: ${cacheKey}`);
     }
 
+    // Also invalidate the "all forms" cache
+    const allFormsCacheKey = "rescueForms:all";
+    const allFormsCache = await getCache(allFormsCacheKey);
+    if (allFormsCache) {
+        await deleteCache(allFormsCacheKey);
+        console.log(`[Cache] Invalidated: ${allFormsCacheKey}`);
+    }
+
+    // Also invalidate aggregated cache
+    await deleteCache("rescueAggregatesBasic:all");
+    await deleteCache(`rescueAggregatesBasic:${alertID}`);
+
     res.status(201).json(newForm);
 });
 
@@ -415,6 +427,9 @@ const updateRescueFormStatus = catchAsync(async (req, res, next) => {
 
     // 7. Invalidate Cache & Return
     await deleteCache(`rescueForm:${alertID}`);
+    await deleteCache("rescueForms:all"); // Invalidate the "all forms" cache
+    await deleteCache("rescueAggregatesBasic:all"); // Invalidate aggregated cache
+    await deleteCache(`rescueAggregatesBasic:${alertID}`);
     res.json(form);
 });
 
