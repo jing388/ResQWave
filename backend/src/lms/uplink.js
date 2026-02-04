@@ -129,7 +129,7 @@ const handleUplink = async (req, res) => {
         }
 
         // B. Weather Verification (Only for Critical/Sensor alerts)
-        if (alertType === "Critical") {
+        if (alertType === "Critical" || alertType === "User-Initiated") {
             let isWeatherRisky = false;
 
             if (weatherData.weatherCheckEnabled === false) {
