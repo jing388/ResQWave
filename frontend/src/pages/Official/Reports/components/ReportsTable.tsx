@@ -29,6 +29,7 @@ import {
     useReactTable,
     type CellContext,
     type ColumnDef,
+    type Row,
     type SortingState,
 } from "@tanstack/react-table";
 import { Archive, ArchiveRestore, FileText, Info, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
@@ -376,7 +377,7 @@ export function ReportsTable({
                 {(row.original as CompletedReport).accomplishedOn}
               </div>
             ),
-            sortingFn: (rowA: any, rowB: any, columnId: string) => {
+            sortingFn: (rowA: Row<ReportData>, rowB: Row<ReportData>, columnId: string) => {
               try {
                 // Parse format: "12/08/2025 | 02:30 PM"
                 const valueA = String(rowA.getValue(columnId));
