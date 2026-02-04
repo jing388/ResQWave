@@ -42,10 +42,13 @@ const handleUplink = async (req, res) => {
     const mappedTerminalId = mapTerminal(result.decoded.terminalID);
 
     // GLOBAL: Any Uplink (Battery OR Alert) means the device is alive
-    // 1. Update Last Seen
+    // 1. Update Last Seen AND Status
     await AppDataSource.getRepository(Terminal).update(
       { id: mappedTerminalId },
-      { lastSeenAt: new Date() },
+      { 
+        lastSeenAt: new Date(),
+        status: "Online"
+      },
     );
     // 2. Clear "Extended Downtime" if it exists
     await clearAlarm(mappedTerminalId, "Extended Downtime");
@@ -208,7 +211,7 @@ const handleUplink = async (req, res) => {
       alertType: alertType,
       sentThrough: "LMS",
       dateTimeSent: result.decoded.dateTimeSent,
-      status: "Waitlist",
+      status: "Unassigned",
     });
 
     await AppDataSource.getRepository(Alert).save(newAlert);
@@ -234,7 +237,7 @@ const handleUplink = async (req, res) => {
         terminalId: mappedTerminalId,
         communityGroupName: null,
         alertType: alertType,
-        status: "Waitlist",
+        status: "Unassigned",
         lastSignalTime: result.decoded.dateTimeSent,
         address: focalPerson?.address || null,
       };
@@ -243,7 +246,7 @@ const handleUplink = async (req, res) => {
         alertId: alertId,
         alertType: alertType,
         timeSent: result.decoded.dateTimeSent,
-        alertStatus: "Waitlist",
+        alertStatus: "Unassigned",
         terminalId: terminal.id,
         terminalName: terminal.name || `Terminal ${mappedTerminalId}`,
         terminalStatus: terminal.status || "Offline",

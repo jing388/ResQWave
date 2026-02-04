@@ -21,7 +21,12 @@ export function Reports() {
   const alertsRef = useRef<ReportAlertsHandle>(null);
   const [filters, setFilters] = useState<FilterState>({
     alertType: "all",
-    dateRange: "all",
+    occurredDateRange: "all",
+    occurredStartDate: "",
+    occurredEndDate: "",
+    accomplishedDateRange: "all",
+    accomplishedStartDate: "",
+    accomplishedEndDate: "",
     dispatcher: "all",
     barangay: "all",
   });
@@ -94,8 +99,8 @@ export function Reports() {
     }
   };
 
-  // Get date range for filtering
-  const getDateRange = () => {
+  // Get date range for Date Time Occurred filtering
+  const getOccurredDateRange = () => {
     const now = new Date();
     const startOfDay = (date: Date) =>
       new Date(date.getFullYear(), date.getMonth(), date.getDate());
@@ -110,7 +115,7 @@ export function Reports() {
         999,
       );
 
-    switch (filters.dateRange) {
+    switch (filters.occurredDateRange) {
       case "today":
         return { start: startOfDay(now), end: endOfDay(now) };
       case "last7days": {
@@ -129,16 +134,89 @@ export function Reports() {
         return { start: startOfDay(start), end: endOfDay(now) };
       }
       case "custom":
-        if (filters.customStartDate && filters.customEndDate) {
+        if (filters.occurredStartDate && filters.occurredEndDate) {
           return {
-            start: startOfDay(filters.customStartDate),
-            end: endOfDay(filters.customEndDate),
+            start: startOfDay(new Date(filters.occurredStartDate)),
+            end: endOfDay(new Date(filters.occurredEndDate)),
           };
         }
         return null;
       default:
         return null;
     }
+  };
+
+  // Get date range for Accomplished On filtering
+  const getAccomplishedDateRange = () => {
+    const now = new Date();
+    const startOfDay = (date: Date) =>
+      new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const endOfDay = (date: Date) =>
+      new Date(
+        date.getFullYear(),
+        date.getMonth(),
+        date.getDate(),
+        23,
+        59,
+        59,
+        999,
+      );
+
+    switch (filters.accomplishedDateRange) {
+      case "today":
+        return { start: startOfDay(now), end: endOfDay(now) };
+      case "last7days": {
+        const start = new Date(now);
+        start.setDate(start.getDate() - 7);
+        return { start: startOfDay(start), end: endOfDay(now) };
+      }
+      case "last30days": {
+        const start = new Date(now);
+        start.setDate(start.getDate() - 30);
+        return { start: startOfDay(start), end: endOfDay(now) };
+      }
+      case "last3months": {
+        const start = new Date(now);
+        start.setMonth(start.getMonth() - 3);
+        return { start: startOfDay(start), end: endOfDay(now) };
+      }
+      case "custom":
+        if (filters.accomplishedStartDate && filters.accomplishedEndDate) {
+          return {
+            start: startOfDay(new Date(filters.accomplishedStartDate)),
+            end: endOfDay(new Date(filters.accomplishedEndDate)),
+          };
+        }
+        return null;
+      default:
+        return null;
+    }
+  };
+
+  // Check if filters are active
+  const isFiltered = useMemo(() => {
+    return (
+      filters.alertType !== "all" ||
+      filters.occurredDateRange !== "all" ||
+      filters.accomplishedDateRange !== "all" ||
+      filters.dispatcher !== "all" ||
+      filters.barangay !== "all"
+    );
+  }, [filters]);
+
+  // Clear all filters
+  const handleClearFilters = () => {
+    setFilters({
+      alertType: "all",
+      occurredDateRange: "all",
+      occurredStartDate: "",
+      occurredEndDate: "",
+      accomplishedDateRange: "all",
+      accomplishedStartDate: "",
+      accomplishedEndDate: "",
+      dispatcher: "all",
+      barangay: "all",
+    });
   };
 
   // Filter function for search and filters
@@ -150,6 +228,7 @@ export function Reports() {
       dispatcher: string;
       address: string;
       dateTimeOccurred: string;
+      accomplishedOn?: string;
     },
   >(
     reports: T[],
@@ -179,12 +258,28 @@ export function Reports() {
       );
     }
 
-    // Apply date range filter
-    const dateRange = getDateRange();
-    if (dateRange) {
+    // Apply Date Time Occurred filter
+    const occurredDateRange = getOccurredDateRange();
+    if (occurredDateRange) {
       filtered = filtered.filter((report) => {
         const reportDate = parseFormattedDate(report.dateTimeOccurred);
-        return reportDate >= dateRange.start && reportDate <= dateRange.end;
+        return (
+          reportDate >= occurredDateRange.start &&
+          reportDate <= occurredDateRange.end
+        );
+      });
+    }
+
+    // Apply Accomplished On filter
+    const accomplishedDateRange = getAccomplishedDateRange();
+    if (accomplishedDateRange && filters.accomplishedDateRange !== "all") {
+      filtered = filtered.filter((report) => {
+        if (!report.accomplishedOn) return false;
+        const reportDate = parseFormattedDate(report.accomplishedOn);
+        return (
+          reportDate >= accomplishedDateRange.start &&
+          reportDate <= accomplishedDateRange.end
+        );
       });
     }
 
@@ -355,6 +450,8 @@ export function Reports() {
                   onFiltersChange={setFilters}
                   dispatchers={uniqueDispatchers}
                   barangays={uniqueBarangays}
+                  isFiltered={isFiltered}
+                  onClearFilters={handleClearFilters}
                 />
                 <div
                   className={`transition-all duration-300 ease-in-out overflow-hidden ${

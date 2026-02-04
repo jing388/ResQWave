@@ -43,6 +43,7 @@ const getAllAlarms = catchAsync(async (req, res, next) => {
             "alarm.updatedAt",
             "focalPerson.address"
         ])
+        .where("alarm.archived = :archived", { archived: false })
         .orderBy("alarm.createdAt", "DESC")
         .getRawMany();
 
@@ -144,8 +145,173 @@ const getAlarmById = catchAsync(async (req, res, next) => {
     res.status(200).json(formattedAlarm);
 });
 
+const getActiveAlarms = catchAsync(async (req, res, next) => {
+    const alarms = await alarmRepo
+        .createQueryBuilder("alarm")
+        .leftJoinAndSelect("Terminal", "terminal", "alarm.terminalID = terminal.id")
+        .leftJoinAndSelect("Neighborhood", "neighborhood", "terminal.id = neighborhood.terminalID")
+        .leftJoinAndSelect("FocalPerson", "focalPerson", "neighborhood.focalPersonID = focalPerson.id")
+        .select([
+            "alarm.id",
+            "alarm.terminalID",
+            "alarm.terminalName",
+            "alarm.name",
+            "alarm.status",
+            "alarm.severity",
+            "alarm.createdAt",
+            "alarm.updatedAt",
+            "focalPerson.address"
+        ])
+        .where("alarm.archived = :archived", { archived: false })
+        .andWhere("alarm.status = :status", { status: "Active" })
+        .orderBy("alarm.createdAt", "DESC")
+        .getRawMany();
+
+    const formattedAlarms = alarms.map(alarm => ({
+        id: alarm.alarm_id,
+        terminalID: alarm.alarm_terminalID,
+        terminalName: alarm.alarm_terminalName,
+        name: alarm.alarm_name,
+        status: alarm.alarm_status,
+        severity: alarm.alarm_severity,
+        createdAt: alarm.alarm_createdAt,
+        updatedAt: alarm.alarm_updatedAt,
+        terminalAddress: parseAddress(alarm.focalPerson_address)
+    }));
+
+    res.status(200).json(formattedAlarms);
+});
+
+const getClearedAlarms = catchAsync(async (req, res, next) => {
+    const alarms = await alarmRepo
+        .createQueryBuilder("alarm")
+        .leftJoinAndSelect("Terminal", "terminal", "alarm.terminalID = terminal.id")
+        .leftJoinAndSelect("Neighborhood", "neighborhood", "terminal.id = neighborhood.terminalID")
+        .leftJoinAndSelect("FocalPerson", "focalPerson", "neighborhood.focalPersonID = focalPerson.id")
+        .select([
+            "alarm.id",
+            "alarm.terminalID",
+            "alarm.terminalName",
+            "alarm.name",
+            "alarm.status",
+            "alarm.severity",
+            "alarm.createdAt",
+            "alarm.updatedAt",
+            "focalPerson.address"
+        ])
+        .where("alarm.archived = :archived", { archived: false })
+        .andWhere("alarm.status = :status", { status: "Cleared" })
+        .orderBy("alarm.createdAt", "DESC")
+        .getRawMany();
+
+    const formattedAlarms = alarms.map(alarm => ({
+        id: alarm.alarm_id,
+        terminalID: alarm.alarm_terminalID,
+        terminalName: alarm.alarm_terminalName,
+        name: alarm.alarm_name,
+        status: alarm.alarm_status,
+        severity: alarm.alarm_severity,
+        createdAt: alarm.alarm_createdAt,
+        updatedAt: alarm.alarm_updatedAt,
+        terminalAddress: parseAddress(alarm.focalPerson_address)
+    }));
+
+    res.status(200).json(formattedAlarms);
+});
+
+const archiveAlarm = catchAsync(async (req, res, next) => {
+    const { id } = req.params;
+    const alarm = await alarmRepo.findOne({ where: { id } });
+    
+    if (!alarm) {
+        return next(new NotFoundError("Alarm not found"));
+    }
+
+    alarm.archived = true;
+    await alarmRepo.save(alarm);
+
+    res.status(200).json({ message: "Alarm archived successfully" });
+});
+
+const unarchiveAlarm = catchAsync(async (req, res, next) => {
+    const { id } = req.params;
+    const alarm = await alarmRepo.findOne({ where: { id } });
+
+    if (!alarm) {
+        return next(new NotFoundError("Alarm not found"));
+    }
+
+    if (!alarm.archived) {
+        return next(new BadRequestError("Alarm is not archived"));
+    }
+
+    alarm.archived = false;
+    await alarmRepo.save(alarm);
+
+    res.status(200).json({ message: "Alarm restored successfully" });
+});
+
+const deleteAlarmPermanently = catchAsync(async (req, res, next) => {
+    const { id } = req.params;
+    const alarm = await alarmRepo.findOne({ where: { id } });
+
+    if (!alarm) {
+        return next(new NotFoundError("Alarm not found"));
+    }
+
+    if (!alarm.archived) {
+         return next(new BadRequestError("Only archived alarms can be permanently deleted"));
+    }
+
+    await alarmRepo.remove(alarm);
+
+    res.status(200).json({ message: "Alarm deleted permanently" });
+});
+
+const getArchivedAlarms = catchAsync(async (req, res, next) => {
+    const alarms = await alarmRepo
+        .createQueryBuilder("alarm")
+        .leftJoinAndSelect("Terminal", "terminal", "alarm.terminalID = terminal.id")
+        .leftJoinAndSelect("Neighborhood", "neighborhood", "terminal.id = neighborhood.terminalID")
+        .leftJoinAndSelect("FocalPerson", "focalPerson", "neighborhood.focalPersonID = focalPerson.id")
+        .select([
+            "alarm.id",
+            "alarm.terminalID",
+            "alarm.terminalName",
+            "alarm.name",
+            "alarm.status",
+            "alarm.severity",
+            "alarm.createdAt",
+            "alarm.updatedAt",
+            "focalPerson.address"
+        ])
+        .where("alarm.archived = :archived", { archived: true })
+        .orderBy("alarm.createdAt", "DESC")
+        .getRawMany();
+
+    const formattedAlarms = alarms.map(alarm => ({
+        id: alarm.alarm_id,
+        terminalID: alarm.alarm_terminalID,
+        terminalName: alarm.alarm_terminalName,
+        name: alarm.alarm_name,
+        status: alarm.alarm_status,
+        severity: alarm.alarm_severity,
+        createdAt: alarm.alarm_createdAt,
+        updatedAt: alarm.alarm_updatedAt,
+        terminalAddress: parseAddress(alarm.focalPerson_address)
+    }));
+
+    res.status(200).json(formattedAlarms);
+});
+
 module.exports = {
     getAllAlarms,
+    getActiveAlarms,
+    getClearedAlarms,
     createAlarm,
-    getAlarmById
+    getAlarmById,
+    archiveAlarm,
+    unarchiveAlarm,
+    deleteAlarmPermanently,
+    getArchivedAlarms
 };

@@ -15,12 +15,13 @@ import {
 import { Calendar, Filter, X } from "lucide-react";
 
 export interface FilterState {
-  status: string;
   severity: string;
-  alertType: string;
-  dateRange: string;
-  customStartDate: string;
-  customEndDate: string;
+  createdAtRange: string;
+  createdAtStartDate: string;
+  createdAtEndDate: string;
+  updatedAtRange: string;
+  updatedAtStartDate: string;
+  updatedAtEndDate: string;
 }
 
 interface AlarmFiltersProps {
@@ -59,47 +60,6 @@ export function AlarmFilters({
               <h3 className="font-semibold text-sm">Filters</h3>
             </div>
 
-            {/* Status Filter */}
-            <div className="flex flex-col gap-1">
-              <label className="text-xs text-[#a1a1a1]">Status</label>
-              <Select
-                value={filters.status}
-                onValueChange={(value) =>
-                  onFiltersChange({ ...filters, status: value })
-                }
-              >
-                <SelectTrigger className="w-full bg-[#262626] border-[#404040] text-white hover:bg-[#333333]">
-                  <SelectValue placeholder="All" />
-                </SelectTrigger>
-                <SelectContent className="bg-[#2a2a2a] border-[#404040]">
-                  <SelectItem
-                    value="all"
-                    className="text-white hover:bg-[#404040] hover:text-white focus:bg-[#404040] focus:text-white"
-                  >
-                    All
-                  </SelectItem>
-                  <SelectItem
-                    value="Active"
-                    className="text-white hover:bg-[#404040] hover:text-white focus:bg-[#404040] focus:text-white"
-                  >
-                    Active
-                  </SelectItem>
-                  <SelectItem
-                    value="Resolved"
-                    className="text-white hover:bg-[#404040] hover:text-white focus:bg-[#404040] focus:text-white"
-                  >
-                    Resolved
-                  </SelectItem>
-                  <SelectItem
-                    value="Pending"
-                    className="text-white hover:bg-[#404040] hover:text-white focus:bg-[#404040] focus:text-white"
-                  >
-                    Pending
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
             {/* Severity Filter */}
             <div className="flex flex-col gap-1">
               <label className="text-xs text-[#a1a1a1]">Severity</label>
@@ -120,92 +80,39 @@ export function AlarmFilters({
                     All
                   </SelectItem>
                   <SelectItem
-                    value="Critical"
+                    value="Major"
                     className="text-white hover:bg-[#404040] hover:text-white focus:bg-[#404040] focus:text-white"
                   >
-                    Critical
+                    Major
                   </SelectItem>
                   <SelectItem
-                    value="High"
+                    value="Minor"
                     className="text-white hover:bg-[#404040] hover:text-white focus:bg-[#404040] focus:text-white"
                   >
-                    High
-                  </SelectItem>
-                  <SelectItem
-                    value="Medium"
-                    className="text-white hover:bg-[#404040] hover:text-white focus:bg-[#404040] focus:text-white"
-                  >
-                    Medium
-                  </SelectItem>
-                  <SelectItem
-                    value="Low"
-                    className="text-white hover:bg-[#404040] hover:text-white focus:bg-[#404040] focus:text-white"
-                  >
-                    Low
+                    Minor
                   </SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
-            {/* Alert Type Filter */}
+            {/* Created At Date Range Filter */}
             <div className="flex flex-col gap-1">
-              <label className="text-xs text-[#a1a1a1]">Alert Type</label>
+              <label className="text-xs text-[#a1a1a1]">Created At</label>
               <Select
-                value={filters.alertType}
-                onValueChange={(value) =>
-                  onFiltersChange({ ...filters, alertType: value })
-                }
-              >
-                <SelectTrigger className="w-full bg-[#262626] border-[#404040] text-white hover:bg-[#333333]">
-                  <SelectValue placeholder="All" />
-                </SelectTrigger>
-                <SelectContent className="bg-[#2a2a2a] border-[#404040]">
-                  <SelectItem
-                    value="all"
-                    className="text-white hover:bg-[#404040] hover:text-white focus:bg-[#404040] focus:text-white"
-                  >
-                    All
-                  </SelectItem>
-                  <SelectItem
-                    value="Emergency"
-                    className="text-white hover:bg-[#404040] hover:text-white focus:bg-[#404040] focus:text-white"
-                  >
-                    Emergency
-                  </SelectItem>
-                  <SelectItem
-                    value="Warning"
-                    className="text-white hover:bg-[#404040] hover:text-white focus:bg-[#404040] focus:text-white"
-                  >
-                    Warning
-                  </SelectItem>
-                  <SelectItem
-                    value="Info"
-                    className="text-white hover:bg-[#404040] hover:text-white focus:bg-[#404040] focus:text-white"
-                  >
-                    Info
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Date Range Filter */}
-            <div className="flex flex-col gap-1">
-              <label className="text-xs text-[#a1a1a1]">Date Range</label>
-              <Select
-                value={filters.dateRange}
+                value={filters.createdAtRange}
                 onValueChange={(value) =>
                   onFiltersChange({
                     ...filters,
-                    dateRange: value,
-                    customStartDate:
-                      value !== "custom" ? "" : filters.customStartDate,
-                    customEndDate:
-                      value !== "custom" ? "" : filters.customEndDate,
+                    createdAtRange: value,
+                    createdAtStartDate:
+                      value !== "custom" ? "" : filters.createdAtStartDate,
+                    createdAtEndDate:
+                      value !== "custom" ? "" : filters.createdAtEndDate,
                   })
                 }
               >
                 <SelectTrigger className="w-full bg-[#262626] border-[#404040] text-white hover:bg-[#333333]">
-                  <SelectValue placeholder="All Time" />
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-[#2a2a2a] border-[#404040]">
                   <SelectItem
@@ -248,19 +155,19 @@ export function AlarmFilters({
               </Select>
             </div>
 
-            {/* Custom Date Range Inputs */}
-            {filters.dateRange === "custom" && (
+            {/* Custom Date Range Inputs for Created At */}
+            {filters.createdAtRange === "custom" && (
               <>
                 <div className="flex flex-col gap-1">
                   <label className="text-xs text-[#a1a1a1]">Start Date</label>
                   <div className="relative">
                     <Input
                       type="date"
-                      value={filters.customStartDate}
+                      value={filters.createdAtStartDate}
                       onChange={(e) =>
                         onFiltersChange({
                           ...filters,
-                          customStartDate: e.target.value,
+                          createdAtStartDate: e.target.value,
                         })
                       }
                       className="w-full bg-[#262626] border-[#404040] text-white scheme-dark pr-10 [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer"
@@ -273,11 +180,111 @@ export function AlarmFilters({
                   <div className="relative">
                     <Input
                       type="date"
-                      value={filters.customEndDate}
+                      value={filters.createdAtEndDate}
                       onChange={(e) =>
                         onFiltersChange({
                           ...filters,
-                          customEndDate: e.target.value,
+                          createdAtEndDate: e.target.value,
+                        })
+                      }
+                      className="w-full bg-[#262626] border-[#404040] text-white scheme-dark pr-10 [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+                    />
+                    <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#a1a1a1] pointer-events-none" />
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Updated At Date Range Filter */}
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-[#a1a1a1]">Updated At</label>
+              <Select
+                value={filters.updatedAtRange}
+                onValueChange={(value) =>
+                  onFiltersChange({
+                    ...filters,
+                    updatedAtRange: value,
+                    updatedAtStartDate:
+                      value !== "custom" ? "" : filters.updatedAtStartDate,
+                    updatedAtEndDate:
+                      value !== "custom" ? "" : filters.updatedAtEndDate,
+                  })
+                }
+              >
+                <SelectTrigger className="w-full bg-[#262626] border-[#404040] text-white hover:bg-[#333333]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-[#2a2a2a] border-[#404040]">
+                  <SelectItem
+                    value="all"
+                    className="text-white hover:bg-[#404040] hover:text-white focus:bg-[#404040] focus:text-white"
+                  >
+                    All Time
+                  </SelectItem>
+                  <SelectItem
+                    value="today"
+                    className="text-white hover:bg-[#404040] hover:text-white focus:bg-[#404040] focus:text-white"
+                  >
+                    Today
+                  </SelectItem>
+                  <SelectItem
+                    value="last7days"
+                    className="text-white hover:bg-[#404040] hover:text-white focus:bg-[#404040] focus:text-white"
+                  >
+                    Last 7 Days
+                  </SelectItem>
+                  <SelectItem
+                    value="last30days"
+                    className="text-white hover:bg-[#404040] hover:text-white focus:bg-[#404040] focus:text-white"
+                  >
+                    Last 30 Days
+                  </SelectItem>
+                  <SelectItem
+                    value="last3months"
+                    className="text-white hover:bg-[#404040] hover:text-white focus:bg-[#404040] focus:text-white"
+                  >
+                    Last 3 Months
+                  </SelectItem>
+                  <SelectItem
+                    value="custom"
+                    className="text-white hover:bg-[#404040] hover:text-white focus:bg-[#404040] focus:text-white"
+                  >
+                    Custom Range
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Custom Date Range Inputs for Updated At */}
+            {filters.updatedAtRange === "custom" && (
+              <>
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-[#a1a1a1]">Start Date</label>
+                  <div className="relative">
+                    <Input
+                      type="date"
+                      value={filters.updatedAtStartDate}
+                      onChange={(e) =>
+                        onFiltersChange({
+                          ...filters,
+                          updatedAtStartDate: e.target.value,
+                        })
+                      }
+                      className="w-full bg-[#262626] border-[#404040] text-white scheme-dark pr-10 [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+                    />
+                    <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#a1a1a1] pointer-events-none" />
+                  </div>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-[#a1a1a1]">End Date</label>
+                  <div className="relative">
+                    <Input
+                      type="date"
+                      value={filters.updatedAtEndDate}
+                      onChange={(e) =>
+                        onFiltersChange({
+                          ...filters,
+                          updatedAtEndDate: e.target.value,
                         })
                       }
                       className="w-full bg-[#262626] border-[#404040] text-white scheme-dark pr-10 [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer"
