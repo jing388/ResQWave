@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { AlarmInfoSheet } from "./components/AlarmInfoSheet";
 import { createColumns } from "./components/Column";
 import { DataTable } from "./components/DataTable";
@@ -9,13 +10,15 @@ import { useAlarms } from "./hooks/useAlarms";
 import type { Alarm } from "./types";
 
 export function Alarms() {
+  const [activeTab, setActiveTab] = useState<"active" | "cleared">("active");
   const [searchVisible, setSearchVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedAlarm, setSelectedAlarm] = useState<Alarm | null>(null);
   const [infoSheetOpen, setInfoSheetOpen] = useState(false);
+  const navigate = useNavigate();
   
   // Use the custom hook to fetch alarms from backend
-  const { alarms, loading, error, refreshData } = useAlarms();
+  const { activeAlarms, clearedAlarms, loading, error, refreshData } = useAlarms();
 
   const handleMoreInfo = (alarm: Alarm) => {
     setSelectedAlarm(alarm);
@@ -23,8 +26,10 @@ export function Alarms() {
   };
 
   const handleEdit = (alarm: Alarm) => {
-    console.log("Edit alarm:", alarm);
-    // TODO: Implement edit functionality
+    // Navigate to Dashboard map view with terminal info
+    navigate(
+      `/dashboard?tab=map-view&terminalID=${alarm.terminalId}&terminalName=${encodeURIComponent(alarm.terminalName)}&autoOpen=true`
+    );
   };
 
   const handleArchive = (alarm: Alarm) => {
@@ -56,7 +61,9 @@ export function Alarms() {
     );
   };
 
-  const filteredAlarms = filterAlarms(alarms);
+  // Get the appropriate data based on active tab
+  const currentAlarms = activeTab === "active" ? activeAlarms : clearedAlarms;
+  const filteredAlarms = filterAlarms(currentAlarms);
 
   // Show loading state
   if (loading) {
@@ -70,32 +77,71 @@ export function Alarms() {
     );
   }
 
-  // Show error state
-  if (error) {
-    return (
-      <div className="bg-[#171717] text-white p-4 sm:p-6 flex flex-col h-[calc(100vh-73px)] items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <p className="text-lg text-red-500">Error: {error}</p>
-          <Button
-            onClick={refreshData}
-            className="bg-white text-black hover:bg-gray-200"
-          >
-            Retry
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="bg-[#171717] text-white p-4 sm:p-6 flex flex-col h-[calc(100vh-73px)]">
       <div className="w-full max-w-9xl mx-auto flex-1 flex flex-col min-h-0">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-2 md:mb-4 gap-4">
-          <div className="flex flex-col gap-1">
-            <h1 className="text-2xl font-bold">Alarms</h1>
+        {/* Error Alert */}
+        {error && (
+          <div className="mb-4 p-4 bg-red-900/20 border border-red-800 rounded-lg flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <svg
+                className="h-5 w-5 text-red-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.99-.833-2.76 0L3.054 16.5c-.77.833.192 2.5 1.732 2.5z"
+                />
+              </svg>
+              <span className="text-red-400">Error: {error}</span>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={refreshData}
+              className="text-red-400 hover:text-red-300 hover:bg-red-900/30"
+            >
+              Retry
+            </Button>
           </div>
-
-          <div className="flex items-center gap-1">
+        )}
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-4 md:mb-6 gap-4">
+          <div className="flex flex-col md:flex-row items-start md:items-center gap-4 md:gap-6">
+            <h1 className="text-2xl font-semibold text-white">Alarms</h1>
+            <div className="flex items-center gap-1 bg-[#262626] rounded-[5px] p-1">
+              <button
+                onClick={() => setActiveTab("active")}
+                className={`px-4 py-2 rounded-[5px] text-sm font-medium transition-colors ${
+                  activeTab === "active"
+                    ? "bg-[#404040] text-white"
+                    : "bg-transparent text-[#a1a1a1] hover:text-white"
+                }`}
+              >
+                Active
+                <span className="ml-2 px-2 py-0.5 bg-[#707070] rounded text-xs">
+                  {activeAlarms.length}
+                </span>
+              </button>
+              <button
+                onClick={() => setActiveTab("cleared")}
+                className={`px-4 py-2 rounded-[5px] text-sm font-medium transition-colors ${
+                  activeTab === "cleared"
+                    ? "bg-[#404040] text-white"
+                    : "bg-transparent text-[#a1a1a1] hover:text-white"
+                }`}
+              >
+                Cleared
+                <span className="ml-2 px-2 py-0.5 bg-[#707070] rounded text-xs">
+                  {clearedAlarms.length}
+                </span>
+              </button>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
             <div
               className={`transition-all duration-300 ease-in-out overflow-hidden ${
                 searchVisible ? "w-64 opacity-100" : "w-0 opacity-0"

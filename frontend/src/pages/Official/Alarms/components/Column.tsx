@@ -59,26 +59,6 @@ export const createColumns = (
     ),
   },
   {
-    accessorKey: "status",
-    header: "Status",
-    cell: ({ row }) => {
-      const status = row.getValue("status") as string;
-      const isActive = status === "Active";
-      
-      return (
-        <div
-          className={`inline-flex items-center justify-center px-3 py-1 rounded-[5px] border text-xs font-medium uppercase ${
-            isActive
-              ? "border-green-500 text-green-500 bg-green-500/10"
-              : "border-blue-500 text-blue-500 bg-blue-500/10"
-          }`}
-        >
-          {status}
-        </div>
-      );
-    },
-  },
-  {
     accessorKey: "severity",
     header: "Severity",
     cell: ({ row }) => {
