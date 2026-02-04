@@ -2,6 +2,7 @@ const { AppDataSource } = require("../config/dataSource");
 const { getCache, setCache } = require("../config/cache");
 const { UnauthorizedError } = require("../exceptions");
 const catchAsync = require("../utils/catchAsync");
+const { toLocaleDateLabel, toLocaleTimeString, toLocaleDateTimeString } = require("../services/timestampService");
 
 const logRepo = AppDataSource.getRepository("Log");
 const focalRepo = AppDataSource.getRepository("FocalPerson");
@@ -32,16 +33,16 @@ const getOwnLogs = catchAsync(async (req, res, next) => {
     // Group by day, then by createdAt+entityType (to keep Neighborhood and FocalPerson separate)
     const byDay = {};
     for (const r of rows) {
-      const d = new Date(r.createdAt);
-      const dateLabel = d.toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" });
-      // Format createdAt up to the second (YYYY-MM-DD HH:mm:ss)
-      const createdAtSec = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, '0') + "-" + String(d.getDate()).padStart(2, '0') + " " + String(d.getHours()).padStart(2, '0') + ":" + String(d.getMinutes()).padStart(2, '0') + ":" + String(d.getSeconds()).padStart(2, '0');
+      // Convert UTC to Philippine timezone
+      const dateLabel = toLocaleDateLabel(r.createdAt);
+      const createdAtSec = toLocaleDateTimeString(r.createdAt);
+      
       // Combine createdAt and entityType to keep them separate even if same timestamp
       const groupKey = `${createdAtSec}|${r.entityType}`;
       if (!byDay[dateLabel]) byDay[dateLabel] = {};
       if (!byDay[dateLabel][groupKey]) byDay[dateLabel][groupKey] = [];
       byDay[dateLabel][groupKey].push({
-        time: d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }),
+        time: toLocaleTimeString(r.createdAt),
         actorName,
         entityType: r.entityType,
         field: r.field,

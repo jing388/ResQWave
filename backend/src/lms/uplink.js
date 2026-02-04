@@ -31,6 +31,8 @@ function mapTerminal(rawId) {
 
 const handleUplink = async (req, res) => {
   try {
+    console.log('[LMS Uplink] Received webhook data:', JSON.stringify(req.body, null, 2));
+    
     const result = decodePayloadFromLMS(req.body);
 
     const mappedTerminalId = mapTerminal(result.decoded.terminalID);
