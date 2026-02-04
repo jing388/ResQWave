@@ -339,7 +339,7 @@ export function MapView() {
               terminalID: targetPin.terminalID,
               terminalName: terminalName || targetPin.terminalName || "",
               terminalStatus: targetPin.terminalStatus,
-              timeSent: targetPin.latestAlertTime,
+              timeSent: targetPin.latestAlertTime || "",
               focalPerson: targetPin.focalPerson,
               address: addressString,
               contactNumber: targetPin.contactNumber,
