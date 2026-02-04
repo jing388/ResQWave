@@ -1,6 +1,7 @@
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import useSignals from "../../Visualization/hooks/useSignals";
 import { cinematicMapEntrance } from "../../Visualization/utils/flyingEffects";
 import { useMapPins } from "../hooks/useMapPins";
@@ -14,7 +15,8 @@ mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN;
 export function MapView() {
   const mapContainer = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
-  const [, setMapLoaded] = useState(false);
+  const [mapLoaded, setMapLoaded] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
 
   // Get signals from the centralized hook
   const signals = useSignals();
@@ -262,6 +264,123 @@ export function MapView() {
     };
 
   }, []);
+
+  // Auto-open pin when coming from Alarms module
+  useEffect(() => {
+    const autoOpen = searchParams.get("autoOpen");
+    const terminalID = searchParams.get("terminalID");
+    const terminalName = searchParams.get("terminalName");
+
+    // Wait for map to be loaded, pins to be loaded, and signals to be available
+    if (
+      autoOpen === "true" &&
+      terminalID &&
+      mapLoaded &&
+      !pinsLoading &&
+      pins.length > 0 &&
+      mapRef.current &&
+      mapContainer.current
+    ) {
+      console.log("[MapView] Auto-opening terminal:", terminalID);
+
+      // Find the pin for this terminal
+      const targetPin = pins.find((pin) => pin.terminalID === terminalID);
+      console.log("[MapView] Target pin found:", targetPin);
+
+      if (targetPin) {
+        const map = mapRef.current;
+
+        // Get the pin's coordinates from signals
+        const allSignals = [
+          ...otherSignals,
+          ...(OwnCommunitySignal ? [OwnCommunitySignal] : []),
+        ];
+        const signal = allSignals.find(
+          (s) => s.properties.deviceId === terminalID
+        );
+        console.log("[MapView] Signal found:", signal);
+
+        if (signal) {
+          const coord: [number, number] = signal.coordinates;
+
+          // Fly to the terminal location
+          map.flyTo({
+            center: coord,
+            zoom: 15,
+            duration: 2000,
+            essential: true,
+          });
+
+          // Wait for fly animation to complete, then open popover
+          setTimeout(() => {
+            if (!mapContainer.current) return;
+
+            const pt = map.project(coord);
+            const rect = mapContainer.current.getBoundingClientRect();
+            const absX = rect.left + pt.x;
+            const absY = rect.top + pt.y;
+
+            console.log("[MapView] Opening popover at:", { absX, absY });
+
+            // Extract address string from address object
+            let addressString = "";
+            if (typeof targetPin.address === "string") {
+              addressString = targetPin.address;
+            } else if (targetPin.address && typeof targetPin.address === "object" && "address" in targetPin.address) {
+              // If it's an object, try to extract the address property
+              const addr = (targetPin.address as Record<string, unknown>).address;
+              addressString = (typeof addr === "string" ? addr : "") || "";
+            }
+
+            setPopover({
+              lng: coord[0],
+              lat: coord[1],
+              screen: { x: absX, y: absY },
+              terminalID: targetPin.terminalID,
+              terminalName: terminalName || targetPin.terminalName || "",
+              terminalStatus: targetPin.terminalStatus,
+              timeSent: targetPin.latestAlertTime,
+              focalPerson: targetPin.focalPerson,
+              address: addressString,
+              contactNumber: targetPin.contactNumber,
+              totalAlerts: targetPin.totalAlerts,
+            });
+
+            // Clear only the auto-open params after popover is set
+            const newParams = new URLSearchParams(searchParams);
+            newParams.delete("autoOpen");
+            newParams.delete("terminalID");
+            newParams.delete("terminalName");
+            setSearchParams(newParams);
+          }, 2100);
+        } else {
+          console.warn("[MapView] Signal not found for terminal:", terminalID);
+          // Clear params even if signal not found
+          const newParams = new URLSearchParams(searchParams);
+          newParams.delete("autoOpen");
+          newParams.delete("terminalID");
+          newParams.delete("terminalName");
+          setSearchParams(newParams);
+        }
+      } else {
+        console.warn("[MapView] Pin not found for terminal:", terminalID);
+        // Clear params even if pin not found
+        const newParams = new URLSearchParams(searchParams);
+        newParams.delete("autoOpen");
+        newParams.delete("terminalID");
+        newParams.delete("terminalName");
+        setSearchParams(newParams);
+      }
+    }
+  }, [
+    searchParams,
+    pins,
+    pinsLoading,
+    otherSignals,
+    OwnCommunitySignal,
+    mapLoaded,
+    setSearchParams,
+  ]);
 
   // Update map layers when signals change
   useEffect(() => {
