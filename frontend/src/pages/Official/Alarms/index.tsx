@@ -44,7 +44,7 @@ export function Alarms() {
         onEdit: handleEdit,
         onArchive: handleArchive,
       }),
-    [],
+    [handleMoreInfo, handleEdit, handleArchive],
   );
 
   // Filter function for search
