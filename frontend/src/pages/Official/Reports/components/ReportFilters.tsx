@@ -39,11 +39,14 @@ export function ReportFilters({
 }: ReportFiltersProps) {
   const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
 
-  const updateFilter = (key: keyof FilterState, value: string | Date | undefined) => {
+  const updateFilter = (
+    key: keyof FilterState,
+    value: string | Date | undefined,
+  ) => {
     onFiltersChange({ ...filters, [key]: value });
   };
 
-  const hasActiveFilters = 
+  const hasActiveFilters =
     filters.alertType !== "all" ||
     filters.dateRange !== "all" ||
     filters.dispatcher !== "all" ||
@@ -74,7 +77,10 @@ export function ReportFilters({
             Filter
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-80 bg-[#2a2a2a] border-[#404040] p-4" align="end">
+        <PopoverContent
+          className="w-80 bg-[#2a2a2a] border-[#404040] p-4"
+          align="end"
+        >
           <div className="flex flex-col gap-4">
             {/* Alert Type Filter */}
             <div className="flex flex-col gap-1">
@@ -174,9 +180,15 @@ export function ReportFilters({
                   <div className="relative">
                     <Input
                       type="date"
-                      value={filters.customStartDate ? filters.customStartDate.toISOString().split('T')[0] : ''}
+                      value={
+                        filters.customStartDate
+                          ? filters.customStartDate.toISOString().split("T")[0]
+                          : ""
+                      }
                       onChange={(e) => {
-                        const date = e.target.value ? new Date(e.target.value) : undefined;
+                        const date = e.target.value
+                          ? new Date(e.target.value)
+                          : undefined;
                         updateFilter("customStartDate", date);
                       }}
                       className="w-full bg-[#262626] border-[#404040] text-white hover:bg-[#333333] [color-scheme:dark] pr-10 [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer"
@@ -190,12 +202,22 @@ export function ReportFilters({
                   <div className="relative">
                     <Input
                       type="date"
-                      value={filters.customEndDate ? filters.customEndDate.toISOString().split('T')[0] : ''}
+                      value={
+                        filters.customEndDate
+                          ? filters.customEndDate.toISOString().split("T")[0]
+                          : ""
+                      }
                       onChange={(e) => {
-                        const date = e.target.value ? new Date(e.target.value) : undefined;
+                        const date = e.target.value
+                          ? new Date(e.target.value)
+                          : undefined;
                         updateFilter("customEndDate", date);
                       }}
-                      min={filters.customStartDate ? filters.customStartDate.toISOString().split('T')[0] : undefined}
+                      min={
+                        filters.customStartDate
+                          ? filters.customStartDate.toISOString().split("T")[0]
+                          : undefined
+                      }
                       className="w-full bg-[#262626] border-[#404040] text-white hover:bg-[#333333] [color-scheme:dark] pr-10 [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer"
                     />
                     <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white pointer-events-none" />

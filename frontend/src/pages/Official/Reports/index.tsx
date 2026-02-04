@@ -5,13 +5,17 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs-focal";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRef, useState, useMemo } from "react";
 import { ReportsTable } from "./components";
-import ReportAlerts, { type ReportAlertsHandle } from "./components/ReportAlerts";
+import ReportAlerts, {
+  type ReportAlertsHandle,
+} from "./components/ReportAlerts";
 import { ReportFilters, type FilterState } from "./components/ReportFilters";
 import { useReports } from "./hooks/useReports";
 
 export function Reports() {
   const { isAdmin } = useAuth();
-  const [activeTab, setActiveTab] = useState(isAdmin() ? "completed" : "pending");
+  const [activeTab, setActiveTab] = useState(
+    isAdmin() ? "completed" : "pending",
+  );
   const [searchVisible, setSearchVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const alertsRef = useRef<ReportAlertsHandle>(null);
@@ -44,7 +48,7 @@ export function Reports() {
     } catch (err) {
       console.error("Failed to archive report:", err);
       alertsRef.current?.showError(
-        err instanceof Error ? err.message : "Failed to archive report"
+        err instanceof Error ? err.message : "Failed to archive report",
       );
     }
   };
@@ -59,7 +63,7 @@ export function Reports() {
     } catch (err) {
       console.error("Failed to restore report:", err);
       alertsRef.current?.showError(
-        err instanceof Error ? err.message : "Failed to restore report"
+        err instanceof Error ? err.message : "Failed to restore report",
       );
     }
   };
@@ -73,7 +77,7 @@ export function Reports() {
       } catch (err) {
         console.error("Failed to delete report:", err);
         alertsRef.current?.showError(
-          err instanceof Error ? err.message : "Failed to delete report"
+          err instanceof Error ? err.message : "Failed to delete report",
         );
       }
     });
@@ -93,9 +97,19 @@ export function Reports() {
   // Get date range for filtering
   const getDateRange = () => {
     const now = new Date();
-    const startOfDay = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
-    const endOfDay = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 999);
-    
+    const startOfDay = (date: Date) =>
+      new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const endOfDay = (date: Date) =>
+      new Date(
+        date.getFullYear(),
+        date.getMonth(),
+        date.getDate(),
+        23,
+        59,
+        59,
+        999,
+      );
+
     switch (filters.dateRange) {
       case "today":
         return { start: startOfDay(now), end: endOfDay(now) };
@@ -128,31 +142,41 @@ export function Reports() {
   };
 
   // Filter function for search and filters
-  const filterReports = <T extends { 
-    emergencyId: string; 
-    communityName: string; 
-    alertType: string; 
-    dispatcher: string; 
-    address: string;
-    dateTimeOccurred: string;
-  }>(reports: T[]) => {
+  const filterReports = <
+    T extends {
+      emergencyId: string;
+      communityName: string;
+      alertType: string;
+      dispatcher: string;
+      address: string;
+      dateTimeOccurred: string;
+    },
+  >(
+    reports: T[],
+  ) => {
     let filtered = reports;
 
     // Apply search filter
     if (searchQuery.trim()) {
       filtered = filtered.filter(
         (report) =>
-          report.emergencyId.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          report.communityName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          report.emergencyId
+            .toLowerCase()
+            .includes(searchQuery.toLowerCase()) ||
+          report.communityName
+            .toLowerCase()
+            .includes(searchQuery.toLowerCase()) ||
           report.alertType.toLowerCase().includes(searchQuery.toLowerCase()) ||
           report.dispatcher.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          report.address.toLowerCase().includes(searchQuery.toLowerCase())
+          report.address.toLowerCase().includes(searchQuery.toLowerCase()),
       );
     }
 
     // Apply alert type filter
     if (filters.alertType !== "all") {
-      filtered = filtered.filter((report) => report.alertType === filters.alertType);
+      filtered = filtered.filter(
+        (report) => report.alertType === filters.alertType,
+      );
     }
 
     // Apply date range filter
@@ -166,12 +190,16 @@ export function Reports() {
 
     // Apply dispatcher filter
     if (filters.dispatcher !== "all") {
-      filtered = filtered.filter((report) => report.dispatcher === filters.dispatcher);
+      filtered = filtered.filter(
+        (report) => report.dispatcher === filters.dispatcher,
+      );
     }
 
     // Apply barangay filter
     if (filters.barangay !== "all") {
-      filtered = filtered.filter((report) => report.communityName === filters.barangay);
+      filtered = filtered.filter(
+        (report) => report.communityName === filters.barangay,
+      );
     }
 
     return filtered;
@@ -319,7 +347,7 @@ export function Reports() {
                   </TabsList>
                 </Tabs>
               </div>
-              
+
               {/* Right side: Filters, Search and Refresh */}
               <div className="flex items-center gap-2">
                 <ReportFilters
