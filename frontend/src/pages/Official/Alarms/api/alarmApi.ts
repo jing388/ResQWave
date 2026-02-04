@@ -73,6 +73,58 @@ export const alarmApi = {
     }
   },
 
+  // Fetch active alarms
+  getActiveAlarms: async (): Promise<Alarm[]> => {
+    try {
+      const token = localStorage.getItem("resqwave_token");
+      
+      const response = await fetch(`${API_BASE_URL}/alarms/active`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch active alarms: ${response.statusText}`);
+      }
+
+      const data: BackendAlarm[] = await response.json();
+      return data.map(transformAlarmData);
+    } catch (error) {
+      console.error("Error fetching active alarms:", error);
+      throw error;
+    }
+  },
+
+  // Fetch cleared alarms
+  getClearedAlarms: async (): Promise<Alarm[]> => {
+    try {
+      const token = localStorage.getItem("resqwave_token");
+      
+      const response = await fetch(`${API_BASE_URL}/alarms/cleared`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch cleared alarms: ${response.statusText}`);
+      }
+
+      const data: BackendAlarm[] = await response.json();
+      return data.map(transformAlarmData);
+    } catch (error) {
+      console.error("Error fetching cleared alarms:", error);
+      throw error;
+    }
+  },
+
   // Create a new alarm
   createAlarm: async (alarmData: {
     terminalID: string;

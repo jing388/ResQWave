@@ -3,17 +3,25 @@ import { alarmApi } from "../api/alarmApi";
 import type { Alarm } from "../types";
 
 export const useAlarms = () => {
-  const [alarms, setAlarms] = useState<Alarm[]>([]);
+  const [activeAlarms, setActiveAlarms] = useState<Alarm[]>([]);
+  const [clearedAlarms, setClearedAlarms] = useState<Alarm[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch all alarms
+  // Fetch active and cleared alarms
   const fetchAlarms = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await alarmApi.getAllAlarms();
-      setAlarms(data);
+      
+      // Fetch both active and cleared alarms in parallel
+      const [activeData, clearedData] = await Promise.all([
+        alarmApi.getActiveAlarms(),
+        alarmApi.getClearedAlarms(),
+      ]);
+      
+      setActiveAlarms(activeData);
+      setClearedAlarms(clearedData);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to fetch alarms";
       setError(errorMessage);
@@ -33,7 +41,14 @@ export const useAlarms = () => {
     }) => {
       try {
         const newAlarm = await alarmApi.createAlarm(alarmData);
-        setAlarms((prev) => [newAlarm, ...prev]);
+        
+        // Add to appropriate list based on status
+        if (newAlarm.status === "Active") {
+          setActiveAlarms((prev) => [newAlarm, ...prev]);
+        } else if (newAlarm.status === "Cleared") {
+          setClearedAlarms((prev) => [newAlarm, ...prev]);
+        }
+        
         return newAlarm;
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : "Failed to create alarm";
@@ -54,7 +69,8 @@ export const useAlarms = () => {
   }, [fetchAlarms]);
 
   return {
-    alarms,
+    activeAlarms,
+    clearedAlarms,
     loading,
     error,
     createAlarm,
