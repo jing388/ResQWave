@@ -426,7 +426,10 @@ const updateRescueFormStatus = catchAsync(async (req, res, next) => {
         }
 
     // 7. Invalidate Cache & Return
-    await deleteCache(`rescueForm:${alertID}`);
+    if (form && form.id) {
+        await deleteCache(`rescueForm:${form.id}`);
+    }
+    await deleteCache(`rescueForm:${alertID}`); // Keep for safety if used elsewhere
     await deleteCache("rescueForms:all"); // Invalidate the "all forms" cache
     await deleteCache("rescueAggregatesBasic:all"); // Invalidate aggregated cache
     await deleteCache(`rescueAggregatesBasic:${alertID}`);

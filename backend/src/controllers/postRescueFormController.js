@@ -970,11 +970,15 @@ const deletePostRescueForm = catchAsync(async (req, res, next) => {
     // Permanently delete the post rescue form
     await postRescueRepo.remove(form);
 
+    // Get Rescue Form to invalidate correct ID
+    const rescueForm = await rescueFormRepo.findOne({ where: { emergencyID: alertID } });
+    const rescueFormCacheKey = rescueForm ? `rescueForm:${rescueForm.id}` : null;
+
     // Cache invalidation
     await deleteCache("completedReports");
     await deleteCache("pendingReports");
     await deleteCache("rescueForms:all");
-    await deleteCache(`rescueForm:${form.id}`);
+    if (rescueFormCacheKey) await deleteCache(rescueFormCacheKey);
     await deleteCache(`alert:${alertID}`);
     await deleteCache("aggregatedReports:all");
     await deleteCache("aggregatedPRF:all");
