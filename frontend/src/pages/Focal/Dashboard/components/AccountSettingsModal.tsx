@@ -109,7 +109,7 @@ export default function AccountSettingsModal({ open, onClose, onSaved, onSavePro
     const [phoneNumber, setPhoneNumber] = useState('');
     const [email, setEmail] = useState('');
     const [lastUpdated, setLastUpdated] = useState<string | null>(null);
-    const [isVerified, setIsVerified] = useState(false);
+    const [_isVerified, setIsVerified] = useState(false);
 
     // Validation errors
     const [firstNameError, setFirstNameError] = useState('');
