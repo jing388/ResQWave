@@ -159,7 +159,6 @@ const viewMapOwnNeighborhood = catchAsync(async (req, res, next) => {
 
     const nb = await neighborhoodRepo.findOne({
       where: { focalPersonID, archived: false },
-    relations: ['terminal'],
   });
   
   console.log('🔍 [viewMapOwnNeighborhood] Neighborhood query result:', nb);
@@ -171,10 +170,17 @@ const viewMapOwnNeighborhood = catchAsync(async (req, res, next) => {
   
   if (!nb) return next(new NotFoundError("Neighborhood not found"));
 
+    // Fetch terminal name if terminal is linked
+    let terminalName = null;
+    if (nb.terminalID) {
+      const terminal = await terminalRepo.findOne({ where: { id: nb.terminalID } });
+      terminalName = terminal?.name || null;
+    }
+
     const payload = {
       neighborhoodID: nb.id,
       terminalID: nb.terminalID,
-      terminalName: nb.terminal?.name || null,
+      terminalName,
       focalPerson: {
         name: [focal.firstName, focal.lastName].filter(Boolean).join(" ").trim() || focal.name || null,
         alternativeFPFirstName: focal.altFirstName || null,
@@ -244,7 +250,7 @@ const viewOtherNeighborhoods = catchAsync(async (req, res, next) => {
     // Get all neighborhoods except own, with focal person info and terminal name
     const neighborhoods = await neighborhoodRepo
       .createQueryBuilder("n")
-      .leftJoinAndSelect("n.terminal", "t")
+      .leftJoin("terminals", "t", "t.id = n.terminalID")
       .select(["n.id", "n.terminalID", "n.hazards", "n.createdAt", "n.focalPersonID", "t.name"])
       .where("n.archived = :arch", { arch: false })
       .andWhere(ownNeighborhoodId ? "n.id <> :own" : "1=1", { own: ownNeighborhoodId })
