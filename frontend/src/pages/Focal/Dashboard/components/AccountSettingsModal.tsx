@@ -31,7 +31,7 @@ export default function AccountSettingsModal({ open, onClose, onSaved, onSavePro
             setPhoneNumber(data.contactNumber || '');
             setEmail(data.email || '');
             setLastUpdated(data.passwordLastUpdated || null);
-            setIsVerified(!!data.approvedBy);
+            // setIsVerified(!!data.approvedBy); // Removed: not used in UI
             setInitialProfile((prev) => ({
                 ...prev,
                 firstName: data.firstName || '',
@@ -288,7 +288,7 @@ export default function AccountSettingsModal({ open, onClose, onSaved, onSavePro
                 setPhoneNumber(data.contactNumber || '');
                 setEmail(data.email || '');
                 setLastUpdated(data.passwordLastUpdated || null);
-                setIsVerified(!!data.approvedBy);
+                // setIsVerified(!!data.approvedBy); // Removed: not used in UI
                 setInitialProfile((prev) => ({
                     ...prev,
                     firstName: data.firstName || '',

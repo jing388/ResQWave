@@ -326,10 +326,11 @@ export default function HistoryModal({ open, onClose, center = null }: HistoryMo
                             return resources.map((r: unknown) => {
                                 if (typeof r === 'string') return r;
                                 if (typeof r === 'object' && r !== null) {
+                                    const resource = r as { resource?: string; name?: string; quantity?: number; description?: string };
                                     const parts = [];
-                                    if (r.resource || r.name) parts.push(r.resource || r.name);
-                                    if (r.quantity) parts.push(`Quantity: ${r.quantity}`);
-                                    if (r.description) parts.push(r.description);
+                                    if (resource.resource || resource.name) parts.push(resource.resource || resource.name);
+                                    if (resource.quantity) parts.push(`Quantity: ${resource.quantity}`);
+                                    if (resource.description) parts.push(resource.description);
                                     return parts.length > 0 ? parts.join(' - ') : JSON.stringify(r);
                                 }
                                 return String(r);
