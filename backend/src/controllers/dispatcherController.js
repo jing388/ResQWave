@@ -291,7 +291,7 @@ const archiveDispatchers = catchAsync(async (req, res) => {
 
     const archivedDispatchers = await dispatcherRepo.find({
         where: { archived: true },
-        select: ["id", "name", "contactNumber", "email", "updatedAt"] // using updatedAt instead of archivedAt 
+        select: ["id", "name", "contactNumber", "email", "updatedAt", "createdAt"] // using updatedAt instead of archivedAt 
     });
 
     await setCache(cacheKey, archivedDispatchers, 120);
