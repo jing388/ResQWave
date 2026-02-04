@@ -159,11 +159,12 @@ const viewMapOwnNeighborhood = catchAsync(async (req, res, next) => {
 
     const nb = await neighborhoodRepo.findOne({
       where: { focalPersonID, archived: false },
-    });
-    
-    console.log('🔍 [viewMapOwnNeighborhood] Neighborhood query result:', nb);
-    console.log('🔍 [viewMapOwnNeighborhood] Looking for focalPersonID:', focalPersonID);
-    
+    relations: ['terminal'],
+  });
+  
+  console.log('🔍 [viewMapOwnNeighborhood] Neighborhood query result:', nb);
+  console.log('🔍 [viewMapOwnNeighborhood] Looking for focalPersonID:', focalPersonID);
+  
   // DEBUG: Let's see all neighborhoods to compare
   const allNbs = await neighborhoodRepo.find({ where: { archived: false } });
   console.log('🔍 [viewMapOwnNeighborhood] All neighborhoods:', allNbs.map(n => ({ id: n.id, focalPersonID: n.focalPersonID })));
@@ -173,6 +174,7 @@ const viewMapOwnNeighborhood = catchAsync(async (req, res, next) => {
     const payload = {
       neighborhoodID: nb.id,
       terminalID: nb.terminalID,
+      terminalName: nb.terminal?.name || null,
       focalPerson: {
         name: [focal.firstName, focal.lastName].filter(Boolean).join(" ").trim() || focal.name || null,
         alternativeFPFirstName: focal.altFirstName || null,
@@ -239,10 +241,11 @@ const viewOtherNeighborhoods = catchAsync(async (req, res, next) => {
       ownNeighborhoodId = nb?.id || null;
     }
 
-    // Get all neighborhoods except own, with focal person info
+    // Get all neighborhoods except own, with focal person info and terminal name
     const neighborhoods = await neighborhoodRepo
       .createQueryBuilder("n")
-      .select(["n.id", "n.terminalID", "n.hazards", "n.createdAt", "n.focalPersonID"])
+      .leftJoinAndSelect("n.terminal", "t")
+      .select(["n.id", "n.terminalID", "n.hazards", "n.createdAt", "n.focalPersonID", "t.name"])
       .where("n.archived = :arch", { arch: false })
       .andWhere(ownNeighborhoodId ? "n.id <> :own" : "1=1", { own: ownNeighborhoodId })
       .getRawMany();
@@ -264,6 +267,7 @@ const viewOtherNeighborhoods = catchAsync(async (req, res, next) => {
       neighborhoods.map((n) => ({
         neighborhoodID: n.n_id,
         terminalID: n.n_terminalID || null,
+        terminalName: n.t_name || null,
         hazards: parseHazards(n.n_hazards),
         createdDate: n.n_createdAt ?? null,
       address: byFocalId[n.n_focalPersonID]?.f_address || null,
