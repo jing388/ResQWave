@@ -128,6 +128,7 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
       socketInstance.off('disconnect', handleDisconnect);
       isInitializing.current = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   return (

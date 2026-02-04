@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { RefreshCcw, Search } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { AlarmFilters, type FilterState } from "./components/AlarmFilters";
 import { useNavigate } from "react-router-dom";
 import { AlarmInfoSheet } from "./components/AlarmInfoSheet";
@@ -31,22 +31,22 @@ export function Alarms() {
   // Use the custom hook to fetch alarms from backend
   const { activeAlarms, clearedAlarms, loading, error, refreshData } = useAlarms();
 
-  const handleMoreInfo = (alarm: Alarm) => {
+  const handleMoreInfo = useCallback((alarm: Alarm) => {
     setSelectedAlarm(alarm);
     setInfoSheetOpen(true);
-  };
+  }, []);
 
-  const handleEdit = (alarm: Alarm) => {
+  const handleEdit = useCallback((alarm: Alarm) => {
     // Navigate to Dashboard map view with terminal info
     navigate(
       `/dashboard?tab=map-view&terminalID=${alarm.terminalId}&terminalName=${encodeURIComponent(alarm.terminalName)}&autoOpen=true`
     );
-  };
+  }, [navigate]);
 
-  const handleArchive = (alarm: Alarm) => {
+  const handleArchive = useCallback((alarm: Alarm) => {
     console.log("Archive alarm:", alarm);
     // TODO: Implement archive functionality
-  };
+  }, []);
 
   const columns = useMemo(
     () =>
