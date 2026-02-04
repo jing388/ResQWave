@@ -337,7 +337,7 @@ export function MapView() {
               lat: coord[1],
               screen: { x: absX, y: absY },
               terminalID: targetPin.terminalID,
-              terminalName: terminalName ?? targetPin.terminalName,
+              terminalName: terminalName || targetPin.terminalName || "",
               terminalStatus: targetPin.terminalStatus,
               timeSent: targetPin.latestAlertTime,
               focalPerson: targetPin.focalPerson,
