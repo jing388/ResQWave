@@ -15,24 +15,26 @@ import {
 import { Calendar, Filter, X } from "lucide-react";
 
 export interface FilterState {
+  status: string;
+  availability: string;
   dateRange: string;
   customStartDate: string;
   customEndDate: string;
 }
 
-interface DispatcherFiltersProps {
+interface TerminalFiltersProps {
   filters: FilterState;
   onFiltersChange: (filters: FilterState) => void;
   isFiltered: boolean;
   onClearFilters: () => void;
 }
 
-export function DispatcherFilters({
+export function TerminalFilters({
   filters,
   onFiltersChange,
   isFiltered,
   onClearFilters,
-}: DispatcherFiltersProps) {
+}: TerminalFiltersProps) {
   return (
     <div className="flex items-center gap-4">
       <Popover>
@@ -51,6 +53,76 @@ export function DispatcherFilters({
           className="w-80 bg-[#2a2a2a] border-[#404040] p-4"
         >
           <div className="flex flex-col gap-4">
+            {/* Status Filter */}
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-[#a1a1a1]">Status</label>
+              <Select
+                value={filters.status}
+                onValueChange={(value) =>
+                  onFiltersChange({ ...filters, status: value })
+                }
+              >
+                <SelectTrigger className="w-full bg-[#262626] border-[#404040] text-white hover:bg-[#333333]">
+                  <SelectValue placeholder="All Statuses" />
+                </SelectTrigger>
+                <SelectContent className="bg-[#2a2a2a] border-[#404040]">
+                  <SelectItem
+                    value="all"
+                    className="text-white hover:bg-[#404040] hover:text-white focus:bg-[#404040] focus:text-white"
+                  >
+                    All Statuses
+                  </SelectItem>
+                  <SelectItem
+                    value="Online"
+                    className="text-white hover:bg-[#404040] hover:text-white focus:bg-[#404040] focus:text-white"
+                  >
+                    Online
+                  </SelectItem>
+                  <SelectItem
+                    value="Offline"
+                    className="text-white hover:bg-[#404040] hover:text-white focus:bg-[#404040] focus:text-white"
+                  >
+                    Offline
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Availability Filter */}
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-[#a1a1a1]">Availability</label>
+              <Select
+                value={filters.availability}
+                onValueChange={(value) =>
+                  onFiltersChange({ ...filters, availability: value })
+                }
+              >
+                <SelectTrigger className="w-full bg-[#262626] border-[#404040] text-white hover:bg-[#333333]">
+                  <SelectValue placeholder="All" />
+                </SelectTrigger>
+                <SelectContent className="bg-[#2a2a2a] border-[#404040]">
+                  <SelectItem
+                    value="all"
+                    className="text-white hover:bg-[#404040] hover:text-white focus:bg-[#404040] focus:text-white"
+                  >
+                    All
+                  </SelectItem>
+                  <SelectItem
+                    value="Available"
+                    className="text-white hover:bg-[#404040] hover:text-white focus:bg-[#404040] focus:text-white"
+                  >
+                    Available
+                  </SelectItem>
+                  <SelectItem
+                    value="Occupied"
+                    className="text-white hover:bg-[#404040] hover:text-white focus:bg-[#404040] focus:text-white"
+                  >
+                    Occupied
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             {/* Date Range Filter */}
             <div className="flex flex-col gap-1">
               <label className="text-xs text-[#a1a1a1]">Created Date</label>
@@ -126,7 +198,7 @@ export function DispatcherFilters({
                           customStartDate: e.target.value,
                         })
                       }
-                      className="w-full bg-[#262626] border-[#404040] text-white [color-scheme:dark] pr-10 [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+                      className="w-full bg-[#262626] border-[#404040] text-white scheme-dark pr-10 [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer"
                     />
                     <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#a1a1a1] pointer-events-none" />
                   </div>
@@ -143,7 +215,7 @@ export function DispatcherFilters({
                           customEndDate: e.target.value,
                         })
                       }
-                      className="w-full bg-[#262626] border-[#404040] text-white [color-scheme:dark] pr-10 [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+                      className="w-full bg-[#262626] border-[#404040] text-white scheme-dark pr-10 [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer"
                     />
                     <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#a1a1a1] pointer-events-none" />
                   </div>

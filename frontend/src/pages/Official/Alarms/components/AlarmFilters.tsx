@@ -15,27 +15,30 @@ import {
 import { Calendar, Filter, X } from "lucide-react";
 
 export interface FilterState {
-  terminalStatus: string;
+  status: string;
+  severity: string;
+  alertType: string;
   dateRange: string;
   customStartDate: string;
   customEndDate: string;
 }
 
-interface NeighborhoodFiltersProps {
+interface AlarmFiltersProps {
   filters: FilterState;
   onFiltersChange: (filters: FilterState) => void;
-  isFiltered: boolean;
   onClearFilters: () => void;
+  isFiltered: boolean;
 }
 
-export function NeighborhoodFilters({
+export function AlarmFilters({
   filters,
   onFiltersChange,
-  isFiltered,
   onClearFilters,
-}: NeighborhoodFiltersProps) {
+  isFiltered,
+}: AlarmFiltersProps) {
   return (
     <div className="flex items-center gap-4">
+      {/* Filter Button with Popover */}
       <Popover>
         <PopoverTrigger asChild>
           <Button
@@ -43,51 +46,143 @@ export function NeighborhoodFilters({
             size="sm"
             className="bg-[#262626] border-[#404040] text-white hover:bg-[#333333] hover:text-white h-[38px]"
           >
-            <Filter className="h-4 w-4 mr-2" />
+            <Filter className="h-4 w-4 mr-1" />
             Filter
           </Button>
         </PopoverTrigger>
         <PopoverContent
+          className="w-[400px] bg-[#2a2a2a] border-[#404040] text-white"
           align="end"
-          className="w-80 bg-[#2a2a2a] border-[#404040] p-4"
         >
-          <div className="flex flex-col gap-4">
-            {/* Terminal Status Filter */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-[#404040]">
+              <h3 className="font-semibold text-sm">Filters</h3>
+            </div>
+
+            {/* Status Filter */}
             <div className="flex flex-col gap-1">
-              <label className="text-xs text-[#a1a1a1]">Terminal Status</label>
+              <label className="text-xs text-[#a1a1a1]">Status</label>
               <Select
-                value={filters.terminalStatus}
+                value={filters.status}
                 onValueChange={(value) =>
-                  onFiltersChange({ ...filters, terminalStatus: value })
+                  onFiltersChange({ ...filters, status: value })
                 }
               >
                 <SelectTrigger className="w-full bg-[#262626] border-[#404040] text-white hover:bg-[#333333]">
-                  <SelectValue placeholder="All Statuses" />
+                  <SelectValue placeholder="All" />
                 </SelectTrigger>
                 <SelectContent className="bg-[#2a2a2a] border-[#404040]">
                   <SelectItem
                     value="all"
                     className="text-white hover:bg-[#404040] hover:text-white focus:bg-[#404040] focus:text-white"
                   >
-                    All Statuses
+                    All
                   </SelectItem>
                   <SelectItem
-                    value="ONLINE"
+                    value="Active"
                     className="text-white hover:bg-[#404040] hover:text-white focus:bg-[#404040] focus:text-white"
                   >
-                    Online
+                    Active
                   </SelectItem>
                   <SelectItem
-                    value="OFFLINE"
+                    value="Resolved"
                     className="text-white hover:bg-[#404040] hover:text-white focus:bg-[#404040] focus:text-white"
                   >
-                    Offline
+                    Resolved
                   </SelectItem>
                   <SelectItem
-                    value="N/A"
+                    value="Pending"
                     className="text-white hover:bg-[#404040] hover:text-white focus:bg-[#404040] focus:text-white"
                   >
-                    N/A
+                    Pending
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Severity Filter */}
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-[#a1a1a1]">Severity</label>
+              <Select
+                value={filters.severity}
+                onValueChange={(value) =>
+                  onFiltersChange({ ...filters, severity: value })
+                }
+              >
+                <SelectTrigger className="w-full bg-[#262626] border-[#404040] text-white hover:bg-[#333333]">
+                  <SelectValue placeholder="All" />
+                </SelectTrigger>
+                <SelectContent className="bg-[#2a2a2a] border-[#404040]">
+                  <SelectItem
+                    value="all"
+                    className="text-white hover:bg-[#404040] hover:text-white focus:bg-[#404040] focus:text-white"
+                  >
+                    All
+                  </SelectItem>
+                  <SelectItem
+                    value="Critical"
+                    className="text-white hover:bg-[#404040] hover:text-white focus:bg-[#404040] focus:text-white"
+                  >
+                    Critical
+                  </SelectItem>
+                  <SelectItem
+                    value="High"
+                    className="text-white hover:bg-[#404040] hover:text-white focus:bg-[#404040] focus:text-white"
+                  >
+                    High
+                  </SelectItem>
+                  <SelectItem
+                    value="Medium"
+                    className="text-white hover:bg-[#404040] hover:text-white focus:bg-[#404040] focus:text-white"
+                  >
+                    Medium
+                  </SelectItem>
+                  <SelectItem
+                    value="Low"
+                    className="text-white hover:bg-[#404040] hover:text-white focus:bg-[#404040] focus:text-white"
+                  >
+                    Low
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Alert Type Filter */}
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-[#a1a1a1]">Alert Type</label>
+              <Select
+                value={filters.alertType}
+                onValueChange={(value) =>
+                  onFiltersChange({ ...filters, alertType: value })
+                }
+              >
+                <SelectTrigger className="w-full bg-[#262626] border-[#404040] text-white hover:bg-[#333333]">
+                  <SelectValue placeholder="All" />
+                </SelectTrigger>
+                <SelectContent className="bg-[#2a2a2a] border-[#404040]">
+                  <SelectItem
+                    value="all"
+                    className="text-white hover:bg-[#404040] hover:text-white focus:bg-[#404040] focus:text-white"
+                  >
+                    All
+                  </SelectItem>
+                  <SelectItem
+                    value="Emergency"
+                    className="text-white hover:bg-[#404040] hover:text-white focus:bg-[#404040] focus:text-white"
+                  >
+                    Emergency
+                  </SelectItem>
+                  <SelectItem
+                    value="Warning"
+                    className="text-white hover:bg-[#404040] hover:text-white focus:bg-[#404040] focus:text-white"
+                  >
+                    Warning
+                  </SelectItem>
+                  <SelectItem
+                    value="Info"
+                    className="text-white hover:bg-[#404040] hover:text-white focus:bg-[#404040] focus:text-white"
+                  >
+                    Info
                   </SelectItem>
                 </SelectContent>
               </Select>
@@ -95,7 +190,7 @@ export function NeighborhoodFilters({
 
             {/* Date Range Filter */}
             <div className="flex flex-col gap-1">
-              <label className="text-xs text-[#a1a1a1]">Registered Date</label>
+              <label className="text-xs text-[#a1a1a1]">Date Range</label>
               <Select
                 value={filters.dateRange}
                 onValueChange={(value) =>
@@ -168,7 +263,7 @@ export function NeighborhoodFilters({
                           customStartDate: e.target.value,
                         })
                       }
-                      className="w-full bg-[#262626] border-[#404040] text-white [color-scheme:dark] pr-10 [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+                      className="w-full bg-[#262626] border-[#404040] text-white scheme-dark pr-10 [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer"
                     />
                     <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#a1a1a1] pointer-events-none" />
                   </div>
@@ -185,7 +280,7 @@ export function NeighborhoodFilters({
                           customEndDate: e.target.value,
                         })
                       }
-                      className="w-full bg-[#262626] border-[#404040] text-white [color-scheme:dark] pr-10 [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+                      className="w-full bg-[#262626] border-[#404040] text-white scheme-dark pr-10 [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer"
                     />
                     <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#a1a1a1] pointer-events-none" />
                   </div>

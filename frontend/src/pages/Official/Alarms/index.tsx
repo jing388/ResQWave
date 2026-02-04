@@ -1,7 +1,8 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search } from "lucide-react";
+import { RefreshCcw, Search } from "lucide-react";
 import { useMemo, useState } from "react";
+import { AlarmFilters, type FilterState } from "./components/AlarmFilters";
 import { AlarmInfoSheet } from "./components/AlarmInfoSheet";
 import { createColumns } from "./components/Column";
 import { DataTable } from "./components/DataTable";
@@ -13,7 +14,15 @@ export function Alarms() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedAlarm, setSelectedAlarm] = useState<Alarm | null>(null);
   const [infoSheetOpen, setInfoSheetOpen] = useState(false);
-  
+  const [filters, setFilters] = useState<FilterState>({
+    status: "all",
+    severity: "all",
+    alertType: "all",
+    dateRange: "all",
+    customStartDate: "",
+    customEndDate: "",
+  });
+
   // Use the custom hook to fetch alarms from backend
   const { alarms, loading, error, refreshData } = useAlarms();
 
@@ -42,18 +51,130 @@ export function Alarms() {
     [],
   );
 
-  // Filter function for search
-  const filterAlarms = (alarms: Alarm[]) => {
-    if (!searchQuery.trim()) return alarms;
+  // Helper function to parse date strings
+  const parseFormattedDate = (dateStr: string): Date => {
+    return new Date(dateStr);
+  };
 
-    return alarms.filter(
-      (alarm) =>
-        alarm.terminalId.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        alarm.terminalName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        alarm.alert.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        alarm.status.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        alarm.severity.toLowerCase().includes(searchQuery.toLowerCase()),
+  // Helper function to get date range
+  const getDateRange = (
+    range: string,
+    customStart?: string,
+    customEnd?: string,
+  ) => {
+    const now = new Date();
+    let startDate: Date | null = null;
+    let endDate: Date | null = null;
+
+    switch (range) {
+      case "today":
+        startDate = new Date(now.setHours(0, 0, 0, 0));
+        endDate = new Date(now.setHours(23, 59, 59, 999));
+        break;
+      case "last7days":
+        startDate = new Date(now.setDate(now.getDate() - 7));
+        endDate = new Date();
+        break;
+      case "last30days":
+        startDate = new Date(now.setDate(now.getDate() - 30));
+        endDate = new Date();
+        break;
+      case "last3months":
+        startDate = new Date(now.setMonth(now.getMonth() - 3));
+        endDate = new Date();
+        break;
+      case "custom":
+        if (customStart) startDate = new Date(customStart);
+        if (customEnd) endDate = new Date(customEnd);
+        break;
+      default:
+        return { startDate: null, endDate: null };
+    }
+
+    return { startDate, endDate };
+  };
+
+  // Check if filters are active
+  const isFiltered = useMemo(() => {
+    return (
+      filters.status !== "all" ||
+      filters.severity !== "all" ||
+      filters.alertType !== "all" ||
+      filters.dateRange !== "all"
     );
+  }, [filters]);
+
+  // Clear all filters
+  const handleClearFilters = () => {
+    setFilters({
+      status: "all",
+      severity: "all",
+      alertType: "all",
+      dateRange: "all",
+      customStartDate: "",
+      customEndDate: "",
+    });
+  };
+
+  // Filter function for search and filters
+  const filterAlarms = (alarms: Alarm[]) => {
+    let filtered = [...alarms];
+
+    // Apply search filter
+    if (searchQuery.trim()) {
+      filtered = filtered.filter(
+        (alarm) =>
+          alarm.terminalId.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          alarm.terminalName
+            .toLowerCase()
+            .includes(searchQuery.toLowerCase()) ||
+          alarm.alert.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          alarm.status.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          alarm.severity.toLowerCase().includes(searchQuery.toLowerCase()),
+      );
+    }
+
+    // Apply status filter
+    if (filters.status !== "all") {
+      filtered = filtered.filter((alarm) => alarm.status === filters.status);
+    }
+
+    // Apply severity filter
+    if (filters.severity !== "all") {
+      filtered = filtered.filter(
+        (alarm) => alarm.severity === filters.severity,
+      );
+    }
+
+    // Apply alert type filter
+    if (filters.alertType !== "all") {
+      filtered = filtered.filter((alarm) => alarm.alert === filters.alertType);
+    }
+
+    // Apply date range filter
+    if (filters.dateRange !== "all") {
+      const { startDate, endDate } = getDateRange(
+        filters.dateRange,
+        filters.customStartDate,
+        filters.customEndDate,
+      );
+
+      if (startDate || endDate) {
+        filtered = filtered.filter((alarm) => {
+          const alarmDate = parseFormattedDate(alarm.createdAt);
+          if (startDate && endDate) {
+            return alarmDate >= startDate && alarmDate <= endDate;
+          } else if (startDate) {
+            return alarmDate >= startDate;
+          } else if (endDate) {
+            return alarmDate <= endDate;
+          }
+          return true;
+        });
+      }
+    }
+
+    return filtered;
   };
 
   const filteredAlarms = filterAlarms(alarms);
@@ -95,7 +216,13 @@ export function Alarms() {
             <h1 className="text-2xl font-bold">Alarms</h1>
           </div>
 
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1.5">
+            <AlarmFilters
+              filters={filters}
+              onFiltersChange={setFilters}
+              onClearFilters={handleClearFilters}
+              isFiltered={isFiltered}
+            />
             <div
               className={`transition-all duration-300 ease-in-out overflow-hidden ${
                 searchVisible ? "w-64 opacity-100" : "w-0 opacity-0"
@@ -111,10 +238,10 @@ export function Alarms() {
               />
             </div>
             <Button
-              variant="ghost"
-              size="icon"
-              className={`text-[#a1a1a1] hover:text-white hover:bg-[#262626] transition-all duration-200 ${
-                searchVisible ? "bg-[#262626] text-white" : ""
+              variant="outline"
+              size="sm"
+              className={`bg-[#262626] border border-[#404040] text-white hover:bg-[#333333] hover:text-white h-[38px] ${
+                searchVisible ? "bg-[#333333]" : ""
               }`}
               onClick={() => {
                 setSearchVisible(!searchVisible);
@@ -124,6 +251,14 @@ export function Alarms() {
               }}
             >
               <Search className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={refreshData}
+              className="bg-[#262626] border border-[#404040] text-white hover:bg-[#333333] hover:text-white h-[38px]"
+            >
+              <RefreshCcw className="h-4 w-4" />
             </Button>
           </div>
         </div>

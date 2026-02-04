@@ -14,7 +14,6 @@ interface MapPinsProps {
     terminalStatus: string;
     timeSent: string;
     focalPerson: string;
-    address: string;
     contactNumber: string;
     totalAlerts: number;
   }) => void;
@@ -22,9 +21,10 @@ interface MapPinsProps {
 
 /**
  * Helper to parse coordinates from address JSON
- * Standardized format: {"address":"...", "coordinates":"lng, lat"}
  */
-function parseCoordinates(address: string | Record<string, unknown>): [number, number] | null {
+function parseCoordinates(
+  address: string | Record<string, unknown>,
+): [number, number] | null {
   try {
     let addressObj: Record<string, unknown> | string = address;
 
@@ -42,11 +42,39 @@ function parseCoordinates(address: string | Record<string, unknown>): [number, n
       return null;
     }
 
-    // Standardized format: Coordinates as a STRING "lng, lat"
-    if ("coordinates" in addressObj && typeof addressObj.coordinates === "string") {
-      const coords = addressObj.coordinates.split(",").map((s: string) => parseFloat(s.trim()));
+    // Format 1: Direct lat/lng or latitude/longitude properties
+    if ("lng" in addressObj && "lat" in addressObj) {
+      return [addressObj.lng as number, addressObj.lat as number];
+    }
+    if ("longitude" in addressObj && "latitude" in addressObj) {
+      return [addressObj.longitude as number, addressObj.latitude as number];
+    }
+
+    // Format 2: Coordinates as a STRING "lng, lat" (backend format)
+    if (
+      "coordinates" in addressObj &&
+      typeof addressObj.coordinates === "string"
+    ) {
+      const coords = addressObj.coordinates
+        .split(",")
+        .map((s: string) => parseFloat(s.trim()));
       if (coords.length === 2 && !isNaN(coords[0]) && !isNaN(coords[1])) {
         return [coords[0], coords[1]]; // [lng, lat]
+      }
+    }
+
+    // Format 3: Nested coordinates object
+    if (
+      "coordinates" in addressObj &&
+      typeof addressObj.coordinates === "object" &&
+      addressObj.coordinates !== null
+    ) {
+      const coords = addressObj.coordinates as Record<string, unknown>;
+      if ("longitude" in coords && "latitude" in coords) {
+        return [coords.longitude as number, coords.latitude as number];
+      }
+      if ("lng" in coords && "lat" in coords) {
+        return [coords.lng as number, coords.lat as number];
       }
     }
   } catch {
@@ -65,7 +93,9 @@ export function MapPins({ map, pins, mapContainer, onPinClick }: MapPinsProps) {
 
   // Function to update pin data
   const updatePinData = (mapInstance: mapboxgl.Map, pinsData: MapPinData[]) => {
-    const source = mapInstance.getSource("admin-pins") as mapboxgl.GeoJSONSource;
+    const source = mapInstance.getSource(
+      "admin-pins",
+    ) as mapboxgl.GeoJSONSource;
     if (!source) return;
 
     // Parse pins to extract valid coordinates
@@ -79,7 +109,8 @@ export function MapPins({ map, pins, mapContainer, onPinClick }: MapPinsProps) {
 
         // Determine alert type based on terminal status and recent alerts
         const hasRecentAlert = pin.latestAlertTime
-          ? new Date().getTime() - new Date(pin.latestAlertTime).getTime() < 3600000 // 1 hour
+          ? new Date().getTime() - new Date(pin.latestAlertTime).getTime() <
+            3600000 // 1 hour
           : false;
 
         let alertType = "OFFLINE";
@@ -109,9 +140,6 @@ export function MapPins({ map, pins, mapContainer, onPinClick }: MapPinsProps) {
         terminalName: pin.terminalName,
         terminalStatus: pin.terminalStatus,
         focalPerson: pin.focalPerson || "N/A",
-        address: typeof pin.address === "string" 
-          ? pin.address 
-          : (pin.address as Record<string, unknown>)?.address as string || "N/A",
         contactNumber: pin.contactNumber || "N/A",
         totalAlerts: pin.totalAlerts,
         latestAlertTime: pin.latestAlertTime || "",
@@ -201,21 +229,6 @@ export function MapPins({ map, pins, mapContainer, onPinClick }: MapPinsProps) {
       }
     };
 
-    // Listen for style changes to re-initialize
-    const handleStyleData = () => {
-      // Reset initialization flag when style changes
-      if (!map.getSource("admin-pins")) {
-        layersInitialized.current = false;
-        handlersAttached.current = false;
-        // Delay to ensure boundaries are added first, then pins go on top
-        setTimeout(() => {
-          if (map && map.isStyleLoaded()) {
-            initializeLayers();
-          }
-        }, 1200);
-      }
-    };
-
     // Wait for style to load
     if (map.isStyleLoaded()) {
       initializeLayers();
@@ -223,16 +236,11 @@ export function MapPins({ map, pins, mapContainer, onPinClick }: MapPinsProps) {
       map.once("load", initializeLayers);
     }
 
-    // Listen for style changes
-    map.on("styledata", handleStyleData);
-
     // Cleanup only on unmount
     return () => {
-      if (!map || typeof map.off !== 'function') return;
+      if (!map || typeof map.getLayer !== "function") return;
 
       try {
-        map.off("styledata", handleStyleData);
-
         if (map.getLayer("admin-pins-layer")) {
           map.removeLayer("admin-pins-layer");
         }
@@ -263,10 +271,18 @@ export function MapPins({ map, pins, mapContainer, onPinClick }: MapPinsProps) {
       if (features.length > 0) {
         const feature = features[0];
         const props = feature.properties;
-        const coords = (feature.geometry as GeoJSON.Point).coordinates as [number, number];
+        const coords = (feature.geometry as GeoJSON.Point).coordinates as [
+          number,
+          number,
+        ];
 
         const timeSent = props?.latestAlertTime
-          ? new Date(props.latestAlertTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true })
+          ? new Date(props.latestAlertTime).toLocaleTimeString("en-US", {
+              hour: "numeric",
+              minute: "2-digit",
+              second: "2-digit",
+              hour12: true,
+            })
           : "N/A";
 
         const pt = map.project(coords);
@@ -283,7 +299,6 @@ export function MapPins({ map, pins, mapContainer, onPinClick }: MapPinsProps) {
           terminalStatus: props?.terminalStatus || "N/A",
           timeSent,
           focalPerson: props?.focalPerson || "N/A",
-          address: props?.address || "N/A",
           contactNumber: props?.contactNumber || "N/A",
           totalAlerts: props?.totalAlerts || 0,
         });
@@ -315,7 +330,7 @@ export function MapPins({ map, pins, mapContainer, onPinClick }: MapPinsProps) {
 
     return () => {
       clearTimeout(timer);
-      if (!map || typeof map.off !== 'function') return;
+      if (!map || typeof map.off !== "function") return;
 
       try {
         map.off("click", "admin-pins-layer", handleClick);
