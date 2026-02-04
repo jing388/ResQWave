@@ -1,35 +1,35 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
 } from "@/components/ui/select";
 import {
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
 } from "@/components/ui/table";
 import { useAuth } from "@/contexts/AuthContext";
 import {
-  getCoreRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
-  useReactTable,
-  type CellContext,
-  type ColumnDef,
-  type SortingState,
+    getCoreRowModel,
+    getPaginationRowModel,
+    getSortedRowModel,
+    useReactTable,
+    type CellContext,
+    type ColumnDef,
+    type SortingState,
 } from "@tanstack/react-table";
 import { Archive, ArchiveRestore, FileText, Info, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
@@ -38,8 +38,8 @@ import { CommunityGroupInfoSheet } from "../../CommunityGroups/components/Commun
 import type { CommunityGroupDetails } from "../../CommunityGroups/types";
 import { fetchDetailedReportData, type DetailedReportData } from "../api/api";
 import {
-  exportOfficialReportToPdf,
-  type OfficialReportData,
+    exportOfficialReportToPdf,
+    type OfficialReportData,
 } from "../utils/reportExportUtils";
 import { PostRescueFormInfoSheet } from "./PostRescueFormInfoSheet";
 import "./ReportsTable.css";
@@ -376,7 +376,7 @@ export function ReportsTable({
                 {(row.original as CompletedReport).accomplishedOn}
               </div>
             ),
-            sortingFn: (rowA, rowB, columnId) => {
+            sortingFn: (rowA: any, rowB: any, columnId: string) => {
               try {
                 // Parse format: "12/08/2025 | 02:30 PM"
                 const valueA = String(rowA.getValue(columnId));
