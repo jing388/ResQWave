@@ -322,12 +322,19 @@ export function MapView() {
 
             console.log("[MapView] Opening popover at:", { absX, absY });
 
-            // Extract address string from address object
+            // Extract address string from address object or JSON string
             let addressString = "";
             if (typeof targetPin.address === "string") {
-              addressString = targetPin.address;
+              // Try to parse as JSON first
+              try {
+                const parsed = JSON.parse(targetPin.address);
+                addressString = parsed.address || targetPin.address;
+              } catch {
+                // Not JSON, use as-is
+                addressString = targetPin.address;
+              }
             } else if (targetPin.address && typeof targetPin.address === "object" && "address" in targetPin.address) {
-              // If it's an object, try to extract the address property
+              // If it's an object, extract the address property
               const addr = (targetPin.address as Record<string, unknown>).address;
               addressString = (typeof addr === "string" ? addr : "") || "";
             }
@@ -501,7 +508,27 @@ export function MapView() {
           pins={pins}
           mapContainer={mapContainer}
           onPinClick={(popoverData) => {
-            setPopover(popoverData);
+            // Extract address string from address object or JSON string
+            let addressString = "";
+            if (typeof popoverData.address === "string") {
+              // Try to parse as JSON first
+              try {
+                const parsed = JSON.parse(popoverData.address);
+                addressString = parsed.address || popoverData.address;
+              } catch {
+                // Not JSON, use as-is
+                addressString = popoverData.address;
+              }
+            } else if (popoverData.address && typeof popoverData.address === "object" && "address" in popoverData.address) {
+              // If it's an object, extract the address property
+              const addr = (popoverData.address as Record<string, unknown>).address;
+              addressString = (typeof addr === "string" ? addr : "") || "";
+            }
+            
+            setPopover({
+              ...popoverData,
+              address: addressString,
+            });
           }}
         />
       )}
