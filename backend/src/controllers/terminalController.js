@@ -454,10 +454,37 @@ const permanentDeleteTerminal = catchAsync(async (req, res, next) => {
 
     // Delete related alerts automatically (no need for force parameter)
     const alertRepo = AppDataSource.getRepository("Alert");
+    const rescueFormRepo = AppDataSource.getRepository("RescueForm");
+    const postRescueRepo = AppDataSource.getRepository("PostRescueForm");
+
     const relatedAlerts = await alertRepo.find({ where: { terminalID: id } });
     let deletedAlertsCount = 0;
 
     if (relatedAlerts.length > 0) {
+        // Collect all alert IDs
+        const alertIDs = relatedAlerts.map(alert => alert.id);
+
+        // 1. Delete associated PostRescueForms
+        // We can't use WHERE IN easily with basic .remove(), so we find them first or use delete()
+        // Using TypeORM's createQueryBuilder allows efficiently deleting by ID list
+        if (alertIDs.length > 0) {
+            await postRescueRepo
+                .createQueryBuilder()
+                .delete()
+                .from("PostRescueForm")
+                .where("alertID IN (:...alertIDs)", { alertIDs })
+                .execute();
+
+            // 2. Delete associated RescueForms
+            await rescueFormRepo
+                .createQueryBuilder()
+                .delete()
+                .from("RescueForm")
+                .where("emergencyID IN (:...alertIDs)", { alertIDs })
+                .execute();
+        }
+
+        // 3. Now safe to delete alerts
         await alertRepo.remove(relatedAlerts);
         deletedAlertsCount = relatedAlerts.length;
         console.log(`Cascade deleted ${deletedAlertsCount} alerts for terminal ${id}`);
