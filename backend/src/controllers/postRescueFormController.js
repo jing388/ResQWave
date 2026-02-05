@@ -970,8 +970,16 @@ const deletePostRescueForm = catchAsync(async (req, res, next) => {
     // Permanently delete the post rescue form
     await postRescueRepo.remove(form);
 
-    // Get Rescue Form to invalidate correct ID
+    // Revert Rescue Form Status to "Dispatched"
+    // This prevents the report from appearing as "Completed" with missing details (corrupted 1970 date)
+    // and sends it back to Pending Reports
     const rescueForm = await rescueFormRepo.findOne({ where: { emergencyID: alertID } });
+    if (rescueForm) {
+        rescueForm.status = "Dispatched";
+        await rescueFormRepo.save(rescueForm);
+    }
+
+    // Get Rescue Form ID for cache invalidation
     const rescueFormCacheKey = rescueForm ? `rescueForm:${rescueForm.id}` : null;
 
     // Cache invalidation
