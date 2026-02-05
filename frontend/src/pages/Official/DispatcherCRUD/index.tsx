@@ -1,10 +1,10 @@
 import { Button } from "@/components/ui/button";
 import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { ArchiveRestore, Info, Trash2 } from "lucide-react";
@@ -12,8 +12,12 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { createColumns, type Dispatcher } from "./components/Column";
 import { CreateDispatcherSheet } from "./components/CreateDispatcherSheet";
 import { DataTable } from "./components/DataTable";
+import {
+  DispatcherFilters,
+  type FilterState,
+} from "./components/DispatcherFilters";
 import DispatcherAlerts, {
-    type DispatcherAlertsHandle,
+  type DispatcherAlertsHandle,
 } from "./components/DispatcherAlerts";
 import { DispatcherInfoSheet } from "./components/DispatcherInfoSheet";
 import { useDispatchers } from "./hooks/useDispatchers";
@@ -128,6 +132,11 @@ export function Dispatchers() {
   >(undefined);
   const [searchVisible, setSearchVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [filters, setFilters] = useState<FilterState>({
+    dateRange: "all",
+    customStartDate: "",
+    customEndDate: "",
+  });
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingDispatcher, setEditingDispatcher] = useState<Dispatcher | null>(
     null,
@@ -278,17 +287,96 @@ export function Dispatchers() {
     [handleMoreInfo, handleRestore, handleDeletePermanent],
   );
 
-  // Filter function for search
-  const filterDispatchers = (dispatchers: Dispatcher[]) => {
-    if (!searchQuery.trim()) return dispatchers;
+  // Helper function to parse date strings
+  const parseFormattedDate = (dateStr: string): Date | null => {
+    try {
+      const date = new Date(dateStr);
+      return isNaN(date.getTime()) ? null : date;
+    } catch {
+      return null;
+    }
+  };
 
-    return dispatchers.filter(
-      (dispatcher) =>
-        dispatcher.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        dispatcher.contactNumber.includes(searchQuery) ||
-        dispatcher.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        dispatcher.id.toLowerCase().includes(searchQuery.toLowerCase()),
-    );
+  // Helper function to get date range
+  const getDateRange = (range: string): { start: Date; end: Date } | null => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    switch (range) {
+      case "today":
+        return { start: today, end: now };
+      case "last7days": {
+        const start = new Date(today);
+        start.setDate(start.getDate() - 7);
+        return { start, end: now };
+      }
+      case "last30days": {
+        const start = new Date(today);
+        start.setDate(start.getDate() - 30);
+        return { start, end: now };
+      }
+      case "last3months": {
+        const start = new Date(today);
+        start.setMonth(start.getMonth() - 3);
+        return { start, end: now };
+      }
+      default:
+        return null;
+    }
+  };
+
+  // Check if any filters are active
+  const isFiltered = useMemo(() => filters.dateRange !== "all", [filters]);
+
+  const handleClearFilters = () => {
+    setFilters({
+      dateRange: "all",
+      customStartDate: "",
+      customEndDate: "",
+    });
+  };
+
+  // Filter function for search and date range
+  const filterDispatchers = (dispatchers: Dispatcher[]) => {
+    let result = dispatchers;
+
+    // Apply search filter
+    if (searchQuery.trim()) {
+      result = result.filter(
+        (dispatcher) =>
+          dispatcher.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          dispatcher.contactNumber.includes(searchQuery) ||
+          dispatcher.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          dispatcher.id.toLowerCase().includes(searchQuery.toLowerCase()),
+      );
+    }
+
+    // Apply date range filter
+    if (filters.dateRange !== "all") {
+      result = result.filter((dispatcher) => {
+        const dispatcherDate = parseFormattedDate(dispatcher.createdAt);
+        if (!dispatcherDate) return false;
+
+        if (filters.dateRange === "custom") {
+          if (filters.customStartDate && filters.customEndDate) {
+            const startDate = new Date(filters.customStartDate);
+            const endDate = new Date(filters.customEndDate);
+            endDate.setHours(23, 59, 59, 999);
+
+            return dispatcherDate >= startDate && dispatcherDate <= endDate;
+          }
+          return true;
+        } else {
+          const range = getDateRange(filters.dateRange);
+          if (range) {
+            return dispatcherDate >= range.start && dispatcherDate <= range.end;
+          }
+          return true;
+        }
+      });
+    }
+
+    return result;
   };
 
   const filteredActiveDispatchers = filterDispatchers(activeDispatchers);
@@ -453,7 +541,13 @@ export function Dispatchers() {
               </button>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5">
+            <DispatcherFilters
+              filters={filters}
+              onFiltersChange={setFilters}
+              isFiltered={isFiltered}
+              onClearFilters={handleClearFilters}
+            />
             <div
               className={`transition-all duration-300 ease-in-out overflow-hidden ${
                 searchVisible ? "w-64 opacity-100" : "w-0 opacity-0"
@@ -471,7 +565,7 @@ export function Dispatchers() {
             <Button
               variant="ghost"
               size="icon"
-              className={`text-[#a1a1a1] hover:text-white hover:bg-[#262626] transition-all duration-200 ${searchVisible ? "bg-[#262626] text-white" : ""}`}
+              className="bg-[#262626] text-white hover:text-white hover:bg-[#333333] border border-[#404040] transition-all duration-200"
               onClick={() => {
                 setSearchVisible(!searchVisible);
                 if (searchVisible) {
@@ -480,7 +574,7 @@ export function Dispatchers() {
               }}
             >
               <svg
-                className="h-5 w-5"
+                className="h-4 w-4"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -496,12 +590,12 @@ export function Dispatchers() {
             <Button
               variant="ghost"
               size="icon"
-              className="text-[#a1a1a1] hover:text-white hover:bg-[#262626]"
+              className="bg-[#262626] text-white hover:text-white hover:bg-[#333333] border border-[#404040]"
               onClick={refreshData}
               title="Refresh data"
             >
               <svg
-                className="h-5 w-5"
+                className="h-4 w-4"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -514,30 +608,32 @@ export function Dispatchers() {
                 />
               </svg>
             </Button>
-            <Button
-              onClick={() => {
-                setEditingDispatcher(null);
-                setEditData(undefined);
-                setServerErrors({}); // Clear server errors when creating new
-                setDrawerOpen(true);
-              }}
-              className="bg-[#4285f4] hover:bg-[#3367d6] text-white px-4 py-2 rounded-[5px] flex items-center gap-2"
-            >
-              <svg
-                className="h-4 w-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+            <div className="ml-2">
+              <Button
+                onClick={() => {
+                  setEditingDispatcher(null);
+                  setEditData(undefined);
+                  setServerErrors({}); // Clear server errors when creating new
+                  setDrawerOpen(true);
+                }}
+                className="bg-[#4285f4] hover:bg-[#3367d6] text-white px-4 py-2 rounded-[5px] flex items-center gap-2"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 4v16m8-8H4"
-                />
-              </svg>
-              Create Dispatcher
-            </Button>
+                <svg
+                  className="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 4v16m8-8H4"
+                  />
+                </svg>
+                Create Dispatcher
+              </Button>
+            </div>
           </div>
         </div>
 

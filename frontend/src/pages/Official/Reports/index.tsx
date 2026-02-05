@@ -3,17 +3,33 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs-focal";
 import { useAuth } from "@/contexts/AuthContext";
-import { useRef, useState } from "react";
+import { useRef, useState, useMemo } from "react";
 import { ReportsTable } from "./components";
-import ReportAlerts, { type ReportAlertsHandle } from "./components/ReportAlerts";
+import ReportAlerts, {
+  type ReportAlertsHandle,
+} from "./components/ReportAlerts";
+import { ReportFilters, type FilterState } from "./components/ReportFilters";
 import { useReports } from "./hooks/useReports";
 
 export function Reports() {
   const { isAdmin } = useAuth();
-  const [activeTab, setActiveTab] = useState(isAdmin() ? "completed" : "pending");
+  const [activeTab, setActiveTab] = useState(
+    isAdmin() ? "completed" : "pending",
+  );
   const [searchVisible, setSearchVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const alertsRef = useRef<ReportAlertsHandle>(null);
+  const [filters, setFilters] = useState<FilterState>({
+    alertType: "all",
+    occurredDateRange: "all",
+    occurredStartDate: "",
+    occurredEndDate: "",
+    accomplishedDateRange: "all",
+    accomplishedStartDate: "",
+    accomplishedEndDate: "",
+    dispatcher: "all",
+    barangay: "all",
+  });
   const {
     pendingReports,
     completedReports,
@@ -37,7 +53,7 @@ export function Reports() {
     } catch (err) {
       console.error("Failed to archive report:", err);
       alertsRef.current?.showError(
-        err instanceof Error ? err.message : "Failed to archive report"
+        err instanceof Error ? err.message : "Failed to archive report",
       );
     }
   };
@@ -52,7 +68,7 @@ export function Reports() {
     } catch (err) {
       console.error("Failed to restore report:", err);
       alertsRef.current?.showError(
-        err instanceof Error ? err.message : "Failed to restore report"
+        err instanceof Error ? err.message : "Failed to restore report",
       );
     }
   };
@@ -66,25 +82,238 @@ export function Reports() {
       } catch (err) {
         console.error("Failed to delete report:", err);
         alertsRef.current?.showError(
-          err instanceof Error ? err.message : "Failed to delete report"
+          err instanceof Error ? err.message : "Failed to delete report",
         );
       }
     });
   };
 
-  // Filter function for search
-  const filterReports = <T extends { emergencyId: string; communityName: string; alertType: string; dispatcher: string; address: string }>(reports: T[]) => {
-    if (!searchQuery.trim()) return reports;
-
-    return reports.filter(
-      (report) =>
-        report.emergencyId.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        report.communityName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        report.alertType.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        report.dispatcher.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        report.address.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+  // Parse date from formatted string (MM/DD/YYYY | HH:MM AM/PM)
+  const parseFormattedDate = (dateString: string): Date => {
+    try {
+      const [datePart] = dateString.split(" | ");
+      const [month, day, year] = datePart.split("/");
+      return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+    } catch {
+      return new Date(dateString);
+    }
   };
+
+  // Get date range for Date Time Occurred filtering
+  const getOccurredDateRange = () => {
+    const now = new Date();
+    const startOfDay = (date: Date) =>
+      new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const endOfDay = (date: Date) =>
+      new Date(
+        date.getFullYear(),
+        date.getMonth(),
+        date.getDate(),
+        23,
+        59,
+        59,
+        999,
+      );
+
+    switch (filters.occurredDateRange) {
+      case "today":
+        return { start: startOfDay(now), end: endOfDay(now) };
+      case "last7days": {
+        const start = new Date(now);
+        start.setDate(start.getDate() - 7);
+        return { start: startOfDay(start), end: endOfDay(now) };
+      }
+      case "last30days": {
+        const start = new Date(now);
+        start.setDate(start.getDate() - 30);
+        return { start: startOfDay(start), end: endOfDay(now) };
+      }
+      case "last3months": {
+        const start = new Date(now);
+        start.setMonth(start.getMonth() - 3);
+        return { start: startOfDay(start), end: endOfDay(now) };
+      }
+      case "custom":
+        if (filters.occurredStartDate && filters.occurredEndDate) {
+          return {
+            start: startOfDay(new Date(filters.occurredStartDate)),
+            end: endOfDay(new Date(filters.occurredEndDate)),
+          };
+        }
+        return null;
+      default:
+        return null;
+    }
+  };
+
+  // Get date range for Accomplished On filtering
+  const getAccomplishedDateRange = () => {
+    const now = new Date();
+    const startOfDay = (date: Date) =>
+      new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const endOfDay = (date: Date) =>
+      new Date(
+        date.getFullYear(),
+        date.getMonth(),
+        date.getDate(),
+        23,
+        59,
+        59,
+        999,
+      );
+
+    switch (filters.accomplishedDateRange) {
+      case "today":
+        return { start: startOfDay(now), end: endOfDay(now) };
+      case "last7days": {
+        const start = new Date(now);
+        start.setDate(start.getDate() - 7);
+        return { start: startOfDay(start), end: endOfDay(now) };
+      }
+      case "last30days": {
+        const start = new Date(now);
+        start.setDate(start.getDate() - 30);
+        return { start: startOfDay(start), end: endOfDay(now) };
+      }
+      case "last3months": {
+        const start = new Date(now);
+        start.setMonth(start.getMonth() - 3);
+        return { start: startOfDay(start), end: endOfDay(now) };
+      }
+      case "custom":
+        if (filters.accomplishedStartDate && filters.accomplishedEndDate) {
+          return {
+            start: startOfDay(new Date(filters.accomplishedStartDate)),
+            end: endOfDay(new Date(filters.accomplishedEndDate)),
+          };
+        }
+        return null;
+      default:
+        return null;
+    }
+  };
+
+  // Check if filters are active
+  const isFiltered = useMemo(() => {
+    return (
+      filters.alertType !== "all" ||
+      filters.occurredDateRange !== "all" ||
+      filters.accomplishedDateRange !== "all" ||
+      filters.dispatcher !== "all" ||
+      filters.barangay !== "all"
+    );
+  }, [filters]);
+
+  // Clear all filters
+  const handleClearFilters = () => {
+    setFilters({
+      alertType: "all",
+      occurredDateRange: "all",
+      occurredStartDate: "",
+      occurredEndDate: "",
+      accomplishedDateRange: "all",
+      accomplishedStartDate: "",
+      accomplishedEndDate: "",
+      dispatcher: "all",
+      barangay: "all",
+    });
+  };
+
+  // Filter function for search and filters
+  const filterReports = <
+    T extends {
+      emergencyId: string;
+      communityName: string;
+      alertType: string;
+      dispatcher: string;
+      address: string;
+      dateTimeOccurred: string;
+      accomplishedOn?: string;
+    },
+  >(
+    reports: T[],
+  ) => {
+    let filtered = reports;
+
+    // Apply search filter
+    if (searchQuery.trim()) {
+      filtered = filtered.filter(
+        (report) =>
+          report.emergencyId
+            .toLowerCase()
+            .includes(searchQuery.toLowerCase()) ||
+          report.communityName
+            .toLowerCase()
+            .includes(searchQuery.toLowerCase()) ||
+          report.alertType.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          report.dispatcher.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          report.address.toLowerCase().includes(searchQuery.toLowerCase()),
+      );
+    }
+
+    // Apply alert type filter
+    if (filters.alertType !== "all") {
+      filtered = filtered.filter(
+        (report) => report.alertType === filters.alertType,
+      );
+    }
+
+    // Apply Date Time Occurred filter
+    const occurredDateRange = getOccurredDateRange();
+    if (occurredDateRange) {
+      filtered = filtered.filter((report) => {
+        const reportDate = parseFormattedDate(report.dateTimeOccurred);
+        return (
+          reportDate >= occurredDateRange.start &&
+          reportDate <= occurredDateRange.end
+        );
+      });
+    }
+
+    // Apply Accomplished On filter
+    const accomplishedDateRange = getAccomplishedDateRange();
+    if (accomplishedDateRange && filters.accomplishedDateRange !== "all") {
+      filtered = filtered.filter((report) => {
+        if (!report.accomplishedOn) return false;
+        const reportDate = parseFormattedDate(report.accomplishedOn);
+        return (
+          reportDate >= accomplishedDateRange.start &&
+          reportDate <= accomplishedDateRange.end
+        );
+      });
+    }
+
+    // Apply dispatcher filter
+    if (filters.dispatcher !== "all") {
+      filtered = filtered.filter(
+        (report) => report.dispatcher === filters.dispatcher,
+      );
+    }
+
+    // Apply barangay filter
+    if (filters.barangay !== "all") {
+      filtered = filtered.filter(
+        (report) => report.communityName === filters.barangay,
+      );
+    }
+
+    return filtered;
+  };
+
+  // Get unique dispatchers and barangays for filter options
+  const allReports = useMemo(() => {
+    return [...pendingReports, ...completedReports, ...archivedReports];
+  }, [pendingReports, completedReports, archivedReports]);
+
+  const uniqueDispatchers = useMemo(() => {
+    const dispatchers = new Set(allReports.map((r) => r.dispatcher));
+    return Array.from(dispatchers).sort();
+  }, [allReports]);
+
+  const uniqueBarangays = useMemo(() => {
+    const barangays = new Set(allReports.map((r) => r.communityName));
+    return Array.from(barangays).sort();
+  }, [allReports]);
 
   // Apply filters to each report type
   const filteredPendingReports = filterReports(pendingReports);
@@ -155,9 +384,10 @@ export function Reports() {
 
           {/* Reports Table - Full height now */}
           <Card className="!flex !flex-col !border-0 !flex-1 !min-h-0 !overflow-hidden !gap-0 !py-0 !px-0 !bg-[#171717] !shadow-none !rounded-none">
-            <CardHeader className="!shrink-0 !flex !flex-row !items-center !justify-between !gap-2 !py-3 !px-0 !grid-cols-1 !auto-rows-auto">
+            <CardHeader className="!shrink-0 !flex !flex-row !items-center !justify-between !gap-3 !py-3 !px-0">
+              {/* Left side: Title and Tabs */}
               <div className="flex items-center gap-3">
-                <CardTitle className="text-foreground text-2xl">
+                <CardTitle className="text-foreground text-2xl whitespace-nowrap">
                   Reports
                 </CardTitle>
                 <Tabs
@@ -174,7 +404,7 @@ export function Reports() {
                         >
                           Completed
                           <span className="ml-2 px-2 py-0.5 bg-[#707070] rounded text-xs">
-                            {completedReports.length}
+                            {filteredCompletedReports.length}
                           </span>
                         </TabsTrigger>
                         <TabsTrigger
@@ -183,7 +413,7 @@ export function Reports() {
                         >
                           Archive
                           <span className="ml-2 px-2 py-0.5 bg-[#707070] rounded text-xs">
-                            {archivedReports.length}
+                            {filteredArchivedReports.length}
                           </span>
                         </TabsTrigger>
                       </>
@@ -195,7 +425,7 @@ export function Reports() {
                         >
                           Pending
                           <span className="ml-2 px-2 py-0.5 bg-[#707070] rounded text-xs">
-                            {pendingReports.length}
+                            {filteredPendingReports.length}
                           </span>
                         </TabsTrigger>
                         <TabsTrigger
@@ -204,7 +434,7 @@ export function Reports() {
                         >
                           Completed
                           <span className="ml-2 px-2 py-0.5 bg-[#707070] rounded text-xs">
-                            {completedReports.length}
+                            {filteredCompletedReports.length}
                           </span>
                         </TabsTrigger>
                       </>
@@ -212,7 +442,17 @@ export function Reports() {
                   </TabsList>
                 </Tabs>
               </div>
-              <div className="flex items-center gap-3">
+
+              {/* Right side: Filters, Search and Refresh */}
+              <div className="flex items-center gap-2">
+                <ReportFilters
+                  filters={filters}
+                  onFiltersChange={setFilters}
+                  dispatchers={uniqueDispatchers}
+                  barangays={uniqueBarangays}
+                  isFiltered={isFiltered}
+                  onClearFilters={handleClearFilters}
+                />
                 <div
                   className={`transition-all duration-300 ease-in-out overflow-hidden ${
                     searchVisible ? "w-64 opacity-100" : "w-0 opacity-0"
@@ -230,7 +470,7 @@ export function Reports() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className={`text-[#a1a1a1] hover:text-white hover:bg-[#262626] transition-all duration-200 ${searchVisible ? "bg-[#262626] text-white" : ""}`}
+                  className={`bg-[#262626] border border-[#404040] text-white hover:bg-[#333333] transition-all duration-200 ${searchVisible ? "bg-[#333333]" : ""}`}
                   onClick={() => {
                     setSearchVisible(!searchVisible);
                     if (searchVisible) {
@@ -239,7 +479,7 @@ export function Reports() {
                   }}
                 >
                   <svg
-                    className="h-5 w-5"
+                    className="h-6 w-6"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -255,12 +495,12 @@ export function Reports() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="text-[#a1a1a1] hover:text-white hover:bg-[#262626]"
+                  className="bg-[#262626] border border-[#404040] text-white hover:bg-[#333333]"
                   onClick={refreshAllReports}
                   title="Refresh data"
                 >
                   <svg
-                    className="h-5 w-5"
+                    className="h-6 w-6"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"

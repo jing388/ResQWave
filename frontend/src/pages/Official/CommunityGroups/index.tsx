@@ -1,56 +1,60 @@
 import { Button } from "@/components/ui/button";
 import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import { ArchiveRestore, Info, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-    archiveNeighborhood,
-    deleteNeighborhood,
-    fetchNeighborhoodDetailsTransformed,
-    getArchivedNeighborhoods,
-    getNeighborhoods,
-    transformNeighborhoodToCommunityGroup,
-    unarchiveNeighborhood,
+  archiveNeighborhood,
+  deleteNeighborhood,
+  fetchNeighborhoodDetailsTransformed,
+  getArchivedNeighborhoods,
+  getNeighborhoods,
+  transformNeighborhoodToCommunityGroup,
+  unarchiveNeighborhood,
 } from "./api/communityGroupApi";
 import { createColumns, type CommunityGroup } from "./components/Column";
 import CommunityGroupAlerts, {
-    type CommunityGroupAlertsHandle,
+  type CommunityGroupAlertsHandle,
 } from "./components/CommunityGroupAlerts";
+import {
+  NeighborhoodFilters,
+  type FilterState,
+} from "./components/NeighborhoodFilters";
 import { CommunityGroupApprovalSheet } from "./components/CommunityGroupApprovalSheet";
 import { CommunityGroupInfoSheet } from "./components/CommunityGroupInfoSheet";
 import { CommunityGroupDrawer } from "./components/CreateCommunityGroupSheet";
 import { DataTable } from "./components/DataTable";
 import { UnarchiveNeighborhoodModal } from "./components/UnarchiveNeighborhoodModal";
 import {
-    predefinedAwaitingGroupDetails,
-    predefinedAwaitingGroups,
+  predefinedAwaitingGroupDetails,
+  predefinedAwaitingGroups,
 } from "./data/predefinedCommunityGroups";
 import type { CommunityGroupDetails } from "./types";
 
 const makeArchivedColumns = (
   onMoreInfo: (g: CommunityGroup) => void,
   onRestore?: (g: CommunityGroup) => void,
-  onDeletePermanent?: (g: CommunityGroup) => void
+  onDeletePermanent?: (g: CommunityGroup) => void,
 ) => [
   ...createColumns({ onMoreInfo }).slice(0, -1),
   {
@@ -147,7 +151,7 @@ export function CommunityGroups() {
   const [activeGroups, setActiveGroups] = useState<CommunityGroup[]>([]);
   const [archivedGroups, setArchivedGroups] = useState<CommunityGroup[]>([]);
   const [awaitingGroups, setAwaitingGroups] = useState<CommunityGroup[]>(
-    predefinedAwaitingGroups
+    predefinedAwaitingGroups,
   );
   const [, setInfoById] = useState<Record<string, CommunityGroupDetails>>({});
   const [loading, setLoading] = useState(true);
@@ -159,8 +163,14 @@ export function CommunityGroups() {
   const [searchQuery, setSearchQuery] = useState("");
   const [editingGroup, setEditingGroup] = useState<CommunityGroup | null>(null);
   const [editData, setEditData] = useState<CommunityGroupDetails | undefined>(
-    undefined
+    undefined,
   );
+  const [filters, setFilters] = useState<FilterState>({
+    terminalStatus: "all",
+    dateRange: "all",
+    customStartDate: "",
+    customEndDate: "",
+  });
 
   // Available terminals for assignment
   const availableTerminals = [
@@ -200,7 +210,7 @@ export function CommunityGroups() {
         }
       })();
     },
-    [awaitingInfoById, activeTab]
+    [awaitingInfoById, activeTab],
   );
 
   const handleArchive = useCallback(async (group: CommunityGroup) => {
@@ -213,22 +223,22 @@ export function CommunityGroups() {
       ]);
       setActiveGroups(
         activeData.map((neighborhood) =>
-          transformNeighborhoodToCommunityGroup(neighborhood, false)
-        )
+          transformNeighborhoodToCommunityGroup(neighborhood, false),
+        ),
       );
       setArchivedGroups(
         archivedData.map((neighborhood) =>
-          transformNeighborhoodToCommunityGroup(neighborhood, true)
-        )
+          transformNeighborhoodToCommunityGroup(neighborhood, true),
+        ),
       );
 
       // Show success alert
       alertsRef.current?.showArchiveSuccess(
-        group.name || group.focalPerson || "Neighborhood Group"
+        group.name || group.focalPerson || "Neighborhood Group",
       );
     } catch {
       alertsRef.current?.showError(
-        "Failed to archive neighborhood. Please try again."
+        "Failed to archive neighborhood. Please try again.",
       );
     }
   }, []);
@@ -255,20 +265,20 @@ export function CommunityGroups() {
 
         setActiveGroups(
           activeData.map((neighborhood) =>
-            transformNeighborhoodToCommunityGroup(neighborhood, false)
-          )
+            transformNeighborhoodToCommunityGroup(neighborhood, false),
+          ),
         );
         setArchivedGroups(
           archivedData.map((neighborhood) =>
-            transformNeighborhoodToCommunityGroup(neighborhood, true)
-          )
+            transformNeighborhoodToCommunityGroup(neighborhood, true),
+          ),
         );
 
         // Show success alert
         alertsRef.current?.showRestoreSuccess(
           selectedGroupForUnarchive.name ||
             selectedGroupForUnarchive.focalPerson ||
-            "Neighborhood Group"
+            "Neighborhood Group",
         );
 
         // Reset selected group
@@ -278,11 +288,11 @@ export function CommunityGroups() {
         alertsRef.current?.showError(
           err instanceof Error
             ? err.message
-            : "Failed to unarchive neighborhood. Please try again."
+            : "Failed to unarchive neighborhood. Please try again.",
         );
       }
     },
-    [selectedGroupForUnarchive]
+    [selectedGroupForUnarchive],
   );
 
   const handleDeletePermanent = useCallback((group: CommunityGroup) => {
@@ -297,8 +307,8 @@ export function CommunityGroups() {
           const archivedData = await getArchivedNeighborhoods();
           setArchivedGroups(
             archivedData.map((neighborhood) =>
-              transformNeighborhoodToCommunityGroup(neighborhood, true)
-            )
+              transformNeighborhoodToCommunityGroup(neighborhood, true),
+            ),
           );
           setInfoById((prev) => {
             const newState = { ...prev };
@@ -308,14 +318,14 @@ export function CommunityGroups() {
 
           // Show success alert
           alertsRef.current?.showDeleteSuccess(
-            group.name || group.focalPerson || "Neighborhood Group"
+            group.name || group.focalPerson || "Neighborhood Group",
           );
         } catch {
           alertsRef.current?.showError(
-            "Failed to delete neighborhood. Please try again."
+            "Failed to delete neighborhood. Please try again.",
           );
         }
-      }
+      },
     );
   }, []);
 
@@ -333,7 +343,7 @@ export function CommunityGroups() {
 
       // Move from awaiting to active groups with assigned terminal
       const awaitingGroup = awaitingGroups.find(
-        (g) => g.id === pendingApprovalData.communityId
+        (g) => g.id === pendingApprovalData.communityId,
       );
       if (awaitingGroup) {
         // Generate new RSQW ID for approved group
@@ -357,7 +367,7 @@ export function CommunityGroups() {
 
         // Remove from awaiting
         setAwaitingGroups((prev) =>
-          prev.filter((g) => g.id !== awaitingGroup.id)
+          prev.filter((g) => g.id !== awaitingGroup.id),
         );
         setAwaitingInfoById((prev) => {
           const newState = { ...prev };
@@ -374,18 +384,18 @@ export function CommunityGroups() {
       setSelectedTerminal("");
       setTerminalAssignmentOpen(false);
     },
-    [pendingApprovalData, awaitingGroups]
+    [pendingApprovalData, awaitingGroups],
   );
 
   const handleDiscard = useCallback(
     (communityData: CommunityGroupDetails) => {
       // Remove from awaiting groups
       const awaitingGroup = awaitingGroups.find(
-        (g) => g.id === communityData.communityId
+        (g) => g.id === communityData.communityId,
       );
       if (awaitingGroup) {
         setAwaitingGroups((prev) =>
-          prev.filter((g) => g.id !== awaitingGroup.id)
+          prev.filter((g) => g.id !== awaitingGroup.id),
         );
         setAwaitingInfoById((prev) => {
           const newState = { ...prev };
@@ -394,7 +404,7 @@ export function CommunityGroups() {
         });
       }
     },
-    [awaitingGroups]
+    [awaitingGroups],
   );
 
   const handleEdit = useCallback(async (group: CommunityGroup) => {
@@ -409,7 +419,7 @@ export function CommunityGroups() {
     } catch (err) {
       console.error("Failed to load neighborhood details for editing:", err);
       alertsRef.current?.showError(
-        "Failed to load neighborhood details for editing"
+        "Failed to load neighborhood details for editing",
       );
     } finally {
       setLoading(false);
@@ -423,29 +433,121 @@ export function CommunityGroups() {
         onEdit: handleEdit,
         onArchive: handleArchive,
       }),
-    [handleMoreInfo, handleEdit, handleArchive]
+    [handleMoreInfo, handleEdit, handleArchive],
   );
   const archivedColumns = useMemo(
     () =>
       makeArchivedColumns(handleMoreInfo, handleRestore, handleDeletePermanent),
-    [handleMoreInfo, handleRestore, handleDeletePermanent]
+    [handleMoreInfo, handleRestore, handleDeletePermanent],
   );
   const awaitingColumns = useMemo(
     () => createColumns({ onMoreInfo: handleMoreInfo }),
-    [handleMoreInfo]
+    [handleMoreInfo],
   );
+
+  // Helper function to parse date strings
+  const parseFormattedDate = (dateStr: string): Date | null => {
+    try {
+      const date = new Date(dateStr);
+      return isNaN(date.getTime()) ? null : date;
+    } catch {
+      return null;
+    }
+  };
+
+  // Helper function to get date range
+  const getDateRange = (range: string): { start: Date; end: Date } | null => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    switch (range) {
+      case "today":
+        return { start: today, end: now };
+      case "last7days": {
+        const start = new Date(today);
+        start.setDate(start.getDate() - 7);
+        return { start, end: now };
+      }
+      case "last30days": {
+        const start = new Date(today);
+        start.setDate(start.getDate() - 30);
+        return { start, end: now };
+      }
+      case "last3months": {
+        const start = new Date(today);
+        start.setMonth(start.getMonth() - 3);
+        return { start, end: now };
+      }
+      default:
+        return null;
+    }
+  };
+
+  // Check if any filters are active
+  const isFiltered = useMemo(
+    () => filters.terminalStatus !== "all" || filters.dateRange !== "all",
+    [filters],
+  );
+
+  const handleClearFilters = () => {
+    setFilters({
+      terminalStatus: "all",
+      dateRange: "all",
+      customStartDate: "",
+      customEndDate: "",
+    });
+  };
 
   // Filter function for search
   const filterGroups = (groups: CommunityGroup[]) => {
-    if (!searchQuery.trim()) return groups;
+    let result = groups;
 
-    return groups.filter(
-      (group) =>
-        group.focalPerson.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        group.contactNumber.includes(searchQuery) ||
-        group.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        group.id.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    // Apply search filter
+    if (searchQuery.trim()) {
+      result = result.filter(
+        (group) =>
+          group.focalPerson.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          group.contactNumber.includes(searchQuery) ||
+          group.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          group.id.toLowerCase().includes(searchQuery.toLowerCase()),
+      );
+    }
+
+    // Apply terminal status filter
+    if (filters.terminalStatus !== "all") {
+      result = result.filter(
+        (group) => group.status === filters.terminalStatus,
+      );
+    }
+
+    // Apply date range filter
+    if (filters.dateRange !== "all") {
+      result = result.filter((group) => {
+        const neighborhoodDate = parseFormattedDate(group.registeredAt);
+        if (!neighborhoodDate) return false;
+
+        if (filters.dateRange === "custom") {
+          if (filters.customStartDate && filters.customEndDate) {
+            const startDate = new Date(filters.customStartDate);
+            const endDate = new Date(filters.customEndDate);
+            endDate.setHours(23, 59, 59, 999);
+
+            return neighborhoodDate >= startDate && neighborhoodDate <= endDate;
+          }
+          return true;
+        } else {
+          const range = getDateRange(filters.dateRange);
+          if (range) {
+            return (
+              neighborhoodDate >= range.start && neighborhoodDate <= range.end
+            );
+          }
+          return true;
+        }
+      });
+    }
+
+    return result;
   };
 
   const filteredActiveGroups = filterGroups(activeGroups);
@@ -456,14 +558,14 @@ export function CommunityGroups() {
     activeTab === "active"
       ? filteredActiveGroups
       : activeTab === "archived"
-      ? filteredArchivedGroups
-      : filteredAwaitingGroups;
+        ? filteredArchivedGroups
+        : filteredAwaitingGroups;
   const tableColumns =
     activeTab === "active"
       ? activeColumns
       : activeTab === "archived"
-      ? archivedColumns
-      : awaitingColumns;
+        ? archivedColumns
+        : awaitingColumns;
 
   // Fetch neighborhoods data on component mount
   useEffect(() => {
@@ -480,10 +582,10 @@ export function CommunityGroups() {
 
         // Transform backend data to frontend format
         const transformedActive = activeData.map((neighborhood) =>
-          transformNeighborhoodToCommunityGroup(neighborhood, false)
+          transformNeighborhoodToCommunityGroup(neighborhood, false),
         );
         const transformedArchived = archivedData.map((neighborhood) =>
-          transformNeighborhoodToCommunityGroup(neighborhood, true)
+          transformNeighborhoodToCommunityGroup(neighborhood, true),
         );
 
         setActiveGroups(transformedActive);
@@ -518,7 +620,7 @@ export function CommunityGroups() {
               >
                 Active
                 <span className="ml-2 px-2 py-0.5 bg-[#707070] rounded text-xs">
-                  {activeGroups.length}
+                  {filteredActiveGroups.length}
                 </span>
               </button>
               <button
@@ -531,7 +633,7 @@ export function CommunityGroups() {
               >
                 Archived
                 <span className="ml-2 px-2 py-0.5 bg-[#707070] rounded text-xs">
-                  {archivedGroups.length}
+                  {filteredArchivedGroups.length}
                 </span>
               </button>
               {/*
@@ -549,7 +651,13 @@ export function CommunityGroups() {
               */}
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5">
+            <NeighborhoodFilters
+              filters={filters}
+              onFiltersChange={setFilters}
+              isFiltered={isFiltered}
+              onClearFilters={handleClearFilters}
+            />
             <div
               className={`transition-all duration-300 ease-in-out overflow-hidden ${
                 searchVisible ? "w-64 opacity-100" : "w-0 opacity-0"
@@ -567,8 +675,8 @@ export function CommunityGroups() {
             <Button
               variant="ghost"
               size="icon"
-              className={`text-[#a1a1a1] hover:text-white hover:bg-[#262626] transition-all duration-200 ${
-                searchVisible ? "bg-[#262626] text-white" : ""
+              className={`bg-[#262626] text-white hover:text-white hover:bg-[#333333] border border-[#404040] transition-all duration-200 ${
+                searchVisible ? "bg-[#333333]" : ""
               }`}
               onClick={() => {
                 setSearchVisible(!searchVisible);
@@ -578,7 +686,7 @@ export function CommunityGroups() {
               }}
             >
               <svg
-                className="h-5 w-5"
+                className="h-4 w-4"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -591,29 +699,31 @@ export function CommunityGroups() {
                 />
               </svg>
             </Button>
-            <Button
-              onClick={() => {
-                setEditingGroup(null);
-                setEditData(undefined);
-                setDrawerOpen(true);
-              }}
-              className="bg-[#4285f4] hover:bg-[#3367d6] text-white px-4 py-2 rounded-[5px] flex items-center gap-2"
-            >
-              <svg
-                className="h-4 w-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+            <div className="ml-2">
+              <Button
+                onClick={() => {
+                  setEditingGroup(null);
+                  setEditData(undefined);
+                  setDrawerOpen(true);
+                }}
+                className="bg-[#4285f4] hover:bg-[#3367d6] text-white px-4 py-2 rounded-[5px] flex items-center gap-2"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 4v16m8-8H4"
-                />
-              </svg>
-              Add New Neighborhood Group
-            </Button>
+                <svg
+                  className="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 4v16m8-8H4"
+                  />
+                </svg>
+                Add New Neighborhood Group
+              </Button>
+            </div>
             <CommunityGroupDrawer
               open={drawerOpen}
               onOpenChange={(open) => {
@@ -635,10 +745,10 @@ export function CommunityGroups() {
                   ]);
 
                   const transformedActive = activeData.map((neighborhood) =>
-                    transformNeighborhoodToCommunityGroup(neighborhood, false)
+                    transformNeighborhoodToCommunityGroup(neighborhood, false),
                   );
                   const transformedArchived = archivedData.map((neighborhood) =>
-                    transformNeighborhoodToCommunityGroup(neighborhood, true)
+                    transformNeighborhoodToCommunityGroup(neighborhood, true),
                   );
 
                   setActiveGroups(transformedActive);

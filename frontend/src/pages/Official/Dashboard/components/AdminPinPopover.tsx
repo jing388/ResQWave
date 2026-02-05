@@ -67,8 +67,8 @@ export function AdminPinPopover({
 
   const popoverWidth = 390;
   const popoverHeight = 320;
-  const offsetX = popoverWidth / 1.40;
-  const offsetY = popoverHeight + 135;
+  const offsetX = popoverWidth / 1.41;
+  const offsetY = popoverHeight + 111;
 
   return (
     <>
@@ -83,7 +83,7 @@ export function AdminPinPopover({
           pointerEvents: "none",
         }}
       >
-        <div style={{ position: "relative", minWidth: 370, maxWidth: 420 }}>
+        <div style={{ position: "relative", width: 390 }}>
           <div
             style={{
               backgroundColor: "rgba(0,0,0,0.80)",
@@ -92,6 +92,9 @@ export function AdminPinPopover({
               padding: "15px 18px 15px 18px",
               fontFamily: "inherit",
               borderRadius: 5,
+              height: 320,
+              display: "flex",
+              flexDirection: "column",
             }}
           >
             {/* Header with close button */}
@@ -140,7 +143,16 @@ export function AdminPinPopover({
 
               <div className="flex gap-3">
                 <div className="w-[180px] text-sm font-medium">House Address</div>
-                <div className="ml-auto text-right text-sm max-w-[170px] whitespace-normal break-words">
+                <div 
+                  className="ml-auto text-right text-sm max-w-[170px]" 
+                  style={{
+                    display: "-webkit-box",
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: "vertical",
+                    overflow: "hidden",
+                    wordBreak: "break-word",
+                  }}
+                >
                   {popover.address || "N/A"}
                 </div>
               </div>
@@ -161,7 +173,7 @@ export function AdminPinPopover({
             </div>
 
             {/* Action Buttons */}
-            <div className="flex gap-2 mt-4 pointer-events-auto">
+            <div className="flex gap-2 pointer-events-auto">
               <button
                 onClick={handleMoreInfo}
                 disabled={loadingCommunityData}

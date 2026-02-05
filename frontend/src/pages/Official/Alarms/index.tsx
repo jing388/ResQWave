@@ -1,7 +1,8 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search } from "lucide-react";
-import { useMemo, useState } from "react";
+import { RefreshCcw, Search } from "lucide-react";
+import { useCallback, useMemo, useState } from "react";
+import { AlarmFilters, type FilterState } from "./components/AlarmFilters";
 import { useNavigate } from "react-router-dom";
 import { AlarmInfoSheet } from "./components/AlarmInfoSheet";
 import { createColumns } from "./components/Column";
@@ -15,27 +16,37 @@ export function Alarms() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedAlarm, setSelectedAlarm] = useState<Alarm | null>(null);
   const [infoSheetOpen, setInfoSheetOpen] = useState(false);
+  const [filters, setFilters] = useState<FilterState>({
+    severity: "all",
+    createdAtRange: "all",
+    createdAtStartDate: "",
+    createdAtEndDate: "",
+    updatedAtRange: "all",
+    updatedAtStartDate: "",
+    updatedAtEndDate: "",
+  });
+
   const navigate = useNavigate();
   
   // Use the custom hook to fetch alarms from backend
   const { activeAlarms, clearedAlarms, loading, error, refreshData } = useAlarms();
 
-  const handleMoreInfo = (alarm: Alarm) => {
+  const handleMoreInfo = useCallback((alarm: Alarm) => {
     setSelectedAlarm(alarm);
     setInfoSheetOpen(true);
-  };
+  }, []);
 
-  const handleEdit = (alarm: Alarm) => {
+  const handleEdit = useCallback((alarm: Alarm) => {
     // Navigate to Dashboard map view with terminal info
     navigate(
       `/dashboard?tab=map-view&terminalID=${alarm.terminalId}&terminalName=${encodeURIComponent(alarm.terminalName)}&autoOpen=true`
     );
-  };
+  }, [navigate]);
 
-  const handleArchive = (alarm: Alarm) => {
+  const handleArchive = useCallback((alarm: Alarm) => {
     console.log("Archive alarm:", alarm);
     // TODO: Implement archive functionality
-  };
+  }, []);
 
   const columns = useMemo(
     () =>
@@ -47,18 +58,143 @@ export function Alarms() {
     [handleMoreInfo, handleEdit, handleArchive],
   );
 
-  // Filter function for search
-  const filterAlarms = (alarms: Alarm[]) => {
-    if (!searchQuery.trim()) return alarms;
+  // Helper function to parse date strings
+  const parseFormattedDate = (dateStr: string): Date => {
+    return new Date(dateStr);
+  };
 
-    return alarms.filter(
-      (alarm) =>
-        alarm.terminalId.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        alarm.terminalName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        alarm.alert.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        alarm.status.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        alarm.severity.toLowerCase().includes(searchQuery.toLowerCase()),
+  // Helper function to get date range
+  const getDateRange = (
+    range: string,
+    customStart?: string,
+    customEnd?: string,
+  ) => {
+    const now = new Date();
+    let startDate: Date | null = null;
+    let endDate: Date | null = null;
+
+    switch (range) {
+      case "today":
+        startDate = new Date(now.setHours(0, 0, 0, 0));
+        endDate = new Date(now.setHours(23, 59, 59, 999));
+        break;
+      case "last7days":
+        startDate = new Date(now.setDate(now.getDate() - 7));
+        endDate = new Date();
+        break;
+      case "last30days":
+        startDate = new Date(now.setDate(now.getDate() - 30));
+        endDate = new Date();
+        break;
+      case "last3months":
+        startDate = new Date(now.setMonth(now.getMonth() - 3));
+        endDate = new Date();
+        break;
+      case "custom":
+        if (customStart) startDate = new Date(customStart);
+        if (customEnd) endDate = new Date(customEnd);
+        break;
+      default:
+        return { startDate: null, endDate: null };
+    }
+
+    return { startDate, endDate };
+  };
+
+  // Check if filters are active
+  const isFiltered = useMemo(() => {
+    return (
+      filters.severity !== "all" ||
+      filters.createdAtRange !== "all" ||
+      filters.updatedAtRange !== "all"
     );
+  }, [filters]);
+
+  // Clear all filters
+  const handleClearFilters = () => {
+    setFilters({
+      severity: "all",
+      createdAtRange: "all",
+      createdAtStartDate: "",
+      createdAtEndDate: "",
+      updatedAtRange: "all",
+      updatedAtStartDate: "",
+      updatedAtEndDate: "",
+    });
+  };
+
+  // Filter function for search and filters
+  const filterAlarms = (alarms: Alarm[]) => {
+    let filtered = [...alarms];
+
+    // Apply search filter
+    if (searchQuery.trim()) {
+      filtered = filtered.filter(
+        (alarm) =>
+          alarm.terminalId.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          alarm.terminalName
+            .toLowerCase()
+            .includes(searchQuery.toLowerCase()) ||
+          alarm.alert.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          alarm.status.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          alarm.severity.toLowerCase().includes(searchQuery.toLowerCase()),
+      );
+    }
+
+    // Apply severity filter
+    if (filters.severity !== "all") {
+      filtered = filtered.filter(
+        (alarm) => alarm.severity === filters.severity,
+      );
+    }
+
+    // Apply Created At date range filter
+    if (filters.createdAtRange !== "all") {
+      const { startDate, endDate } = getDateRange(
+        filters.createdAtRange,
+        filters.createdAtStartDate,
+        filters.createdAtEndDate,
+      );
+
+      if (startDate || endDate) {
+        filtered = filtered.filter((alarm) => {
+          const alarmDate = parseFormattedDate(alarm.createdAt);
+          if (startDate && endDate) {
+            return alarmDate >= startDate && alarmDate <= endDate;
+          } else if (startDate) {
+            return alarmDate >= startDate;
+          } else if (endDate) {
+            return alarmDate <= endDate;
+          }
+          return true;
+        });
+      }
+    }
+
+    // Apply Updated At date range filter
+    if (filters.updatedAtRange !== "all") {
+      const { startDate, endDate } = getDateRange(
+        filters.updatedAtRange,
+        filters.updatedAtStartDate,
+        filters.updatedAtEndDate,
+      );
+
+      if (startDate || endDate) {
+        filtered = filtered.filter((alarm) => {
+          const alarmDate = parseFormattedDate(alarm.updatedAt);
+          if (startDate && endDate) {
+            return alarmDate >= startDate && alarmDate <= endDate;
+          } else if (startDate) {
+            return alarmDate >= startDate;
+          } else if (endDate) {
+            return alarmDate <= endDate;
+          }
+          return true;
+        });
+      }
+    }
+
+    return filtered;
   };
 
   // Get the appropriate data based on active tab
@@ -141,7 +277,13 @@ export function Alarms() {
               </button>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5">
+            <AlarmFilters
+              filters={filters}
+              onFiltersChange={setFilters}
+              onClearFilters={handleClearFilters}
+              isFiltered={isFiltered}
+            />
             <div
               className={`transition-all duration-300 ease-in-out overflow-hidden ${
                 searchVisible ? "w-64 opacity-100" : "w-0 opacity-0"
@@ -157,10 +299,10 @@ export function Alarms() {
               />
             </div>
             <Button
-              variant="ghost"
-              size="icon"
-              className={`text-[#a1a1a1] hover:text-white hover:bg-[#262626] transition-all duration-200 ${
-                searchVisible ? "bg-[#262626] text-white" : ""
+              variant="outline"
+              size="sm"
+              className={`bg-[#262626] border border-[#404040] text-white hover:bg-[#333333] hover:text-white h-[38px] ${
+                searchVisible ? "bg-[#333333]" : ""
               }`}
               onClick={() => {
                 setSearchVisible(!searchVisible);
@@ -170,6 +312,14 @@ export function Alarms() {
               }}
             >
               <Search className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={refreshData}
+              className="bg-[#262626] border border-[#404040] text-white hover:bg-[#333333] hover:text-white h-[38px]"
+            >
+              <RefreshCcw className="h-4 w-4" />
             </Button>
           </div>
         </div>
