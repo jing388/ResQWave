@@ -38,6 +38,10 @@ module.exports = new EntitySchema({
             type: "text",
             nullable: true
         },
+        familyDetails: {
+            type: "text",
+            nullable: true
+        },
         otherInformation: {
             type: "text",
             nullable: true
