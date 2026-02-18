@@ -31,6 +31,34 @@ const stringifyHazards = (v) => {
   }
   try { return JSON.stringify(v); } catch { return JSON.stringify([]); }
 };
+const parseFamilyDetails = (v) => {
+  if (!v) return [];
+  if (Array.isArray(v)) return v;
+  if (typeof v === "string") {
+    try {
+      const j = JSON.parse(v);
+      return Array.isArray(j) ? j : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+};
+const stringifyFamilyDetails = (v) => {
+  if (!v) return JSON.stringify([]);
+  let raw = v;
+  if (typeof raw === 'string') {
+    try { raw = JSON.parse(raw); } catch { raw = []; }
+  }
+  if (!Array.isArray(raw)) return JSON.stringify([]);
+  
+  // Clean structure: { familyName: string, members: string[] }
+  const clean = raw.map(f => ({
+    familyName: String(f.familyName || "Unnamed Family").trim(),
+    members: Array.isArray(f.members) ? f.members.map(m => String(m).trim()).filter(Boolean) : []
+  }));
+  return JSON.stringify(clean);
+};
 
 // Upload alternative focal person photo
 const uploadAltFocalPhoto = catchAsync(async (req, res, next) => {
@@ -191,6 +219,7 @@ const viewMapOwnNeighborhood = catchAsync(async (req, res, next) => {
       },
       address: focal.address ?? null, // your focal has address (JSON string)
       hazards: parseHazards(nb.hazards),
+      familyDetails: parseFamilyDetails(nb.familyDetails),
       createdDate: nb.createdAt ?? null,
     };
 
@@ -218,6 +247,7 @@ const viewAboutYourNeighborhood = catchAsync(async (req, res, next) => {
       noOfResidents: nb.noOfResidents || '',
       floodwaterSubsidenceDuration: nb.floodSubsideHours || '',
       hazards: parseHazards(nb.hazards),
+      familyDetails: parseFamilyDetails(nb.familyDetails),
       otherInformation: nb.otherInformation ?? null,
       focalPerson: {
         name: [focal.firstName, focal.lastName].filter(Boolean).join(" ").trim() || focal.name || null,
@@ -385,6 +415,7 @@ const getNeighborhood = catchAsync(async (req, res, next) => {
     const safe = {
       ...neighborhood,
       hazards: parseHazards(neighborhood.hazards),
+      familyDetails: parseFamilyDetails(neighborhood.familyDetails),
       focalPerson: focal
         ? {
           id: focal.id,
@@ -416,6 +447,7 @@ const updateNeighborhood = catchAsync(async (req, res, next) => {
       noOfResidents,
       floodSubsideHours,
       hazards,
+      familyDetails,
       otherInformation,
       // focal person fields (optional)
       firstName,
@@ -455,7 +487,11 @@ const updateNeighborhood = catchAsync(async (req, res, next) => {
     }
 
     // snapshots BEFORE (parse hazards to array for proper logging)
-    const nbBefore = { ...neighborhood, hazards: parseHazards(neighborhood.hazards) };
+    const nbBefore = { 
+      ...neighborhood, 
+      hazards: parseHazards(neighborhood.hazards),
+      familyDetails: parseFamilyDetails(neighborhood.familyDetails) 
+    };
 
     // Neighborhood updates (store as string for range support)
     if (noOfHouseholds != null && noOfHouseholds !== neighborhood.noOfHouseholds) {
@@ -471,6 +507,12 @@ const updateNeighborhood = catchAsync(async (req, res, next) => {
       const incoming = stringifyHazards(hazards);
       if (incoming !== (neighborhood.hazards ?? null)) {
         neighborhood.hazards = incoming;
+      }
+    }
+    if (familyDetails !== undefined) {
+      const incoming = stringifyFamilyDetails(familyDetails);
+      if (incoming !== (neighborhood.familyDetails ?? null)) {
+        neighborhood.familyDetails = incoming;
       }
     }
     if (otherInformation != null && String(otherInformation) !== String(neighborhood.otherInformation ?? "")) {
@@ -518,9 +560,13 @@ const updateNeighborhood = catchAsync(async (req, res, next) => {
     const actorRole = req.user?.role || "FocalPerson";
 
     // Neighborhood changes (parse hazards to array for proper logging)
-    const nbAfter = { ...neighborhood, hazards: parseHazards(neighborhood.hazards) };
+    const nbAfter = { 
+      ...neighborhood, 
+      hazards: parseHazards(neighborhood.hazards),
+      familyDetails: parseFamilyDetails(neighborhood.familyDetails)
+    };
     const nbChanges = diffFields(nbBefore, nbAfter, [
-      "noOfHouseholds", "noOfResidents", "floodSubsideHours", "hazards", "otherInformation"
+      "noOfHouseholds", "noOfResidents", "floodSubsideHours", "hazards", "familyDetails", "otherInformation"
     ]);
     await addLogs({
       entityType: "Neighborhood",
@@ -589,6 +635,7 @@ const updateNeighborhood = catchAsync(async (req, res, next) => {
     neighborhood: {
       ...neighborhood,
       hazards: parseHazards(neighborhood.hazards),
+      familyDetails: parseFamilyDetails(neighborhood.familyDetails),
     },
   });
 });
