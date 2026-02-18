@@ -72,6 +72,7 @@ const createFocalPerson = catchAsync(async (req, res, next) => {
         noOfResidents,
         floodSubsideHours,
         hazards,
+        familyDetails,
         otherInformation
     } = req.body;
 
@@ -189,6 +190,32 @@ const createFocalPerson = catchAsync(async (req, res, next) => {
         hazardsString = JSON.stringify([]); // default
     }
 
+    // Normalize familyDetails to JSON string (Array of { familyName: string, members: string[] })
+    let familyDetailsString = null;
+    let validFamilies = [];
+
+    let rawFamilies = familyDetails;
+    if (typeof rawFamilies === "string") {
+        try {
+            rawFamilies = JSON.parse(rawFamilies);
+        } catch {
+            rawFamilies = [];
+        }
+    }
+
+    if (Array.isArray(rawFamilies)) {
+        validFamilies = rawFamilies.map(fam => {
+            const name = fam?.familyName ? String(fam.familyName).trim() : "Unnamed Family";
+            // ensure members is array of strings
+            let members = [];
+            if (Array.isArray(fam?.members)) {
+                members = fam.members.map(m => String(m).trim()).filter(Boolean);
+            }
+            return { familyName: name, members };
+        });
+    }
+    familyDetailsString = JSON.stringify(validFamilies);
+
     // Create focal person without photos first (smaller packet size)
     const focalPerson = focalPersonRepo.create({
         id: newFocalID,
@@ -250,6 +277,7 @@ const createFocalPerson = catchAsync(async (req, res, next) => {
         noOfResidents: noOfResidents || "",
         floodSubsideHours: floodSubsideHours || "",
         hazards: hazardsString,
+        familyDetails: familyDetailsString,
         otherInformation: otherInformation || "",
         archived: false,
     });
