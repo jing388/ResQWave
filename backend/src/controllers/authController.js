@@ -473,6 +473,8 @@ const adminDispatcherLogin = catchAsync(async (req, res, next) => {
     htmlContent: `<p>Dear ${user.name || "User"},</p><p>Your verification code is:</p><h2 style="color:#2E86C1;">${code}</h2><p>Expires in 5 mins.</p>`
   };
 
+  console.log("Your Verification code is:", code);
+
   // Do not 'await' these calls - let them run in the background
   tranEmailApi.sendTransacEmail(emailData).catch(err => console.error("OTP Email Failed:", err));
   
