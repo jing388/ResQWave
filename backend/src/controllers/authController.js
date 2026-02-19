@@ -376,6 +376,7 @@ const verifyFocalLogin = catchAsync(async (req, res, next) => {
   });
 });
 
+// --- ADMIN & DISPATCHER LOGIN ---
 const adminDispatcherLogin = catchAsync(async (req, res, next) => {
   const { userID, password } = req.body || {};
   const identifier = String(userID || "").trim();
@@ -384,214 +385,110 @@ const adminDispatcherLogin = catchAsync(async (req, res, next) => {
     return next(new BadRequestError("User ID and password are required."));
   }
 
-  let role = null;
-  let user = null;
-  let recipientEmail = null;
+  // 1. FIXED: Parallel Database Lookup
+  const [admin, dispatcher] = await Promise.all([
+    adminRepo.findOne({ where: { id: identifier } }),
+    dispatcherRepo.findOne({ where: { id: identifier } }),
+  ]);
 
-  // Try Admin by ID
-  const admin = await adminRepo.findOne({ where: { id: identifier } });
-  if (admin) {
-    // Check if locked
-    if (admin.lockUntil && new Date(admin.lockUntil) > new Date()) {
-      const remaining = Math.ceil(
-        (new Date(admin.lockUntil) - new Date()) / 60000
-      );
-      return res.status(403).json({
-        message: `Account Locked. Try again in ${remaining} minutes.`,
-      });
-    }
-    const isMatch = await bcrypt.compare(password, admin.password || "");
-    if (!isMatch) {
-      admin.failedAttempts = (admin.failedAttempts || 0) + 1;
-      if (admin.failedAttempts >= 5) {
-        admin.lockUntil = new Date(Date.now() + 15 * 60 * 1000);
-        await adminRepo.save(admin);
-        await sendLockoutEmail(admin.email, admin.name);
-        return res.status(403).json({ message: "Too Many Failed Attempts" });
-      }
-      await adminRepo.save(admin);
-      return res.status(400).json({
-        message: `Invalid Credentials. Attempts left: ${admin.failedAttempts}/5.`,
-      });
-    }
-    // Reset Attempts on Success
-    admin.failedAttempts = 0;
-    admin.lockUntil = null;
-    await adminRepo.save(admin);
-    role = "admin";
-    user = admin;
-    recipientEmail = admin.email;
-  }
+  // Unified user identification
+  const role = admin ? "admin" : dispatcher ? "dispatcher" : null;
+  const user = admin || dispatcher;
+  const repo = admin ? adminRepo : dispatcherRepo;
 
-  // If not admin, try Dispatcher
+  // 2. TIMING ATTACK PROTECTION
+  // If no user exists, run bcrypt anyway to keep response times consistent
   if (!user) {
-    const dispatcher = await dispatcherRepo.findOne({
-      where: { id: identifier },
-    });
-    if (dispatcher) {
-      // Check if archived
-      if (dispatcher.archived) {
-        return res.status(403).json({
-          message: "Account is not active. Please contact the admin.",
-        });
-      }
-      // Check if locked
-      if (
-        dispatcher.lockUntil &&
-        new Date(dispatcher.lockUntil) > new Date()
-      ) {
-        const remaining = Math.ceil(
-          (new Date(dispatcher.lockUntil) - new Date()) / 60000
-        );
-        return res.status(403).json({
-          message: `Account Locked. Try again in ${remaining} Minutes`,
-        });
-      }
-      const isMatch = await bcrypt.compare(
-        password,
-        dispatcher.password || ""
-      );
-      if (!isMatch) {
-        dispatcher.failedAttempts = (dispatcher.failedAttempts || 0) + 1;
-        if (dispatcher.failedAttempts >= 5) {
-          dispatcher.lockUntil = new Date(Date.now() + 15 * 60 * 1000);
-          await dispatcherRepo.save(dispatcher);
-          await sendLockoutEmail(dispatcher.email, dispatcher.name);
-          return res.status(403).json({
-            message: `Too many failed attempts. Account locked for 15 minutes.`,
-          });
-        }
-        await dispatcherRepo.save(dispatcher);
-        return res.status(400).json({
-          message: `Invalid Credentials. Attempts left: ${dispatcher.failedAttempts}/5`,
-        });
-      }
-      // Reset Attempts on Success
-      dispatcher.failedAttempts = 0;
-      dispatcher.lockUntil = null;
-      await dispatcherRepo.save(dispatcher);
-      role = "dispatcher";
-      user = dispatcher;
-      recipientEmail = dispatcher.email;
+    const dummyHash = "$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgNIvB.37yK7G/5DNIb.u8J8R/7m";
+    await bcrypt.compare(password, dummyHash);
+    return res.status(400).json({ message: "Invalid credentials! Please try again." });
+  }
+
+  // 3. STATUS CHECKS
+  if (role === "dispatcher" && user.archived) {
+    return res.status(403).json({ message: "Account is not active. Please contact the admin." });
+  }
+
+  if (user.lockUntil && new Date(user.lockUntil) > new Date()) {
+    const remaining = Math.ceil((new Date(user.lockUntil) - new Date()) / 60000);
+    return res.status(403).json({ message: `Account Locked. Try again in ${remaining} minutes.` });
+  }
+
+  // 4. PASSWORD VERIFICATION
+  const isMatch = await bcrypt.compare(password, user.password || "");
+  if (!isMatch) {
+    user.failedAttempts = (user.failedAttempts || 0) + 1;
+    if (user.failedAttempts >= 5) {
+      user.lockUntil = new Date(Date.now() + 15 * 60 * 1000);
+      await repo.save(user);
+      // Fire and forget lockout email
+      sendLockoutEmail(user.email, user.name).catch(err => console.error("Lockout Email Fail:", err));
+      return res.status(403).json({ message: "Too Many Failed Attempts. Locked for 15 minutes." });
     }
+    await repo.save(user);
+    return res.status(400).json({ message: `Invalid Credentials. Attempts left: ${5 - user.failedAttempts}/5.` });
   }
 
-  if (!user) {
-    return res
-      .status(400)
-      .json({ message: "Invalid credentials! Please try again." });
-  }
+  // Reset attempts on success
+  user.failedAttempts = 0;
+  user.lockUntil = null;
+  await repo.save(user);
 
-  // Clean previous OTPs for this user
+  // Clean previous OTPs
   await loginVerificationRepo.delete({ userID: user.id, userType: role });
 
-  // ----------------------------------------------------
-  // TEST MODE BYPASS: If NODE_ENV is 'test', skip 2FA and return full token immediately
-  // ----------------------------------------------------
+  // 5. TEST MODE BYPASS
   if (process.env.NODE_ENV === 'test') {
-    try {
-      const sessionID = crypto.randomUUID();
-      const sessionExpiry = new Date(Date.now() + 8 * 60 * 60 * 1000);
-      
-      console.log('Test Mode Login: Generating session for', user.id);
-      
-      await loginVerificationRepo.save({
-        userID: user.id,
-        userType: role,
-        code: "999999",
-        sessionID,
-        expiry: sessionExpiry,
-      });
-
-      if (!process.env.JWT_SECRET) {
-        throw new Error("JWT_SECRET is missing in Test Environment");
-      }
-
-      const token = jwt.sign(
-        { id: user.id, role, name: user.name, sessionID },
-        process.env.JWT_SECRET,
-        { expiresIn: "8h" }
-      );
-
-      return res.json({
-        message: "Login successful (Test Mode)",
-        token,
-        user: {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          role: role
-        }
-      });
-    } catch (bypassError) {
-      console.error("Test Mode Bypass Failed:", bypassError);
-      return next(new Error(`Test Bypass Failed: ${bypassError.message}`));
-    }
-  }
-  // ----------------------------------------------------
-
-
-  // Generate and save OTP
-  const code = crypto.randomInt(100000, 999999).toString();
-  const expiry = new Date(Date.now() + 5 * 60 * 1000);
-  await loginVerificationRepo.save({
-    userID: user.id,
-    userType: role,
-    code,
-    expiry,
-  });
-
-  // Send email
-  try {
-    const sender = { email: process.env.EMAIL_USER, name: "ResQWave Team" }; // or your verified Brevo sender
-    const receivers = [{ email: recipientEmail }];
-
-    await tranEmailApi.sendTransacEmail({
-      sender,
-      to: receivers,
-      subject: "ResQWave Login Verification Code",
-      htmlContent: `
-            <p>Dear ${user.name || "User"},</p>
-            <p>Your verification code is:</p>
-            <h2 style="color:#2E86C1;">${code}</h2>
-            <p>This code will expire in 5 minutes.</p>
-            <p>Thank you,<br/>ResQWave Team</p>
-          `,
+    const sessionID = crypto.randomUUID();
+    const sessionExpiry = new Date(Date.now() + 8 * 60 * 60 * 1000);
+    
+    await loginVerificationRepo.save({
+      userID: user.id, userType: role, code: "999999", sessionID, expiry: sessionExpiry,
     });
 
-    console.log(`Verification email sent to ${recipientEmail}`);
+    const token = jwt.sign(
+      { id: user.id, role, name: user.name, sessionID },
+      process.env.JWT_SECRET,
+      { expiresIn: "8h" }
+    );
 
-    // Send OTP via SMS
-    if (user.contactNumber) {
-      await sendSMS(
-        user.contactNumber,
-        `Your ResQWave verification code is: ${code}. Valid for 5 minutes.`
-      );
-    }
-  } catch (err) {
-    console.error("[dispatcherLogin] Failed to send OTP via Brevo:", err);
-    return res
-      .status(500)
-      .json({ message: "Failed to send verification email" });
+    return res.json({
+      message: "Login successful (Test Mode)",
+      token,
+      user: { id: user.id, name: user.name, email: user.email, role }
+    });
   }
 
-  console.log(` 2FA code: ${code}`);
+  // 6. OTP GENERATION
+  const code = crypto.randomInt(100000, 999999).toString();
+  const expiry = new Date(Date.now() + 5 * 60 * 1000);
+  
+  await loginVerificationRepo.save({ userID: user.id, userType: role, code, expiry });
 
-  const tempToken = jwt.sign(
-    { id: user.id, role, step: "2fa" },
-    process.env.JWT_SECRET,
-    { expiresIn: "5m" }
-  );
+  // 7. FIXED: Non-blocking Notifications (Background Tasks)
+  const emailData = {
+    sender: { email: process.env.EMAIL_USER, name: "ResQWave Team" },
+    to: [{ email: user.email }],
+    subject: "ResQWave Login Verification Code",
+    htmlContent: `<p>Dear ${user.name || "User"},</p><p>Your verification code is:</p><h2 style="color:#2E86C1;">${code}</h2><p>Expires in 5 mins.</p>`
+  };
 
+  // Do not 'await' these calls - let them run in the background
+  tranEmailApi.sendTransacEmail(emailData).catch(err => console.error("OTP Email Failed:", err));
+  
+  if (user.contactNumber) {
+    sendSMS(user.contactNumber, `Your ResQWave code is: ${code}`).catch(err => console.error("OTP SMS Failed:", err));
+  }
+
+  const tempToken = jwt.sign({ id: user.id, role, step: "2fa" }, process.env.JWT_SECRET, { expiresIn: "5m" });
   return res.json({ message: "Verification code sent", tempToken });
 });
 
-// COMBINED 2FA VERIFY (Admin | Dispatcher)
+
+// --- COMBINED 2FA VERIFY ---
 const adminDispatcherVerify = catchAsync(async (req, res, next) => {
   const { tempToken, code } = req.body || {};
-  if (!tempToken || !code) {
-    return next(new BadRequestError("tempToken and code are required"));
-  }
+  if (!tempToken || !code) return next(new BadRequestError("tempToken and code are required"));
 
   let decoded;
   try {
@@ -599,120 +496,51 @@ const adminDispatcherVerify = catchAsync(async (req, res, next) => {
   } catch {
     return next(new UnauthorizedError("Invalid or expired temp token"));
   }
-  if (
-    decoded.step !== "2fa" ||
-    !["admin", "dispatcher"].includes(decoded.role)
-  ) {
+
+  if (decoded.step !== "2fa" || !["admin", "dispatcher"].includes(decoded.role)) {
     return next(new BadRequestError("Invalid token context"));
   }
 
-  // Validate the OTP code against stored verification
+  // Unified Repo selection
+  const repo = decoded.role === "admin" ? adminRepo : dispatcherRepo;
+
+  // Validate OTP
   const otpSession = await loginVerificationRepo.findOne({
     where: { userID: decoded.id, userType: decoded.role, code },
   });
 
-  if (
-    !otpSession ||
-    (otpSession.expiry && new Date() > new Date(otpSession.expiry))
-  ) {
-    // Get user for failed attempt tracking
-    let user = null;
-    if (decoded.role === "admin") {
-      user = await adminRepo.findOne({ where: { id: decoded.id } });
-    } else {
-      user = await dispatcherRepo.findOne({ where: { id: decoded.id } });
-    }
-
+  if (!otpSession || (otpSession.expiry && new Date() > new Date(otpSession.expiry))) {
+    const user = await repo.findOne({ where: { id: decoded.id } });
     if (user) {
-      // Increment failed attempts
       user.failedAttempts = (user.failedAttempts || 0) + 1;
-
-      // Lock account after 5 failed attempts
       if (user.failedAttempts >= 5) {
-        user.lockUntil = new Date(Date.now() + 15 * 60 * 1000); // Lock for 15 minutes
-        if (decoded.role === "admin") {
-          await adminRepo.save(user);
-        } else {
-          await dispatcherRepo.save(user);
-        }
-        await sendLockoutEmail(user.email, user.name);
-        return next(new ForbiddenError("Too many failed attempts. Account locked for 15 minutes."));
+        user.lockUntil = new Date(Date.now() + 15 * 60 * 1000);
+        await repo.save(user);
+        sendLockoutEmail(user.email, user.name).catch(console.error);
+        return next(new ForbiddenError("Too many failed attempts. Account locked."));
       }
-
-      // Save failed attempt count
-      if (decoded.role === "admin") {
-        await adminRepo.save(user);
-      } else {
-        await dispatcherRepo.save(user);
-      }
+      await repo.save(user);
     }
-
-    return next(new BadRequestError(
-      `Invalid or expired verification code. Attempts: ${user?.failedAttempts || 0
-      }/5`
-    ));
+    return next(new BadRequestError(`Invalid or expired code. Attempts: ${user?.failedAttempts || 0}/5`));
   }
 
-  // Get user for successful login
-  let user = null;
-  if (decoded.role === "admin") {
-    user = await adminRepo.findOne({ where: { id: decoded.id } });
-  } else {
-    user = await dispatcherRepo.findOne({ where: { id: decoded.id } });
-  }
+  // Finalize Login
+  const user = await repo.findOne({ where: { id: decoded.id } });
+  if (!user) return next(new NotFoundError("User not found"));
 
-  if (!user) {
-    return next(new NotFoundError("User not found"));
-  }
-
-  // Reset failed attempts on successful verification
   user.failedAttempts = 0;
   user.lockUntil = null;
-  if (decoded.role === "admin") {
-    await adminRepo.save(user);
-  } else {
-    await dispatcherRepo.save(user);
-  }
+  await repo.save(user);
 
-  // Delete the used OTP
-  await loginVerificationRepo.delete({
-    userID: decoded.id,
-    userType: decoded.role,
-    code,
-  });
+  await loginVerificationRepo.delete({ userID: decoded.id, userType: decoded.role, code });
 
-  // Create session (so logout can invalidate)
   const sessionID = crypto.randomUUID();
-  const sessionExpiry = new Date(Date.now() + 8 * 60 * 60 * 1000);
   await loginVerificationRepo.save({
-    userID: decoded.id,
-    userType: decoded.role,
-    code: "OK",
-    sessionID,
-    expiry: sessionExpiry,
+    userID: decoded.id, userType: decoded.role, code: "OK", sessionID, expiry: new Date(Date.now() + 8 * 60 * 60 * 1000)
   });
-
-  // Get user data for response
-  let userData = null;
-  if (decoded.role === "admin") {
-    userData = {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: "admin",
-    };
-  } else {
-    userData = {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      phoneNumber: user.phoneNumber,
-      role: "dispatcher",
-    };
-  }
 
   const token = jwt.sign(
-    { id: decoded.id, role: decoded.role, name: userData.name, sessionID },
+    { id: user.id, role: decoded.role, name: user.name, sessionID },
     process.env.JWT_SECRET,
     { expiresIn: "8h" }
   );
@@ -720,7 +548,7 @@ const adminDispatcherVerify = catchAsync(async (req, res, next) => {
   return res.json({
     message: "Login successful",
     token,
-    user: userData,
+    user: { id: user.id, name: user.name, email: user.email, role: decoded.role, phoneNumber: user.phoneNumber }
   });
 });
 
