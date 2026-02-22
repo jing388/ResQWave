@@ -1,9 +1,9 @@
 import {
-  Sheet,
-  SheetClose,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
+    Sheet,
+    SheetClose,
+    SheetContent,
+    SheetHeader,
+    SheetTitle,
 } from "@/components/ui/sheet";
 import { ExpandIcon, Plus, X, ZoomOut } from "lucide-react";
 
@@ -241,6 +241,38 @@ export function CommunityGroupInfoSheet({
               </ul>
             ) : (
               <p className="text-white text-sm">No hazards recorded</p>
+            )}
+          </div>
+
+          {/* Family Details */}
+          <div className="bg-[#1d1d1d] px-4 py-4 rounded-[5px]">
+            <h3 className="text-white/80 text-sm font-normal mb-2">
+              Family Details
+            </h3>
+            {communityData.familyDetails &&
+            communityData.familyDetails.length > 0 ? (
+              <div className="space-y-3">
+                {communityData.familyDetails.map((family, index) => (
+                  <div key={index} className="bg-[#171717] p-3 rounded">
+                    <p className="text-white font-medium text-sm mb-2">
+                      {family.familyName}
+                    </p>
+                    {family.members && family.members.length > 0 ? (
+                      <ul className="space-y-1 text-white/70 text-xs ml-2">
+                        {family.members.map((member, memberIndex) => (
+                          <li key={memberIndex}>• {member}</li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-white/50 text-xs ml-2">
+                        No members listed
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-white text-sm">No family details recorded</p>
             )}
           </div>
 

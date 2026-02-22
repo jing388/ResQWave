@@ -1,5 +1,11 @@
 // Form-specific types for CreateCommunityGroupSheet
 
+// Family details structure (matches backend)
+export interface FamilyDetail {
+  familyName: string;
+  members: string[];
+}
+
 export interface CommunityFormData {
   assignedTerminal: string;
   communityGroupName: string;
@@ -11,6 +17,7 @@ export interface CommunityFormData {
   totalPWDs: number;
   floodwaterDuration: string;
   floodHazards: string[];
+  familyDetails: FamilyDetail[];
   notableInfo: string;
   focalPersonPhoto: File | null;
   focalPersonFirstName: string;
