@@ -67,6 +67,7 @@ export interface CommunityGroupDetails {
   families: string;
   floodSubsideHours?: string;
   hazards: string[];
+  familyDetails?: Array<{ familyName: string; members: string[] }>;
   notableInfo: string[];
   address?: string;
   coordinates?: string | null;

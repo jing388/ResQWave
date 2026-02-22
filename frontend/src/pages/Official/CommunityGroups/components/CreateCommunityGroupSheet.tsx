@@ -3,27 +3,27 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
 } from "@/components/ui/select";
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
+    Sheet,
+    SheetContent,
+    SheetHeader,
+    SheetTitle,
 } from "@/components/ui/sheet";
-import { Loader2, Map, Trash, Upload } from "lucide-react";
+import { Loader2, Map, Plus, Trash, Upload, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  checkFocalEmailExists,
-  createCommunityGroup,
-  getAllTerminals,
-  getAvailableTerminals,
-  updateNeighborhood,
-  type Terminal,
+    checkFocalEmailExists,
+    createCommunityGroup,
+    getAllTerminals,
+    getAvailableTerminals,
+    updateNeighborhood,
+    type Terminal,
 } from "../api/communityGroupApi";
 import type { CommunityGroupDrawerProps } from "../types";
 import type { CommunityFormData } from "../types/forms";
@@ -102,6 +102,7 @@ const createEmptyFormData = (): CommunityFormData => ({
   totalPWDs: 0,
   floodwaterDuration: "",
   floodHazards: [],
+  familyDetails: [],
   notableInfo: "",
   focalPersonPhoto: null,
   focalPersonFirstName: "",
@@ -468,6 +469,9 @@ export function CommunityGroupDrawer({
         totalPWDs: 0,
         floodwaterDuration: editData.floodSubsideHours || "",
         floodHazards: Array.isArray(editData.hazards) ? editData.hazards : [],
+        familyDetails: Array.isArray(editData.familyDetails)
+          ? editData.familyDetails
+          : [],
         notableInfo: Array.isArray(editData.notableInfo)
           ? editData.notableInfo.join(", ")
           : editData.notableInfo || "",
@@ -1193,6 +1197,121 @@ export function CommunityGroupDrawer({
                 </label>
               </div>
             </div>
+          </div>
+
+          {/* Family Details */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label className="text-white text-sm">Family Details</Label>
+              <button
+                type="button"
+                onClick={() => {
+                  const newFamily = {
+                    familyName: "",
+                    members: [""],
+                  };
+                  updateFormData({
+                    familyDetails: [...(formData.familyDetails || []), newFamily],
+                  });
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-[#4285f4] hover:bg-[#3367d6] text-white text-xs rounded-[5px] transition-colors"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Add Family
+              </button>
+            </div>
+
+            {formData.familyDetails && formData.familyDetails.length > 0 ? (
+              <div className="space-y-3">
+                {formData.familyDetails.map((family, familyIndex) => (
+                  <div
+                    key={familyIndex}
+                    className="bg-[#1d1d1d] p-4 rounded-[5px] space-y-3"
+                  >
+                    <div className="flex items-start gap-2">
+                      <div className="flex-1 space-y-2">
+                        <Label className="text-white text-xs">Family Name</Label>
+                        <Input
+                          value={family.familyName}
+                          onChange={(e) => {
+                            const updatedFamilies = [...formData.familyDetails];
+                            updatedFamilies[familyIndex].familyName = e.target.value;
+                            updateFormData({ familyDetails: updatedFamilies });
+                          }}
+                          placeholder="Enter family name"
+                          className="bg-[#171717] border-[#404040] text-white placeholder:text-gray-500 text-sm rounded-[5px] focus:ring-1 focus:ring-gray-600 focus:border-gray-600"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const updatedFamilies = formData.familyDetails.filter(
+                            (_, i) => i !== familyIndex
+                          );
+                          updateFormData({ familyDetails: updatedFamilies });
+                        }}
+                        className="mt-7 p-1.5 hover:bg-red-500/20 rounded transition-colors"
+                        title="Remove family"
+                      >
+                        <Trash className="w-4 h-4 text-red-400" />
+                      </button>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-white text-xs">Members</Label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const updatedFamilies = [...formData.familyDetails];
+                            updatedFamilies[familyIndex].members.push("");
+                            updateFormData({ familyDetails: updatedFamilies });
+                          }}
+                          className="flex items-center gap-1 px-2 py-1 text-xs text-blue-400 hover:text-blue-300 transition-colors"
+                        >
+                          <Plus className="w-3 h-3" />
+                          Add Member
+                        </button>
+                      </div>
+
+                      {family.members.map((member, memberIndex) => (
+                        <div key={memberIndex} className="flex items-center gap-2">
+                          <Input
+                            value={member}
+                            onChange={(e) => {
+                              const updatedFamilies = [...formData.familyDetails];
+                              updatedFamilies[familyIndex].members[memberIndex] =
+                                e.target.value;
+                              updateFormData({ familyDetails: updatedFamilies });
+                            }}
+                            placeholder={`Member ${memberIndex + 1}`}
+                            className="flex-1 bg-[#171717] border-[#404040] text-white placeholder:text-gray-500 text-sm rounded-[5px] focus:ring-1 focus:ring-gray-600 focus:border-gray-600"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updatedFamilies = [...formData.familyDetails];
+                              updatedFamilies[familyIndex].members = updatedFamilies[
+                                familyIndex
+                              ].members.filter((_, i) => i !== memberIndex);
+                              updateFormData({ familyDetails: updatedFamilies });
+                            }}
+                            className="p-1.5 hover:bg-red-500/20 rounded transition-colors"
+                            title="Remove member"
+                          >
+                            <X className="w-3.5 h-3.5 text-red-400" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="bg-[#1d1d1d] p-4 rounded-[5px] text-center text-gray-400 text-sm">
+                No families added yet. Click "Add Family" to start.
+              </div>
+            )}
           </div>
 
           {/* Notable Information */}

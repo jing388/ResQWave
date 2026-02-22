@@ -1,5 +1,5 @@
 import { API_BASE_URL, apiFetch } from "@/pages/Official/Reports/api/api";
-import type { CommunityFormData } from "../types/forms";
+import type { CommunityFormData, FamilyDetail } from "../types/forms";
 /**
  * Archive a neighborhood (move from active to archived)
  * Sets archived from 0 to 1 in the neighborhood table
@@ -104,6 +104,7 @@ export interface CreateCommunityGroupPayload {
   noOfResidents: string;
   floodSubsideHours: string;
   hazards: string[];
+  familyDetails: FamilyDetail[];
   otherInformation: string;
 }
 
@@ -226,6 +227,20 @@ export async function fetchNeighborhoodDetailsTransformed(
         ? raw.hazards
         : [String(raw.hazards)]
       : [],
+    familyDetails: (function () {
+      const fd = raw.familyDetails;
+      if (!fd) return [];
+      if (Array.isArray(fd)) return fd;
+      if (typeof fd === "string") {
+        try {
+          const parsed = JSON.parse(fd);
+          return Array.isArray(parsed) ? parsed : [];
+        } catch {
+          return [];
+        }
+      }
+      return [];
+    })(),
     notableInfo: raw.otherInformation
       ? Array.isArray(raw.otherInformation)
         ? raw.otherInformation
@@ -313,6 +328,16 @@ export function transformFormDataToPayload(
       ? JSON.stringify(addressData)
       : String(addressData);
 
+  // Clean familyDetails - remove empty entries and ensure proper structure
+  const cleanedFamilyDetails = (formData.familyDetails || [])
+    .map((family) => ({
+      familyName: family.familyName?.trim() || "Unnamed Family",
+      members: (family.members || [])
+        .map((m) => m.trim())
+        .filter((m) => m.length > 0),
+    }))
+    .filter((family) => family.familyName && family.members.length > 0);
+
   return {
     terminalID: formData.assignedTerminal,
     firstName: formData.focalPersonFirstName,
@@ -328,6 +353,7 @@ export function transformFormDataToPayload(
     noOfResidents: formData.totalIndividuals || "",
     floodSubsideHours: formData.floodwaterDuration || "",
     hazards: formData.floodHazards,
+    familyDetails: cleanedFamilyDetails,
     otherInformation: formData.notableInfo || "",
   };
 }
