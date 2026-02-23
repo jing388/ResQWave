@@ -80,6 +80,7 @@ export const createInitialFormData = (): CommunityFormData => ({
   totalPWDs: 0,
   floodwaterDuration: "",
   floodHazards: [],
+  familyDetails: [],
   notableInfo: "",
   focalPersonPhoto: null as File | null,
   focalPersonFirstName: "",
