@@ -1,36 +1,37 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import {
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table";
 import { useAuth } from "@/contexts/AuthContext";
 import {
-    getCoreRowModel,
-    getPaginationRowModel,
-    getSortedRowModel,
-    useReactTable,
-    type CellContext,
-    type ColumnDef,
-    type Row,
-    type SortingState,
+  getCoreRowModel,
+  getPaginationRowModel,
+  getSortedRowModel,
+  useReactTable,
+  type CellContext,
+  type ColumnDef,
+  type Row,
+  type SortingState,
 } from "@tanstack/react-table";
 import { Archive, ArchiveRestore, FileText, Info, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
@@ -39,8 +40,8 @@ import { CommunityGroupInfoSheet } from "../../CommunityGroups/components/Commun
 import type { CommunityGroupDetails } from "../../CommunityGroups/types";
 import { fetchDetailedReportData, type DetailedReportData } from "../api/api";
 import {
-    exportOfficialReportToPdf,
-    type OfficialReportData,
+  exportOfficialReportToPdf,
+  type OfficialReportData,
 } from "../utils/reportExportUtils";
 import { PostRescueFormInfoSheet } from "./PostRescueFormInfoSheet";
 import "./ReportsTable.css";
@@ -252,7 +253,7 @@ export function ReportsTable({
       accessorKey: "emergencyId",
       header: "Emergency ID",
       cell: ({ row }) => (
-        <div className="font-medium text-foreground truncate" title={row.getValue("emergencyId")}>
+        <div className="font-medium text-white truncate" title={row.getValue("emergencyId")}>
           {row.getValue("emergencyId")}
         </div>
       ),
@@ -261,7 +262,7 @@ export function ReportsTable({
       accessorKey: "communityName",
       header: "Terminal Name",
       cell: ({ row }) => (
-        <div className="text-foreground truncate" title={row.getValue("communityName")}>{row.getValue("communityName")}</div>
+        <div className="text-white truncate" title={row.getValue("communityName")}>{row.getValue("communityName")}</div>
       ),
     },
     {
@@ -291,7 +292,7 @@ export function ReportsTable({
       accessorKey: "dispatcher",
       header: "Dispatcher",
       cell: ({ row }) => (
-        <div className="text-foreground truncate" title={row.getValue("dispatcher")}>{row.getValue("dispatcher")}</div>
+        <div className="text-[#a1a1a1] truncate" title={row.getValue("dispatcher")}>{row.getValue("dispatcher")}</div>
       ),
     },
     {
@@ -300,7 +301,7 @@ export function ReportsTable({
         <Button
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="h-auto p-0 font-medium text-black hover:text-white hover:bg-transparent focus:bg-transparent active:bg-transparent"
+          className="h-auto p-0 font-medium text-black hover:text-gray-700 hover:bg-transparent focus:bg-transparent active:bg-transparent"
         >
           Date & Time Occurred
           <svg
@@ -319,7 +320,7 @@ export function ReportsTable({
         </Button>
       ),
       cell: ({ row }) => (
-        <div className="text-foreground truncate" title={row.getValue("dateTimeOccurred")}>
+        <div className="text-[#a1a1a1] truncate" title={row.getValue("dateTimeOccurred")}>
           {row.getValue("dateTimeOccurred")}
         </div>
       ),
@@ -354,7 +355,7 @@ export function ReportsTable({
               <Button
                 variant="ghost"
                 onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-                className="h-auto p-0 font-medium text-black hover:text-white hover:bg-transparent focus:bg-transparent active:bg-transparent"
+                className="h-auto p-0 font-medium text-black hover:text-gray-700 hover:bg-transparent focus:bg-transparent active:bg-transparent"
               >
                 Accomplished on
                 <svg
@@ -373,7 +374,7 @@ export function ReportsTable({
               </Button>
             ),
             cell: ({ row }: CellContext<ReportData, unknown>) => (
-              <div className="text-foreground truncate" title={(row.original as CompletedReport).accomplishedOn}>
+              <div className="text-[#a1a1a1] truncate" title={(row.original as CompletedReport).accomplishedOn}>
                 {(row.original as CompletedReport).accomplishedOn}
               </div>
             ),
@@ -407,7 +408,7 @@ export function ReportsTable({
       header: "Address",
       cell: ({ row }) => (
         <div
-          className="text-foreground truncate"
+          className="text-[#a1a1a1] truncate"
           title={row.getValue("address")}
         >
           {row.getValue("address")}
@@ -657,96 +658,67 @@ export function ReportsTable({
 
   return (
     <div className="flex flex-col w-full h-full overflow-hidden">
-      <div className="bg-[#191818] rounded-[5px] border border-[#262626] flex flex-col h-full overflow-hidden">
-        {/* Fixed Header */}
-        <div className="shrink-0">
-          <table className="w-full caption-bottom text-sm table-fixed min-w-[1100px]">
-            <colgroup>
-              <col className="col-emergency-id" />
-              <col className="col-community-name" />
-              <col className="col-alert-type" />
-              <col className="col-dispatcher" />
-              <col className="col-datetime" />
-              {isCompleted && <col className="col-accomplished" />}
-              <col className="col-address" />
-              <col className="col-actions" />
-            </colgroup>
-            <TableHeader>
-              {table.getHeaderGroups().map((headerGroup) => (
+      <div className="rounded-[5px] border border-[#2a2a2a] bg-[#171717] overflow-auto max-h-[calc(100vh-250px)]">
+        <Table>
+          <TableHeader className="sticky top-0 z-10">
+            {table.getHeaderGroups().map((headerGroup) => (
+              <TableRow
+                key={headerGroup.id}
+                className="border-b border-[#2a2a2a] hover:bg-[#262626]"
+              >
+                {headerGroup.headers.map((header, index) => {
+                  const isFirst = index === 0;
+                  const isLast = index === headerGroup.headers.length - 1;
+
+                  return (
+                    <TableHead
+                      key={header.id}
+                      className={`text-black font-medium bg-white h-12 px-4 text-left align-middle sticky top-0 z-10 ${
+                        isFirst ? "rounded-tl-[5px]" : ""
+                      } ${isLast ? "rounded-tr-[5px]" : ""}`}
+                    >
+                      {header.isPlaceholder
+                        ? null
+                        : typeof header.column.columnDef.header ===
+                            "function"
+                          ? header.column.columnDef.header(
+                              header.getContext(),
+                            )
+                          : header.column.columnDef.header}
+                    </TableHead>
+                  );
+                })}
+              </TableRow>
+            ))}
+          </TableHeader>
+          <TableBody>
+            {table.getRowModel().rows?.length ? (
+              table.getRowModel().rows.map((row) => (
                 <TableRow
-                  key={headerGroup.id}
-                  className="bg-white border-b border-[#404040] hover:bg-white"
+                  key={row.id}
+                  className="border-b border-[#2a2a2a] hover:bg-[#262626] cursor-pointer transition-colors"
                 >
-                  {headerGroup.headers.map((header, index) => {
-                    const isFirst = index === 0;
-                    const isLast = index === headerGroup.headers.length - 1;
-
-                    return (
-                      <TableHead
-                        key={header.id}
-                        className={`text-black font-medium px-2 py-2 ${
-                          isFirst ? "rounded-tl-[5px]" : ""
-                        } ${isLast ? "rounded-tr-[5px]" : ""}`}
-                      >
-                        {header.isPlaceholder
-                          ? null
-                          : typeof header.column.columnDef.header ===
-                              "function"
-                            ? header.column.columnDef.header(
-                                header.getContext(),
-                              )
-                            : header.column.columnDef.header}
-                      </TableHead>
-                    );
-                  })}
+                  {row.getVisibleCells().map((cell) => (
+                    <TableCell key={cell.id} className="px-4 py-3">
+                      {typeof cell.column.columnDef.cell === "function"
+                        ? cell.column.columnDef.cell(cell.getContext())
+                        : cell.getValue()}
+                    </TableCell>
+                  ))}
                 </TableRow>
-              ))}
-            </TableHeader>
-          </table>
-        </div>
-
-        {/* Scrollable Body */}
-        <div className="flex-1 min-h-0 reports-table-scrollable">
-          <table className="w-full caption-bottom text-sm table-fixed min-w-[1100px]">
-            <colgroup>
-              <col className="col-emergency-id" />
-              <col className="col-community-name" />
-              <col className="col-alert-type" />
-              <col className="col-dispatcher" />
-              <col className="col-datetime" />
-              {isCompleted && <col className="col-accomplished" />}
-              <col className="col-address" />
-              <col className="col-actions" />
-            </colgroup>
-            <TableBody>
-              {table.getRowModel().rows?.length ? (
-                table.getRowModel().rows.map((row) => (
-                  <TableRow
-                    key={row.id}
-                    className="border-b border-[#262626] hover:bg-[#1f1f1f]"
-                  >
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id} className="px-3 py-2">
-                        {typeof cell.column.columnDef.cell === "function"
-                          ? cell.column.columnDef.cell(cell.getContext())
-                          : cell.getValue()}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell
-                    colSpan={columns.length}
-                    className="h-24 text-center text-[#a1a1a1]"
-                  >
-                    No results.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </table>
-        </div>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell
+                  colSpan={columns.length}
+                  className="h-24 text-center text-[#a1a1a1]"
+                >
+                  No results.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
       </div>
 
       {/* Pagination */}

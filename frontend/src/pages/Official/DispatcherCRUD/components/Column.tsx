@@ -1,10 +1,10 @@
 import { Button } from "@/components/ui/button";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Archive, Edit, Info } from "lucide-react";
@@ -17,7 +17,7 @@ export const createColumns = (
     accessorKey: "id",
     header: "ID",
     cell: ({ row }) => (
-      <div className="text-[#a1a1a1]">{row.getValue("id")}</div>
+      <div className="text-white">{row.getValue("id")}</div>
     ),
   },
   {
