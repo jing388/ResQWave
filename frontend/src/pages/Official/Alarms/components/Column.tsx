@@ -1,9 +1,9 @@
 import { Button } from "@/components/ui/button";
 import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Download, Info } from "lucide-react";
@@ -16,7 +16,7 @@ export const createColumns = (
     accessorKey: "terminalId",
     header: "Terminal ID",
     cell: ({ row }) => (
-      <div className="text-[#a1a1a1]">{row.getValue("terminalId")}</div>
+      <div className="text-white">{row.getValue("terminalId")}</div>
     ),
   },
   {

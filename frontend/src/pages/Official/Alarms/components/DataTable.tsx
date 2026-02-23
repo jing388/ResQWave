@@ -65,9 +65,9 @@ export function DataTable<TData, TValue>({
 
   return (
     <div className="w-full">
-      <div className="rounded-[5px] border border-[#2a2a2a] bg-[#171717]">
+      <div className="rounded-[5px] border border-[#2a2a2a] bg-[#171717] overflow-auto max-h-[calc(100vh-250px)]">
         <Table>
-          <TableHeader>
+          <TableHeader className="sticky top-0 z-10">
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow
                 key={headerGroup.id}
@@ -80,7 +80,7 @@ export function DataTable<TData, TValue>({
                   return (
                     <TableHead
                       key={header.id}
-                      className={`text-black font-medium bg-white h-12 px-4 text-left align-middle ${
+                      className={`text-black font-medium bg-white h-12 px-4 text-left align-middle sticky top-0 z-10 ${
                         isFirst ? "rounded-tl-[5px]" : ""
                       } ${isLast ? "rounded-tr-[5px]" : ""}`}
                     >

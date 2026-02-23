@@ -65,13 +65,13 @@ export function DataTable<TData, TValue>({
 
   return (
     <div className="w-full">
-      <div className="bg-[#191818] rounded-[5px] border border-[#262626] overflow-hidden">
+      <div className="rounded-[5px] border border-[#2a2a2a] bg-[#171717] overflow-auto max-h-[calc(100vh-250px)]">
         <Table>
-          <TableHeader>
+          <TableHeader className="sticky top-0 z-10">
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow
                 key={headerGroup.id}
-                className="bg-white border-b border-[#404040] hover:bg-white"
+                className="border-b border-[#2a2a2a] hover:bg-[#262626]"
               >
                 {headerGroup.headers.map((header, index) => {
                   const isFirst = index === 0;
@@ -80,7 +80,7 @@ export function DataTable<TData, TValue>({
                   return (
                     <TableHead
                       key={header.id}
-                      className={`text-black font-medium ${
+                      className={`text-black font-medium bg-white h-12 px-4 text-left align-middle sticky top-0 z-10 ${
                         isFirst ? "rounded-tl-[5px]" : ""
                       } ${isLast ? "rounded-tr-[5px]" : ""}`}
                     >
@@ -101,13 +101,13 @@ export function DataTable<TData, TValue>({
               table.getRowModel().rows.map((row) => (
                 <TableRow
                   key={row.id}
-                  className="border-b border-[#262626] hover:bg-[#1f1f1f] cursor-pointer"
+                  className="border-b border-[#2a2a2a] hover:bg-[#262626] cursor-pointer transition-colors"
                   onClick={() =>
                     onRowClick && onRowClick(row.original as TData)
                   }
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id} className="py-[8.7px]">
+                    <TableCell key={cell.id} className="px-4 py-3">
                       {flexRender(
                         cell.column.columnDef.cell,
                         cell.getContext(),
