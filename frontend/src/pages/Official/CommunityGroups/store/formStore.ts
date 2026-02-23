@@ -25,6 +25,7 @@ const createInitialFormData = (): CommunityFormData => ({
   totalPWDs: 0,
   floodwaterDuration: "",
   floodHazards: [],
+  familyDetails: [],
   notableInfo: "",
   focalPersonPhoto: null,
   focalPersonFirstName: "",
