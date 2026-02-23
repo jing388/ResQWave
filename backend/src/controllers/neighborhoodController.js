@@ -443,6 +443,7 @@ const updateNeighborhood = catchAsync(async (req, res, next) => {
   const { id } = req.params;
 
     const {
+      terminalID,
       noOfHouseholds,
       noOfResidents,
       floodSubsideHours,
@@ -519,6 +520,43 @@ const updateNeighborhood = catchAsync(async (req, res, next) => {
       neighborhood.otherInformation = otherInformation;
     }
 
+    // Handle terminal assignment change
+    if (terminalID != null && terminalID !== neighborhood.terminalID) {
+      // Validate that new terminal exists and is available
+      const newTerminal = await terminalRepo.findOne({ where: { id: terminalID } });
+      if (!newTerminal) {
+        return next(new NotFoundError(`Terminal with ID ${terminalID} not found`));
+      }
+      
+      // Allow assigning to the same terminal (no-op) or to an available terminal
+      if (terminalID !== neighborhood.terminalID && newTerminal.availability !== "Available") {
+        return next(new BadRequestError(`Terminal ${terminalID} is not available`));
+      }
+
+      const oldTerminalID = neighborhood.terminalID;
+
+      // If changing to a different terminal, update terminal availabilities
+      if (oldTerminalID && oldTerminalID !== terminalID) {
+        // Set old terminal back to Available
+        await terminalRepo.update({ id: oldTerminalID }, { availability: "Available" });
+        await deleteCache(`terminal:${oldTerminalID}`);
+      }
+
+      // Set new terminal to Occupied (only if it's a different terminal)
+      if (terminalID !== oldTerminalID) {
+        await terminalRepo.update({ id: terminalID }, { availability: "Occupied" });
+        await deleteCache(`terminal:${terminalID}`);
+      }
+
+      // Update neighborhood's terminal assignment
+      neighborhood.terminalID = terminalID;
+
+      // Invalidate terminal-related caches
+      await deleteCache("terminals:active");
+      await deleteCache("onlineTerminals");
+      await deleteCache("offlineTerminals");
+    }
+
     // Focal person updates (if linked)
     let fpBefore = null;
     let fpAfter = null;
@@ -566,7 +604,7 @@ const updateNeighborhood = catchAsync(async (req, res, next) => {
       familyDetails: parseFamilyDetails(neighborhood.familyDetails)
     };
     const nbChanges = diffFields(nbBefore, nbAfter, [
-      "noOfHouseholds", "noOfResidents", "floodSubsideHours", "hazards", "familyDetails", "otherInformation"
+      "terminalID", "noOfHouseholds", "noOfResidents", "floodSubsideHours", "hazards", "familyDetails", "otherInformation"
     ]);
     await addLogs({
       entityType: "Neighborhood",
