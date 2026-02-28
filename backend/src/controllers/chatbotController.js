@@ -20,9 +20,12 @@ const stripCodeFences = (s) => {
 
 const generateQuickActionsInternal = async (text, count = 3) => {
     const fallback = [
-        "How do I send an SOS alert?",
-        "What do the LED indicators mean?",
-        "How can I access the dashboard?",
+        "How do I send an SOS alert using ResQWave?",
+        "What are the device LED indicators?",
+        "How does LoRa communication work?",
+        "What should I do during a flood?",
+        "How to report an emergency incident?",
+        "What is the evacuation procedure?",
     ];
 
     if (!genAI) {
@@ -31,7 +34,25 @@ const generateQuickActionsInternal = async (text, count = 3) => {
 
     try {
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-        const prompt = `User query: ${text}\n\nGenerate ${count} specific, clear follow-up questions (6-9 words each) a user might ask about ResQWave. Return ONLY a valid JSON array of strings, no markdown formatting, no explanations.`;
+        const prompt = `User query: ${text}
+
+ResQWave is a LoRa-powered emergency communication system specifically designed for flood emergency response and community safety. The system includes:
+- Emergency SOS alerts and distress signals
+- LoRa-based communication devices (nodes and gateways)
+- Real-time incident reporting and tracking
+- Dashboard for focal persons, dispatchers, and admins
+- LED indicator system for device status
+- Community evacuation management
+- Safety tips and preparedness guidance
+- Neighborhood-based alert system
+
+Based on the user's question above, generate ${count} specific, contextually relevant follow-up questions (6-10 words each) that:
+1. Relate directly to ResQWave's emergency features and capabilities
+2. Build naturally on the conversation context
+3. Focus on practical ResQWave usage (alerts, devices, dashboard, safety, evacuation)
+4. Avoid generic questions unrelated to emergency response or the ResQWave system
+
+Return ONLY a valid JSON array of strings, no markdown formatting, no explanations.`;
         const result = await model.generateContent(prompt);
         const response = await result.response;
         const raw = stripCodeFences(response.text());
