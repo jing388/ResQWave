@@ -225,7 +225,7 @@ export function CreateTerminalSheet({
           {/* Terminal Name Field */}
           <div className="space-y-3">
             <div className="flex justify-between items-center">
-              <Label className="text-white font-medium">Terminal Name</Label>
+              <Label className="text-white font-medium">Terminal Name *</Label>
               <span className="text-[#a1a1a1] text-xs">
                 {formData.name.length}/50
               </span>
@@ -245,7 +245,7 @@ export function CreateTerminalSheet({
           {/* DevEUI Field */}
           <div className="space-y-3">
             <div className="flex justify-between items-center">
-              <Label className="text-white font-medium">DevEUI</Label>
+              <Label className="text-white font-medium">DevEUI *</Label>
               <span className="text-[#a1a1a1] text-xs">
                 16 hex characters
               </span>

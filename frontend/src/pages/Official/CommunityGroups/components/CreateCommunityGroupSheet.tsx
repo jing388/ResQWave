@@ -3,27 +3,27 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import {
-    Sheet,
-    SheetContent,
-    SheetHeader,
-    SheetTitle,
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
 } from "@/components/ui/sheet";
 import { Loader2, Map, Plus, Trash, Upload, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-    checkFocalEmailExists,
-    createCommunityGroup,
-    getAllTerminals,
-    getAvailableTerminals,
-    updateNeighborhood,
-    type Terminal,
+  checkFocalEmailExists,
+  createCommunityGroup,
+  getAllTerminals,
+  getAvailableTerminals,
+  updateNeighborhood,
+  type Terminal,
 } from "../api/communityGroupApi";
 import type { CommunityGroupDrawerProps } from "../types";
 import type { CommunityFormData } from "../types/forms";
@@ -842,7 +842,7 @@ export function CommunityGroupDrawer({
 
           {/* Assigned Terminal */}
           <div className="space-y-2">
-            <Label className="text-white text-sm">Assigned Terminal</Label>
+            <Label className="text-white text-sm">Assigned Terminal *</Label>
             <Select
               value={formData.assignedTerminal}
               onValueChange={(value) =>
@@ -894,7 +894,7 @@ export function CommunityGroupDrawer({
 
           {/* Terminal Address */}
           <div className="space-y-2">
-            <Label className="text-white text-sm">Terminal Address</Label>
+            <Label className="text-white text-sm">Terminal Address *</Label>
             <div className="relative">
               <button
                 type="button"
@@ -929,7 +929,7 @@ export function CommunityGroupDrawer({
 
           {/* No. of Households */}
           <div className="space-y-2">
-            <Label className="text-white text-sm">No. of Households</Label>
+            <Label className="text-white text-sm">No. of Households *</Label>
             <Select
               value={formData.totalFamilies?.toString() || ""}
               onValueChange={(value) =>
@@ -964,7 +964,7 @@ export function CommunityGroupDrawer({
 
           {/* No. of Residents */}
           <div className="space-y-2">
-            <Label className="text-white text-sm">No. of Residents</Label>
+            <Label className="text-white text-sm">No. of Residents *</Label>
             <Select
               value={formData.totalIndividuals?.toString() || ""}
               onValueChange={(value) =>
@@ -1000,7 +1000,7 @@ export function CommunityGroupDrawer({
           {/* Floodwater Subsidence Duration */}
           <div className="space-y-2">
             <Label className="text-white text-sm">
-              Floodwater Subsidence Duration
+              Floodwater Subsidence Duration *
             </Label>
             <Select
               value={formData.floodwaterDuration || ""}
@@ -1577,7 +1577,7 @@ export function CommunityGroupDrawer({
           {/* First Name and Last Name */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label className="text-white text-sm">First Name</Label>
+              <Label className="text-white text-sm">First Name *</Label>
               <Input
                 value={formData.focalPersonFirstName || ""}
                 onChange={(e) => {
@@ -1588,7 +1588,7 @@ export function CommunityGroupDrawer({
               />
             </div>
             <div className="space-y-2">
-              <Label className="text-white text-sm">Last Name</Label>
+              <Label className="text-white text-sm">Last Name *</Label>
               <Input
                 value={formData.focalPersonLastName || ""}
                 onChange={(e) => {
@@ -1601,7 +1601,7 @@ export function CommunityGroupDrawer({
           </div>
 
           <div className="space-y-2">
-            <Label className="text-white text-sm">Contact Number</Label>
+            <Label className="text-white text-sm">Contact Number *</Label>
             <Input
               value={formData.focalPersonContact}
               onChange={(e) => {
@@ -1623,7 +1623,7 @@ export function CommunityGroupDrawer({
 
           <div className="space-y-2">
             <Label className="text-white text-sm">
-              Email
+              Email *
               {isCheckingFocalEmail && (
                 <span className="ml-2 text-gray-400 text-xs">
                   <Loader2 className="inline h-3 w-3 animate-spin mr-1" />
@@ -1912,7 +1912,7 @@ export function CommunityGroupDrawer({
           {/* Alt First Name and Last Name */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label className="text-white text-sm">First Name</Label>
+              <Label className="text-white text-sm">First Name *</Label>
               <Input
                 value={formData.altFocalPersonFirstName || ""}
                 onChange={(e) => {
@@ -1923,7 +1923,7 @@ export function CommunityGroupDrawer({
               />
             </div>
             <div className="space-y-2">
-              <Label className="text-white text-sm">Last Name</Label>
+              <Label className="text-white text-sm">Last Name *</Label>
               <Input
                 value={formData.altFocalPersonLastName || ""}
                 onChange={(e) => {
@@ -1936,7 +1936,7 @@ export function CommunityGroupDrawer({
           </div>
 
           <div className="space-y-2">
-            <Label className="text-white text-sm">Contact Number</Label>
+            <Label className="text-white text-sm">Contact Number *</Label>
             <Input
               value={formData.altFocalPersonContact}
               onChange={(e) => {
@@ -1958,7 +1958,7 @@ export function CommunityGroupDrawer({
 
           <div className="space-y-2">
             <Label className="text-white text-sm">
-              Email
+              Email *
               {isCheckingAltEmail && (
                 <span className="ml-2 text-gray-400 text-xs">
                   <Loader2 className="inline h-3 w-3 animate-spin mr-1" />

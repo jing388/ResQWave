@@ -405,7 +405,7 @@ export function CreateDispatcherSheet({
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="firstName" className="text-white text-xs">
-                  First Name
+                  First Name *
                 </Label>
                 <Input
                   id="firstName"
@@ -427,7 +427,7 @@ export function CreateDispatcherSheet({
               </div>
               <div className="space-y-2">
                 <Label htmlFor="lastName" className="text-white text-xs">
-                  Last Name
+                  Last Name *
                 </Label>
                 <Input
                   id="lastName"
@@ -448,7 +448,7 @@ export function CreateDispatcherSheet({
             {/* Contact Number */}
             <div className="space-y-2">
               <Label htmlFor="contactNumber" className="text-white text-xs">
-                Contact Number
+                Contact Number *
               </Label>
               <Input
                 id="contactNumber"
@@ -473,7 +473,7 @@ export function CreateDispatcherSheet({
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <Label htmlFor="email" className="text-white text-xs">
-                  Email
+                  Email *
                 </Label>
                 {isCheckingEmail && (
                   <Loader2 className="h-3 w-3 animate-spin text-gray-400" />
