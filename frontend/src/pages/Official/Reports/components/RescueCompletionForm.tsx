@@ -269,7 +269,7 @@ export function RescueCompletionForm({
               {/* Personnel Deployed */}
               <div>
                 <label className="block text-white font-medium text-sm mb-2">
-                  1. No. of Personnel Deployed
+                  1. No. of Personnel Deployed *
                 </label>
                 <div className="relative">
                   <input
@@ -307,7 +307,7 @@ export function RescueCompletionForm({
               {/* Resources Used */}
               <div>
                 <label className="block text-white font-medium text-sm mb-2">
-                  2. Resources Used
+                  2. Resources Used *
                 </label>
 
                 {/* Resource List */}
@@ -448,7 +448,7 @@ export function RescueCompletionForm({
               {/* Actions Taken */}
               <div>
                 <label className="block text-white font-medium text-sm mb-2">
-                  3. Actions Taken
+                  3. Actions Taken *
                 </label>
 
                 {/* Actions List */}
