@@ -71,7 +71,6 @@ export default function AccountSettingsModal({ open, onClose }: AccountSettingsM
                         ID: {user?.id || "N/A"}
                     </span>
                 </div>
-
                 {/* Account Information */}
                 <div className="mb-4 md:mb-6">
                     <h4 className="text-xs md:text-sm font-semibold text-white mb-2 md:mb-3">Account Information</h4>
