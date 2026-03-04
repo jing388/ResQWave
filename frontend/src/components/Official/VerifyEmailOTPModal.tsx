@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { X } from "lucide-react";
 import {
   InputOTP,
@@ -29,6 +29,12 @@ export default function VerifyEmailOTPModal({
   const [resending, setResending] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
 
+  const handleClose = useCallback(() => {
+    setOtp("");
+    setIsVerifying(false);
+    onClose();
+  }, [onClose]);
+
   // Reset OTP when modal opens
   useEffect(() => {
     if (open) {
@@ -44,7 +50,8 @@ export default function VerifyEmailOTPModal({
     if (otp.length === 6 && !isVerifying) {
       handleConfirm();
     }
-  }, [otp]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [otp, isVerifying]);
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -55,7 +62,7 @@ export default function VerifyEmailOTPModal({
 
     window.addEventListener("keydown", handleEscape);
     return () => window.removeEventListener("keydown", handleEscape);
-  }, [open]);
+  }, [open, handleClose]);
 
   if (!open) return null;
 
@@ -79,7 +86,7 @@ export default function VerifyEmailOTPModal({
         await onVerify(otp);
         // If verification succeeds and no error is thrown, reset OTP
         setOtp("");
-      } catch (err) {
+      } catch {
         // If there's an error, clear OTP so user can try again
         setOtp("");
       } finally {
@@ -119,12 +126,6 @@ export default function VerifyEmailOTPModal({
     } finally {
       setResending(false);
     }
-  };
-
-  const handleClose = () => {
-    setOtp("");
-    setIsVerifying(false);
-    onClose();
   };
 
   const isOTPComplete = otp.length === 6;
