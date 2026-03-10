@@ -51,6 +51,7 @@ app.use(
       "https://resqwave.vercel.app",
       "https://resqwave-production.up.railway.app",
       "https://resqwave-landing.vercel.app",
+      "https://www.resqwave.app",
     ],
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
