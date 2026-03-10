@@ -328,6 +328,7 @@ const getNeighborhoods = catchAsync(async (req, res, next) => {
         "n.terminalID",
         "n.focalPersonID",
         "n.createdAt",
+        "n.familyDetails",
       ])
       .where("n.archived = :arch", { arch: false })
       .orderBy("n.createdAt", "DESC")
@@ -372,6 +373,7 @@ const getNeighborhoods = catchAsync(async (req, res, next) => {
         focalPerson: focal.name || null,
         contactNumber: focal.contactNumber || null,
         address: focal.address || null,
+        familyDetails: parseFamilyDetails(n.n_familyDetails),
         registeredAt: n.n_createdAt || null,
       };
     });
@@ -948,6 +950,7 @@ const getArchivedNeighborhoods = catchAsync(async (req, res, next) => {
         "n.terminalID",
         "n.focalPersonID",
         "n.createdAt",
+        "n.familyDetails",
       ])
       .where("n.archived = :arch", { arch: true })
       .orderBy("n.createdAt", "DESC")
@@ -992,6 +995,7 @@ const getArchivedNeighborhoods = catchAsync(async (req, res, next) => {
         focalPerson: focal.name || null,
         contactNumber: focal.contactNumber || null,
         address: focal.address || null,
+        familyDetails: parseFamilyDetails(n.n_familyDetails),
         registeredAt: n.n_createdAt || null,
       };
     });
