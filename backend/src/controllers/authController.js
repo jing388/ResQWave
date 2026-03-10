@@ -182,38 +182,36 @@ const focalLogin = catchAsync(async (req, res, next) => {
   });
   await loginVerificationRepo.save(focalVerification);
 
-  // Send OTP using Brevo
-  try {
-    const sender = { email: process.env.EMAIL_USER, name: "ResQWave Team" };
-    const receivers = [{ email: focal.email }];
+  // Send OTP using Brevo (Non-blocking background task)
+  const sender = { email: process.env.EMAIL_USER, name: "ResQWave Team" };
+  const receivers = [{ email: focal.email }];
 
-    await tranEmailApi.sendTransacEmail({
-      sender,
-      to: receivers,
-      subject: "ResQWave 2FA Verification",
-      htmlContent: `
-          <p>Dear ${focal.name || "User"},</p>
-          <p>Your login verification code is:</p>
-          <h2 style="color:#2E86C1;">${focalCode}</h2>
-          <p>This code will expire in 5 minutes.</p>
-          <p>Thank you,<br/>ResQWave Team</p>
-        `,
-    });
-
+  // Fire and forget - do not await
+  tranEmailApi.sendTransacEmail({
+    sender,
+    to: receivers,
+    subject: "ResQWave 2FA Verification",
+    htmlContent: `
+        <p>Dear ${focal.name || "User"},</p>
+        <p>Your login verification code is:</p>
+        <h2 style="color:#2E86C1;">${focalCode}</h2>
+        <p>This code will expire in 5 minutes.</p>
+        <p>Thank you,<br/>ResQWave Team</p>
+      `,
+  }).then(() => {
     console.log(`OTP email sent to ${focal.email}`);
-
-    // Send OTP via SMS
-    if (focal.contactNumber) {
-      await sendSMS(
-        focal.contactNumber,
-        `Your ResQWave verification code is: ${focalCode}. Valid for 5 minutes.`
-      );
-    }
-  } catch (err) {
+  }).catch(err => {
     console.error("[focalLogin] Failed to send OTP via Brevo:", err);
-    return res
-      .status(500)
-      .json({ message: "Failed to send verification email" });
+  });
+
+  // Send OTP via SMS (Non-blocking background task)
+  if (focal.contactNumber) {
+    sendSMS(
+      focal.contactNumber,
+      `Your ResQWave verification code is: ${focalCode}. Valid for 5 minutes.`
+    ).catch(err => {
+      console.error("[focalLogin] Failed to send OTP via SMS:", err);
+    });
   }
 
   // For dev only, log code
