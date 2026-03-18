@@ -34,7 +34,7 @@ module.exports = new EntitySchema ({
         },
         completedAt: {
             type: "timestamp",
-            updateDate: true,
+            nullable: true
         },
         archived: {
             type: "boolean",
