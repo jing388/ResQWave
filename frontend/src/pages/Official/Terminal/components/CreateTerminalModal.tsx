@@ -1,9 +1,9 @@
 import { Button } from "@/components/ui/button";
 import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -101,6 +101,27 @@ export function CreateTerminalSheet({
     }
   }, [open, isEditing, editData, fetchNextTerminalId]);
 
+  // Format DevEUI with automatic dash insertion
+  const formatDevEUI = (value: string): string => {
+    // Remove all non-hex characters and dashes
+    const cleaned = value.replace(/[^0-9A-Fa-f]/g, "").toUpperCase();
+    
+    // Limit to 16 hex characters
+    const limited = cleaned.slice(0, 16);
+    
+    // Add dashes every 2 characters
+    const formatted = limited
+      .split("")
+      .reduce((acc, char, index) => {
+        if (index > 0 && index % 2 === 0) {
+          return acc + "-" + char;
+        }
+        return acc + char;
+      }, "");
+    
+    return formatted;
+  };
+
   const handleInputChange = useCallback(
     (field: keyof FormData, value: string) => {
       // Prevent input beyond 50 characters for name field
@@ -108,9 +129,15 @@ export function CreateTerminalSheet({
         return; // Don't update state if exceeding limit
       }
 
+      // Special handling for DevEUI field - auto-format with dashes
+      let finalValue = value;
+      if (field === "devEUI") {
+        finalValue = formatDevEUI(value);
+      }
+
       setFormData((prev) => ({
         ...prev,
-        [field]: value,
+        [field]: finalValue,
       }));
 
       // Clear error for this field when user starts typing
@@ -123,10 +150,10 @@ export function CreateTerminalSheet({
 
       // Real-time validation
       if (field === "name") {
-        const error = validateName(value);
+        const error = validateName(finalValue);
         setErrors((prev) => ({ ...prev, name: error }));
       } else if (field === "devEUI") {
-        const error = validateDevEUI(value);
+        const error = validateDevEUI(finalValue);
         setErrors((prev) => ({ ...prev, devEUI: error }));
       }
     },

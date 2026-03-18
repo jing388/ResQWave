@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs-focal";
 import { useAuth } from "@/contexts/AuthContext";
-import { useRef, useState, useMemo } from "react";
+import { useMemo, useRef, useState } from "react";
 import { ReportsTable } from "./components";
 import ReportAlerts, {
   type ReportAlertsHandle,
@@ -411,7 +411,7 @@ export function Reports() {
                           value="archive"
                           className="text-white text-base px-6 py-2 rounded transition-colors cursor-pointer hover:bg-[#333333]"
                         >
-                          Archive
+                          Archived
                           <span className="ml-2 px-2 py-0.5 bg-[#707070] rounded text-xs">
                             {filteredArchivedReports.length}
                           </span>
@@ -520,6 +520,7 @@ export function Reports() {
                 <ReportsTable
                   type="completed"
                   data={filteredCompletedReports}
+                  alertsRef={alertsRef}
                   onReportCreated={refreshAllReports}
                   onArchive={handleArchive}
                 />
@@ -527,6 +528,7 @@ export function Reports() {
                 <ReportsTable
                   type="archive"
                   data={filteredArchivedReports}
+                  alertsRef={alertsRef}
                   onReportCreated={refreshAllReports}
                   onRestore={handleRestore}
                   onDelete={handleDelete}
@@ -535,6 +537,7 @@ export function Reports() {
                 <ReportsTable
                   type="pending"
                   data={filteredPendingReports}
+                  alertsRef={alertsRef}
                   onReportCreated={refreshAllReports}
                 />
               )}

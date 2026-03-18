@@ -2,11 +2,13 @@ import { Button } from "@/components/ui/button";
 import { createPostRescueForm } from "@/pages/Official/Reports/api/api";
 import { X } from "lucide-react";
 import { useState } from "react";
+import type { ReportAlertsHandle } from "./ReportAlerts";
 
 interface RescueCompletionFormProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: () => void; // Callback for successful submission
+  alertsRef?: React.RefObject<ReportAlertsHandle>;
   emergencyData?: {
     emergencyId: string;
     communityName: string;
@@ -30,6 +32,7 @@ export function RescueCompletionForm({
   isOpen,
   onClose,
   onSuccess,
+  alertsRef,
   emergencyData,
 }: RescueCompletionFormProps) {
   const [personnelDeployed, setPersonnelDeployed] = useState<number>(0);
@@ -118,13 +121,23 @@ export function RescueCompletionForm({
       setResources([]);
       setActions([]);
 
+      // Show success alert through alerts ref
+      if (alertsRef?.current) {
+        alertsRef.current.showArchiveSuccess(`${emergencyData.emergencyId} - Rescue Completion Form`);
+      }
+
       onClose();
     } catch (err: unknown) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Failed to save rescue completion form",
-      );
+      const errorMessage = err instanceof Error
+        ? err.message
+        : "Failed to save rescue completion form";
+      
+      setError(errorMessage);
+      
+      // Show error alert through alerts ref
+      if (alertsRef?.current) {
+        alertsRef.current.showError(errorMessage);
+      }
     } finally {
       setIsSubmitting(false);
     }

@@ -12,13 +12,13 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { createColumns, type Terminal } from "./components/Column";
 import { CreateTerminalSheet } from "./components/CreateTerminalModal";
 import { DataTable } from "./components/DataTable";
+import TerminalAlerts, {
+  type TerminalAlertsHandle,
+} from "./components/TerminalAlerts";
 import {
   TerminalFilters,
   type FilterState,
 } from "./components/TerminalFilters";
-import TerminalAlerts, {
-  type TerminalAlertsHandle,
-} from "./components/TerminalAlerts";
 import { TerminalInfoSheet } from "./components/TerminalInfoSheet";
 import { useTerminals } from "./hooks/useTerminals";
 import type { TerminalDetails, TerminalFormData } from "./types";
@@ -496,7 +496,7 @@ export function Terminals() {
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-4 md:mb-6 gap-4">
           <div className="flex flex-col md:flex-row items-start md:items-center gap-4 md:gap-6">
             <h1 className="text-2xl font-semibold text-white">
-              Terminal Management
+              Terminal
             </h1>
             <div className="flex items-center gap-1 bg-[#262626] rounded-[5px] p-1">
               <button
