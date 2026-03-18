@@ -1,37 +1,37 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
 } from "@/components/ui/select";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
 } from "@/components/ui/table";
 import { useAuth } from "@/contexts/AuthContext";
 import {
-  getCoreRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
-  useReactTable,
-  type CellContext,
-  type ColumnDef,
-  type Row,
-  type SortingState,
+    getCoreRowModel,
+    getPaginationRowModel,
+    getSortedRowModel,
+    useReactTable,
+    type CellContext,
+    type ColumnDef,
+    type Row,
+    type SortingState,
 } from "@tanstack/react-table";
 import { Archive, ArchiveRestore, FileText, Info, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
@@ -40,10 +40,11 @@ import { CommunityGroupInfoSheet } from "../../CommunityGroups/components/Commun
 import type { CommunityGroupDetails } from "../../CommunityGroups/types";
 import { fetchDetailedReportData, type DetailedReportData } from "../api/api";
 import {
-  exportOfficialReportToPdf,
-  type OfficialReportData,
+    exportOfficialReportToPdf,
+    type OfficialReportData,
 } from "../utils/reportExportUtils";
 import { PostRescueFormInfoSheet } from "./PostRescueFormInfoSheet";
+import { type ReportAlertsHandle } from "./ReportAlerts";
 import "./ReportsTable.css";
 import { RescueCompletionForm } from "./RescueCompletionForm";
 import { RescueFormInfoSheet } from "./RescueFormInfoSheet";
@@ -74,6 +75,7 @@ interface PendingReport {
 interface ReportsTableProps {
   type: "completed" | "pending" | "archive";
   data: CompletedReport[] | PendingReport[];
+  alertsRef?: React.RefObject<ReportAlertsHandle>;
   onReportCreated?: () => void; // Callback when a report is successfully created
   onArchive?: (reportId: string) => void; // Callback when a report is archived
   onRestore?: (reportId: string) => void; // Callback when a report is restored
@@ -85,6 +87,7 @@ type ReportData = CompletedReport | PendingReport;
 export function ReportsTable({
   type,
   data,
+  alertsRef,
   onReportCreated,
   onArchive,
   onRestore,
@@ -885,6 +888,7 @@ export function ReportsTable({
       <RescueCompletionForm
         isOpen={isFormOpen}
         onClose={() => setIsFormOpen(false)}
+        alertsRef={alertsRef}
         onSuccess={() => {
           // Refresh the reports data after successful completion
           console.log("RescueCompletionForm success - refreshing reports...");

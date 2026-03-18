@@ -36,14 +36,14 @@ import { createColumns, type CommunityGroup } from "./components/Column";
 import CommunityGroupAlerts, {
   type CommunityGroupAlertsHandle,
 } from "./components/CommunityGroupAlerts";
-import {
-  NeighborhoodFilters,
-  type FilterState,
-} from "./components/NeighborhoodFilters";
 import { CommunityGroupApprovalSheet } from "./components/CommunityGroupApprovalSheet";
 import { CommunityGroupInfoSheet } from "./components/CommunityGroupInfoSheet";
 import { CommunityGroupDrawer } from "./components/CreateCommunityGroupSheet";
 import { DataTable } from "./components/DataTable";
+import {
+  NeighborhoodFilters,
+  type FilterState,
+} from "./components/NeighborhoodFilters";
 import { UnarchiveNeighborhoodModal } from "./components/UnarchiveNeighborhoodModal";
 import {
   predefinedAwaitingGroupDetails,
@@ -156,6 +156,7 @@ export function CommunityGroups() {
   const [, setInfoById] = useState<Record<string, CommunityGroupDetails>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [, setInfoSheetLoading] = useState(false);
   const [awaitingInfoById, setAwaitingInfoById] = useState<
     Record<string, CommunityGroupDetails>
   >(predefinedAwaitingGroupDetails);
@@ -196,17 +197,15 @@ export function CommunityGroups() {
       // For active/archived, fetch full neighborhood + focal person details from backend
       (async () => {
         try {
-          setLoading(true);
-          setError(null);
+          setInfoSheetLoading(true);
           const details = await fetchNeighborhoodDetailsTransformed(group.id);
           setInfoById((prev) => ({ ...prev, [group.id]: details }));
           setSelectedInfoData(details);
           setInfoOpen(true);
         } catch (err) {
           console.error("Failed to load neighborhood details:", err);
-          setError("Failed to load neighborhood details");
         } finally {
-          setLoading(false);
+          setInfoSheetLoading(false);
         }
       })();
     },
@@ -411,7 +410,7 @@ export function CommunityGroups() {
     setEditingGroup(group);
 
     try {
-      setLoading(true);
+      setInfoSheetLoading(true);
       // Fetch the detailed neighborhood data from backend
       const detailed = await fetchNeighborhoodDetailsTransformed(group.id);
       setEditData(detailed);
@@ -422,7 +421,7 @@ export function CommunityGroups() {
         "Failed to load neighborhood details for editing",
       );
     } finally {
-      setLoading(false);
+      setInfoSheetLoading(false);
     }
   }, []);
 

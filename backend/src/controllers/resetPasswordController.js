@@ -21,7 +21,7 @@ const adminRepo = AppDataSource.getRepository("Admin");
 const userRRLimits = new Map();
 
 // Configuration Constants
-const RESET_CODE_EXP_MINUTES = 5;
+const RESET_CODE_EXP_MINUTES = 1;
 const MAX_CODE_ATTEMPTS = 5;
 const LOCK_DURATION_MINUTES = 15;
 const RATE_LIMIT_WINDOW = 10 * 60 * 1000;
