@@ -3,17 +3,10 @@ const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const { AppDataSource } = require("../config/dataSource");
 const { sendLockoutEmail } = require("../utils/lockUtils");
-const SibApiV3Sdk = require("sib-api-v3-sdk");
 const { sendSMS } = require("../utils/textbeeSMS");
 const { BadRequestError, NotFoundError, UnauthorizedError, ForbiddenError } = require("../exceptions");
 const catchAsync = require("../utils/catchAsync");
 require("dotenv").config();
-
-const client = SibApiV3Sdk.ApiClient.instance;
-const apiKey = client.authentications["api-key"];
-apiKey.apiKey = process.env.BREVO_API_KEY;
-
-const tranEmailApi = new SibApiV3Sdk.TransactionalEmailsApi();
 
 const adminRepo = AppDataSource.getRepository("Admin");
 const dispatcherRepo = AppDataSource.getRepository("Dispatcher");
@@ -183,23 +176,16 @@ const focalLogin = catchAsync(async (req, res, next) => {
   await loginVerificationRepo.save(focalVerification);
 
   // Send OTP using Brevo (Non-blocking background task)
-  const sender = { email: process.env.EMAIL_USER, name: "ResQWave Team" };
-  const receivers = [{ email: focal.email }];
-
+  const { sendEmail } = require("../utils/emailTemplate");
+  
   // Fire and forget - do not await
-  tranEmailApi.sendTransacEmail({
-    sender,
-    to: receivers,
-    subject: "ResQWave 2FA Verification",
-    htmlContent: `
-        <p>Dear ${focal.name || "User"},</p>
-        <p>Your login verification code is:</p>
-        <h2 style="color:#2E86C1;">${focalCode}</h2>
-        <p>This code will expire in 5 minutes.</p>
-        <p>Thank you,<br/>ResQWave Team</p>
-      `,
-  }).then(() => {
-    console.log(`OTP email sent to ${focal.email}`);
+  sendEmail({
+      email: focal.email,
+      name: focal.firstName ? `${focal.firstName} ${focal.lastName}`.trim() : focal.name,
+      code: focalCode,
+      subject: "ResQWave 2FA Verification",
+      title: "2FA Verification",
+      message: "Your login verification code is:"
   }).catch(err => {
     console.error("[focalLogin] Failed to send OTP via Brevo:", err);
   });
@@ -464,17 +450,19 @@ const adminDispatcherLogin = catchAsync(async (req, res, next) => {
   await loginVerificationRepo.save({ userID: user.id, userType: role, code, expiry });
 
   // 7. FIXED: Non-blocking Notifications (Background Tasks)
-  const emailData = {
-    sender: { email: process.env.EMAIL_USER, name: "ResQWave Team" },
-    to: [{ email: user.email }],
-    subject: "ResQWave Login Verification Code",
-    htmlContent: `<p>Dear ${user.name || "User"},</p><p>Your verification code is:</p><h2 style="color:#2E86C1;">${code}</h2><p>Expires in 5 mins.</p>`
-  };
+  const { sendEmail } = require("../utils/emailTemplate");
 
   console.log("Your Verification code is:", code);
 
   // Do not 'await' these calls - let them run in the background
-  tranEmailApi.sendTransacEmail(emailData).catch(err => console.error("OTP Email Failed:", err));
+  sendEmail({
+    email: user.email,
+    name: user.name,
+    code: code,
+    subject: "ResQWave Login Verification",
+    title: "Login Verification",
+    message: "Your login verification code is:"
+  }).catch(err => console.error("OTP Email Failed:", err));
   
   if (user.contactNumber) {
     sendSMS(user.contactNumber, `Your ResQWave code is: ${code}`).catch(err => console.error("OTP SMS Failed:", err));
@@ -687,20 +675,14 @@ const resendFocalLoginCode = catchAsync(async (req, res, next) => {
 
   // Send email
   try {
-    const sender = { email: process.env.EMAIL_USER, name: "ResQWave Team" };
-    const receivers = [{ email: focal.email }];
-
-    await tranEmailApi.sendTransacEmail({
-      sender,
-      to: receivers,
+    const { sendEmail } = require("../utils/emailTemplate");
+    await sendEmail({
+      email: focal.email,
+      name: focal.firstName ? `${focal.firstName} ${focal.lastName}`.trim() : focal.name,
+      code: code,
       subject: "ResQWave 2FA Verification (Resend)",
-      htmlContent: `
-          <p>Dear ${focal.name || "Focal Person"},</p>
-          <p>Your login verification code is:</p>
-          <h2 style="color:#2E86C1;">${code}</h2>
-          <p>This code will expire in 5 minutes.</p>
-          <p>Thank you,<br/>ResQWave Team</p>
-        `,
+      title: "2FA Verification",
+      message: "Your login verification code is:"
     });
 
     console.log(` Resent verification code to ${focal.email}`);
@@ -823,20 +805,14 @@ const resendAdminDispatcherCode = catchAsync(async (req, res, next) => {
 
   // Send Email
   try {
-    const sender = { email: process.env.EMAIL_USER, name: "ResQWave Team" }; // must be verified in Brevo
-    const receivers = [{ email: recipientEmail }];
-
-    await tranEmailApi.sendTransacEmail({
-      sender,
-      to: receivers,
-      subject: "ResQWave Login Verification Code (Resend)",
-      htmlContent: `
-          <p>Dear ${user.name || role},</p>
-          <p>Your login verification code is:</p>
-          <h2 style="color:#2E86C1;">${code}</h2>
-          <p>This code will expire in 5 minutes.</p>
-          <p>Thank you,<br/>ResQWave Team</p>
-        `,
+    const { sendEmail } = require("../utils/emailTemplate");
+    await sendEmail({
+      email: recipientEmail,
+      name: user.name || role,
+      code: code,
+      subject: "ResQWave Login Verification (Resend)",
+      title: "Login Verification",
+      message: "Your login verification code is:"
     });
 
     console.log(`Verification code sent to ${recipientEmail}`);

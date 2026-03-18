@@ -8,11 +8,6 @@ if (!process.env.BREVO_API_KEY || !process.env.EMAIL_USER) {
     throw new Error('[PasswordReset] Missing required email env vars');
 }
 
-const SibApiV3Sdk = require('sib-api-v3-sdk');
-const brevoClient = SibApiV3Sdk.ApiClient.instance;
-const apiKey = brevoClient.authentications['api-key'];
-apiKey.apiKey = process.env.BREVO_API_KEY;
-const brevoEmailApi = new SibApiV3Sdk.TransactionalEmailsApi();
 const catchAsync = require("../utils/catchAsync");
 const { NotFoundError, BadRequestError, InternalServerError } = require("../exceptions");
 const { sendSMS } = require("../utils/textbeeSMS");
@@ -109,21 +104,16 @@ async function createResetEntry({ userID, userType }) {
     return { code, resetEntry };
 }
 
-async function sendResetEmail({ to, code }) {
+async function sendResetEmail({ to, code, name }) {
     if (!to) return;
-    const sender = { email: process.env.EMAIL_USER, name: 'ResQWave' };
-    const receivers = [{ email: to }];
-    await brevoEmailApi.sendTransacEmail({
-        sender,
-        to: receivers,
-        subject: 'ResQWave Password Reset',
-        htmlContent: `
-            <p>Your password reset code is: </p>
-            <h2 style="letter-spacing:3px; color:#2563eb">${code}</h2>
-            <p>This code will expire in ${RESET_CODE_EXP_MINUTES} minutes.</p>
-            <p>If you did not request this, you can ignore this email.</p>
-            <p>Thank you, <br/>ResQWave Team </p>
-        `,
+    const { sendEmail } = require("../utils/emailTemplate");
+    await sendEmail({
+        email: to,
+        name: name,
+        code: code,
+        subject: "ResQWave Password Reset",
+        title: "Password Reset",
+        message: "You have requested a password reset."
     });
 }
 
@@ -157,7 +147,7 @@ const requestAdminDispatcherReset = catchAsync(async (req, res, next) => {
 
     try {
         if (deliveryMethod === 'email') {
-            await sendResetEmail({ to: user.email, code });
+            await sendResetEmail({ to: user.email, code, name: user.name });
         } else {
             await sendResetSMS({ to: user.contactNumber, code });
         }
@@ -192,7 +182,7 @@ const requestFocalReset = catchAsync(async (req, res, next) => {
 
     try {
         if (deliveryMethod === 'email') {
-            await sendResetEmail({ to: focal.email, code });
+            await sendResetEmail({ to: focal.email, code, name: focal.firstName ? `${focal.firstName} ${focal.lastName}` : focal.name });
         } else {
             await sendResetSMS({ to: focal.contactNumber, code });
         }
@@ -347,7 +337,8 @@ const resendResetCode = catchAsync(async (req, res, next) => {
         if (deliveryMethod === 'sms') {
             await sendResetSMS({ to: user.contactNumber, code });
         } else {
-            await sendResetEmail({ to: user.email, code });
+            const name = user.firstName ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : user.name;
+            await sendResetEmail({ to: user.email, code, name });
         }
     } catch (e) {
         console.error(`[PasswordReset] Failed resending ${deliveryMethod}:`, e);
