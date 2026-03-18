@@ -18,7 +18,7 @@ export function Reports() {
   );
   const [searchVisible, setSearchVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const alertsRef = useRef<ReportAlertsHandle>(null);
+  const alertsRef = useRef<ReportAlertsHandle | null>(null);
   const [filters, setFilters] = useState<FilterState>({
     alertType: "all",
     occurredDateRange: "all",
