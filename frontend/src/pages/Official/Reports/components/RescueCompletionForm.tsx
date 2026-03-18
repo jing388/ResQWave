@@ -8,7 +8,7 @@ interface RescueCompletionFormProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: () => void; // Callback for successful submission
-  alertsRef?: React.RefObject<ReportAlertsHandle>;
+  alertsRef?: React.RefObject<ReportAlertsHandle | null>;
   emergencyData?: {
     emergencyId: string;
     communityName: string;

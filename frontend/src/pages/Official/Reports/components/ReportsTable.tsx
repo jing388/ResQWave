@@ -75,7 +75,7 @@ interface PendingReport {
 interface ReportsTableProps {
   type: "completed" | "pending" | "archive";
   data: CompletedReport[] | PendingReport[];
-  alertsRef?: React.RefObject<ReportAlertsHandle>;
+  alertsRef?: React.RefObject<ReportAlertsHandle | null>;
   onReportCreated?: () => void; // Callback when a report is successfully created
   onArchive?: (reportId: string) => void; // Callback when a report is archived
   onRestore?: (reportId: string) => void; // Callback when a report is restored
