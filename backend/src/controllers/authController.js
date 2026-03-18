@@ -165,7 +165,7 @@ const focalLogin = catchAsync(async (req, res, next) => {
 
   // Generate Code
   var focalCode = crypto.randomInt(100000, 999999).toString();
-  var focalExpiry = new Date(Date.now() + 5 * 60 * 1000); // 5 Minutes
+  var focalExpiry = new Date(Date.now() + 60 * 1000); // 60 Seconds
 
   // Save to Login Verification
   var focalVerification = loginVerificationRepo.create({
@@ -192,7 +192,7 @@ const focalLogin = catchAsync(async (req, res, next) => {
   if (focal.contactNumber) {
     sendSMS(
       focal.contactNumber,
-      `Your ResQWave verification code is: ${focalCode}. Valid for 5 minutes.`
+      `Your ResQWave verification code is: ${focalCode}. Valid for 60 seconds.`
     ).catch(err => {
       console.error("[focalLogin] Failed to send OTP via SMS:", err);
     });
@@ -443,7 +443,7 @@ const adminDispatcherLogin = catchAsync(async (req, res, next) => {
 
   // 6. OTP GENERATION
   const code = crypto.randomInt(100000, 999999).toString();
-  const expiry = new Date(Date.now() + 5 * 60 * 1000);
+  const expiry = new Date(Date.now() + 60 * 1000);
   
   await loginVerificationRepo.save({ userID: user.id, userType: role, code, expiry });
 
@@ -654,7 +654,7 @@ const resendFocalLoginCode = catchAsync(async (req, res, next) => {
 
   // Generate new code
   const code = crypto.randomInt(100000, 999999).toString();
-  const expiry = new Date(Date.now() + 5 * 60 * 1000);
+  const expiry = new Date(Date.now() + 60 * 1000);
 
   // Replace any pending OTP for this user
   await loginVerificationRepo.delete({
@@ -685,7 +685,7 @@ const resendFocalLoginCode = catchAsync(async (req, res, next) => {
     if (focal.contactNumber) {
       await sendSMS(
         focal.contactNumber,
-        `Your ResQWave verification code is: ${code}. Valid for 5 minutes.`
+        `Your ResQWave verification code is: ${code}. Valid for 60 seconds.`
       );
     }
   } catch (emailErr) {
@@ -787,7 +787,7 @@ const resendAdminDispatcherCode = catchAsync(async (req, res, next) => {
   }
 
   const code = crypto.randomInt(100000, 999999).toString();
-  const expiry = new Date(Date.now() + 5 * 60 * 1000);
+  const expiry = new Date(Date.now() + 60 * 1000);
 
   await loginVerificationRepo.delete({ userID: user.id, userType: role });
   await loginVerificationRepo.save({
@@ -814,7 +814,7 @@ const resendAdminDispatcherCode = catchAsync(async (req, res, next) => {
     if (user.contactNumber) {
       await sendSMS(
         user.contactNumber,
-        `Your ResQWave verification code is: ${code}. Valid for 5 minutes.`
+        `Your ResQWave verification code is: ${code}. Valid for 60 seconds.`
       );
     }
   } catch (emailErr) {

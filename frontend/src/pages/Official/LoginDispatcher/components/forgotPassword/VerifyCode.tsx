@@ -69,13 +69,13 @@ export function VerifyCode({
     };
   }, []);
 
-  // When resend is successful, reset expiry to 5 minutes from now and update timer immediately
+  // When resend is successful, reset expiry to 60 seconds from now and update timer immediately
   useEffect(() => {
     if (showResendAlert) {
-      const newExpiry = Date.now() + 5 * 60 * 1000;
+      const newExpiry = Date.now() + 60 * 1000;
       sessionStorage.setItem("passwordResetExpiry", newExpiry.toString());
       // Immediately update timer state and restart interval
-      setExpiresIn(300);
+      setExpiresIn(60);
       if (timerRef.current) clearInterval(timerRef.current);
       timerRef.current = setInterval(() => {
         const expiry = getStoredExpiry();
@@ -176,8 +176,8 @@ export function VerifyCode({
       const timer = setTimeout(() => setShowResendAlert(false), 3000);
       setResendAlertTimer(timer);
 
-      // Set new expiry timestamp (5 minutes from now)
-      const newExpiry = Date.now() + 5 * 60 * 1000;
+      // Set new expiry timestamp (60 seconds from now)
+      const newExpiry = Date.now() + 60 * 1000;
       sessionStorage.setItem("passwordResetExpiry", newExpiry.toString());
 
       onResend(newExpiry);

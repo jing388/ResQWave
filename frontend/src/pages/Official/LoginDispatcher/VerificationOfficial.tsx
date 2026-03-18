@@ -13,11 +13,11 @@ export function VerificationOfficial() {
     sessionStorage.getItem("tempToken") || "",
   );
 
-  // On mount, set OTP expiry to 5 minutes from now if not already set
+  // On mount, set OTP expiry to 60 seconds from now if not already set
   useEffect(() => {
     const stored = sessionStorage.getItem("officialOtpExpiry");
     if (!stored) {
-      const expiry = Date.now() + 5 * 60 * 1000;
+      const expiry = Date.now() + 60 * 1000;
       sessionStorage.setItem("officialOtpExpiry", expiry.toString());
     }
   }, []);
