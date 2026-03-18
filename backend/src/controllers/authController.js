@@ -3,6 +3,7 @@ const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const { AppDataSource } = require("../config/dataSource");
 const { sendLockoutEmail } = require("../utils/lockUtils");
+const { sendEmail } = require("../utils/emailTemplate");
 const { sendSMS } = require("../utils/textbeeSMS");
 const { BadRequestError, NotFoundError, UnauthorizedError, ForbiddenError } = require("../exceptions");
 const catchAsync = require("../utils/catchAsync");
@@ -174,9 +175,6 @@ const focalLogin = catchAsync(async (req, res, next) => {
     expiry: focalExpiry,
   });
   await loginVerificationRepo.save(focalVerification);
-
-  // Send OTP using Brevo (Non-blocking background task)
-  const { sendEmail } = require("../utils/emailTemplate");
   
   // Fire and forget - do not await
   sendEmail({
@@ -449,9 +447,6 @@ const adminDispatcherLogin = catchAsync(async (req, res, next) => {
   
   await loginVerificationRepo.save({ userID: user.id, userType: role, code, expiry });
 
-  // 7. FIXED: Non-blocking Notifications (Background Tasks)
-  const { sendEmail } = require("../utils/emailTemplate");
-
   console.log("Your Verification code is:", code);
 
   // Do not 'await' these calls - let them run in the background
@@ -493,28 +488,28 @@ const adminDispatcherVerify = catchAsync(async (req, res, next) => {
   const repo = decoded.role === "admin" ? adminRepo : dispatcherRepo;
 
   // Validate OTP
-  const otpSession = await loginVerificationRepo.findOne({
-    where: { userID: decoded.id, userType: decoded.role, code },
-  });
+  const [otpSession, user] = await Promise.all([
+    loginVerificationRepo.findOne({
+      where: {userID: decoded.id, userType: decoded.role, code},
+    }),
+    repo.findOne({ where: {id: decoded.id }}),
+  ]);
+
+  if (!user) return next(new NotFoundError("User not found"));
 
   if (!otpSession || (otpSession.expiry && new Date() > new Date(otpSession.expiry))) {
-    const user = await repo.findOne({ where: { id: decoded.id } });
-    if (user) {
-      user.failedAttempts = (user.failedAttempts || 0) + 1;
-      if (user.failedAttempts >= 5) {
-        user.lockUntil = new Date(Date.now() + 15 * 60 * 1000);
-        await repo.save(user);
-        sendLockoutEmail(user.email, user.name).catch(console.error);
-        return next(new ForbiddenError("Too many failed attempts. Account locked."));
-      }
-      await repo.save(user);
-    }
-    return next(new BadRequestError(`Invalid or expired code. Attempts: ${user?.failedAttempts || 0}/5`));
-  }
+    user.failedAttempts = (user.failedAttempts || 0 ) + 1;
 
-  // Finalize Login
-  const user = await repo.findOne({ where: { id: decoded.id } });
-  if (!user) return next(new NotFoundError("User not found"));
+    if (user.failedAttempts >= 5) {
+      user.lockUntil = new Date(Date.now() + 15 * 60 * 1000);
+      await repo.save(user);
+      sendLockoutEmail(user.email, user.name).catch(console.error);
+      return next(new ForbiddenError("Too many failed attempts. Account Locked."));
+    }
+
+    await repo.save(user);
+    return next(new BadRequestError(`Invalid or Expired Code. Attempts ${user.failedAttempts}/5`));
+  }
 
   user.failedAttempts = 0;
   user.lockUntil = null;
@@ -675,7 +670,6 @@ const resendFocalLoginCode = catchAsync(async (req, res, next) => {
 
   // Send email
   try {
-    const { sendEmail } = require("../utils/emailTemplate");
     await sendEmail({
       email: focal.email,
       name: focal.firstName ? `${focal.firstName} ${focal.lastName}`.trim() : focal.name,
@@ -805,7 +799,6 @@ const resendAdminDispatcherCode = catchAsync(async (req, res, next) => {
 
   // Send Email
   try {
-    const { sendEmail } = require("../utils/emailTemplate");
     await sendEmail({
       email: recipientEmail,
       name: user.name || role,
@@ -852,13 +845,20 @@ const logout = catchAsync(async (req, res, next) => {
   if (!authHeader) return next(new UnauthorizedError("No token"));
 
   const token = authHeader.split(" ")[1];
-  const decoded = jwt.verify(token, process.env.JWT_SECRET);
+  if (!token) return next(new UnauthorizedError("Invalid Token Format."));
 
-  if (decoded.sessionID) {
-    await loginVerificationRepo.delete({ sessionID: decoded.sessionID });
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    if (decoded.sessionID) {
+      await loginVerificationRepo.delete({ sessionID: decoded.sessionID });
+    }
+  } catch (err) {
+    if (err.name !== "TokenSessionError" && err.name !== "JsonWebTokenError") {
+      console.error("[Logout] Unexpected Error during session cleanup");
+    }
   }
 
-  res.json({ message: "Logged Out Succesfully" });
+  res.json({ message: "Logged Out Successfully" });
 });
 
 module.exports = {
