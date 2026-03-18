@@ -156,7 +156,7 @@ export function CommunityGroups() {
   const [, setInfoById] = useState<Record<string, CommunityGroupDetails>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [infoSheetLoading, setInfoSheetLoading] = useState(false);
+  const [, setInfoSheetLoading] = useState(false);
   const [awaitingInfoById, setAwaitingInfoById] = useState<
     Record<string, CommunityGroupDetails>
   >(predefinedAwaitingGroupDetails);

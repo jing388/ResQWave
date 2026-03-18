@@ -112,7 +112,7 @@ export function DataTable<TData, TValue>({
                       target.closest("[role='menu']") !== null;
 
                     if (!isClickOnButton && !isClickOnDropdown) {
-                      onRowClick && onRowClick(row.original as TData);
+                      onRowClick?.(row.original as TData);
                     }
                   }}
                 >
