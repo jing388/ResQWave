@@ -15,6 +15,9 @@ const dispatcherRepo = AppDataSource.getRepository("Dispatcher");
 const focalPersonRepo = AppDataSource.getRepository("FocalPerson");
 const adminRepo = AppDataSource.getRepository("Admin");
 
+// Rate Limit Tracking (In-Memory per Server Node)
+const userRRLimits = new Map();
+
 // Configuration Constants
 const RESET_CODE_EXP_MINUTES = 5;
 const MAX_CODE_ATTEMPTS = 5;
@@ -244,10 +247,67 @@ const resetPassword = catchAsync(async (req, res, next) => {
     res.json({ message: 'Password Reset Successful' });
 });
 
+const resendResetCode = catchAsync(async (req, res, next) => {
+    const { userID } = req.body;
+
+    if (!userID) {
+        return next(new BadRequestError("userID is required"));
+    }
+
+    // Server-side User ID Rate Limit (Max 3 resends per 10 mins per user)
+    const now = Date.now();
+    const tenMins = 10 * 60 * 1000;
+    const userLimit = userRRLimits.get(userID) || { count: 0, firstRequestTime: now };
+
+    if (now - userLimit.firstRequestTime > tenMins) {
+        // Reset window if 10 mins elapsed
+        userLimit.count = 1;
+        userLimit.firstRequestTime = now;
+    } else {
+        userLimit.count += 1;
+        if (userLimit.count > 3) {
+            userRRLimits.set(userID, userLimit);
+            return next(new BadRequestError("Too many resend attempts for this user account. Try again in 10 minutes."));
+        }
+    }
+    userRRLimits.set(userID, userLimit);
+
+    let userType = null;
+    let user = await adminRepo.findOne({ where: { id: userID } });
+    if (user) userType = 'admin';
+
+    if (!user) {
+        user = await dispatcherRepo.findOne({ where: { id: userID } });
+        if (user) userType = 'dispatcher';
+    }
+
+    if (!user) {
+        user = await focalPersonRepo.findOne({ where: { id: userID } });
+        if (user) userType = 'focal';
+    }
+
+    if (!user) {
+        return next(new NotFoundError("User Not Found"));
+    }
+
+    await clearPreviousResetEntries(user.id);
+    const { code } = await createResetEntry({ userID: user.id, userType });
+
+    try {
+        await sendResetEmail({ to: user.email, code });
+    } catch (e) {
+        console.error('[PasswordReset] Failed sending email via Brevo:', e);
+        return next(new InternalServerError('Failed to resend reset email'));
+    }
+
+    console.log(`Resent code for ${userType} (${user.id}): ${code}`);
+    res.json(buildResetRequestResponse({ user, message: 'New reset code sent to your registered email.' }));
+});
 
 module.exports = {
     requestAdminDispatcherReset,
     requestFocalReset,
     verifyResetCode,
-    resetPassword
+    resetPassword,
+    resendResetCode
 };
