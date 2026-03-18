@@ -102,9 +102,19 @@ export function DataTable<TData, TValue>({
                 <TableRow
                   key={row.id}
                   className="border-b border-[#2a2a2a] hover:bg-[#262626] cursor-pointer transition-colors"
-                  onClick={() =>
-                    onRowClick && onRowClick(row.original as TData)
-                  }
+                  onClick={(e) => {
+                    // Only trigger onRowClick if clicked directly on the row or non-interactive content
+                    // Avoid triggering when clicking on buttons, dropdowns, or other interactive elements
+                    const target = e.target as HTMLElement;
+                    const isClickOnButton = target.closest("button") !== null;
+                    const isClickOnDropdown =
+                      target.closest("[role='menuitem']") !== null ||
+                      target.closest("[role='menu']") !== null;
+
+                    if (!isClickOnButton && !isClickOnDropdown) {
+                      onRowClick && onRowClick(row.original as TData);
+                    }
+                  }}
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id} className="px-4 py-3">
