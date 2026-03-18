@@ -8,6 +8,7 @@ const {
     resendFocalLoginCode,
     resendAdminDispatcherCode,
     verifyFocalLogin,
+    refreshAccessToken,
     logout,
 } = require("../controllers/authController");
 
@@ -21,6 +22,7 @@ router.post("/verify-login", adminDispatcherVerify);
 router.post("/focal/login", focalLogin);
 router.post("/focal/resend", resendFocalLoginCode);
 router.post("/focal/verify", verifyFocalLogin);
+router.post("/refresh", refreshAccessToken);
 router.post("/logout", logout);
 router.get("/me", getCurrentUser);
 

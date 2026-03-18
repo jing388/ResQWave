@@ -861,6 +861,79 @@ const logout = catchAsync(async (req, res, next) => {
   res.json({ message: "Logged Out Successfully" });
 });
 
+// Refresh Access Token
+const refreshAccessToken = catchAsync(async (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) {
+    return next(new UnauthorizedError("No Token Provided"));
+  }
+
+  const token = authHeader.split(" ")[1];
+  if (!token) {
+    return next(new UnauthorizedError("Invalid Token Format"));
+  }
+
+  let decoded;
+  try {
+    // Accept expired access tokens so long as session is still valid.
+    decoded = jwt.verify(token, process.env.JWT_SECRET, {
+      ignoreExpiration: true,
+    });
+  } catch {
+    return next(new UnauthorizedError("Invalid Token"));
+  }
+
+  if (!decoded?.id || !decoded?.role) {
+    return next(new UnauthorizedError("Invalid Token Payload"));
+  }
+
+  if (decoded.sessionID) {
+    const session = await loginVerificationRepo.findOne({
+      where: { sessionID: decoded.sessionID },
+    });
+
+    if (!session) {
+      return next(new UnauthorizedError("Session Expired"));
+    }
+
+    if (session.expiry && new Date() > new Date(session.expiry)) {
+      await loginVerificationRepo.delete({ sessionID: decoded.sessionID });
+      return next(new UnauthorizedError("Session Expired"));
+    }
+  }
+
+  let userExists = false;
+  if (decoded.role === "admin") {
+    userExists = !!(await adminRepo.findOne({ where: { id: decoded.id } }));
+  } else if (decoded.role === "dispatcher") {
+    userExists = !!(await dispatcherRepo.findOne({ where: { id: decoded.id } }));
+  } else if (decoded.role === "focalPerson") {
+    const focal = await focalRepo.findOne({ where: { id: decoded.id } });
+    userExists = !!focal && !focal.archived;
+  }
+
+  if (!userExists) {
+    return next(new UnauthorizedError("User Not Found or Inactive"));
+  }
+
+  const refreshedPayload = {
+    id: decoded.id,
+    role: decoded.role,
+    ...(decoded.name ? { name: decoded.name } : {}),
+    ...(decoded.sessionID ? { sessionID: decoded.sessionID } : {}),
+  };
+
+  const refreshedToken = jwt.sign(refreshedPayload, process.env.JWT_SECRET, {
+    expiresIn: "8h",
+  });
+
+  return res.json({
+    message: "Token refreshed",
+    token: refreshedToken,
+  });
+});
+
+
 module.exports = {
   register,
   focalLogin,
@@ -871,4 +944,5 @@ module.exports = {
   verifyFocalLogin,
   resendAdminDispatcherCode,
   getCurrentUser,
+  refreshAccessToken,
 };
